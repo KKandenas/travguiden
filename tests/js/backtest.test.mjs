@@ -1,0 +1,24 @@
+import { test } from "node:test";
+import assert from "node:assert/strict";
+import { backtesta, sammanstall, spelaOmgang } from "../../docs/backtest.js";
+
+const avd = (v, f = 1, s = []) => ({ v, f, s, h: [[1, 0.5, 0.5], [2, 0.3, 0.3], [3, 0.2, 0.2]] });
+const omg = (id, vinnare) => ({ id, datum: id, bana: "Solvalla", utdelning: { 5: 10, 6: 100, 7: 1000, 8: 100000 },
+  avd: vinnare.map((v) => avd([v])) });
+
+test("en omgång: favoriterna vinner och spiksystemet ger 8 rätt", () => {
+  const s = spelaOmgang(omg("2026-01-01", [1, 1, 1, 1, 1, 1, 1, 1]), 50);
+  assert.equal(s.ratt, 8);
+  assert.ok(s.vinst >= 100000);
+  assert.ok(s.insats <= 50);
+});
+
+test("saldot ackumuleras och sammanställningen stämmer", () => {
+  const h = { omgangar: [omg("2026-01-01", [3, 3, 3, 3, 3, 3, 3, 3]), omg("2026-01-08", [1, 1, 1, 1, 1, 1, 1, 1])] };
+  const spel = backtesta(h, 50);
+  assert.equal(spel.length, 2);
+  assert.equal(spel[1].saldo, spel[0].vinst - spel[0].insats + spel[1].vinst - spel[1].insats);
+  const s = sammanstall(spel);
+  assert.equal(s.omgangar, 2);
+  assert.equal(s.netto, s.tillbaka - s.insats);
+});

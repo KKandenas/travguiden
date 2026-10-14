@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="sv">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0b1f15">
+<meta name="description" content="Travguiden – systemförslag till V85 med streck, chans och värde per häst.">
+<title>Travguiden</title>
+<link rel="icon" type="image/svg+xml" href="bilder/ikon.svg?v=1">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="apple-mobile-web-app-title" content="Travguiden">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@600;700;800&display=swap">
+<link rel="stylesheet" href="app.css?v=20261014a">
+<script type="module" src="app.js?v=20261014a"></script>
+</head>
+<body data-vy="kupong">
+<header class="topp">
+  <div class="topp-inre">
+    <a class="varumarke" href="#kupong" aria-label="Travguiden – till kupongen">
+      <img class="varumarke-ikon" src="bilder/ikon.svg?v=1" width="38" height="38" alt="">
+      <span class="varumarke-text">
+        <span class="ordmarke">TRAV<span>GUIDEN</span></span>
+        <span class="undertitel">Systemförslag till V85</span>
+      </span>
+    </a>
+    <nav class="meny-val" aria-label="Huvudmeny">
+      <button id="meny-knapp" class="meny-knapp" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="meny-lista">
+        <span id="meny-aktuell">Kupongen</span><span class="pil" aria-hidden="true">▾</span>
+      </button>
+      <ul id="meny-lista" class="meny-lista" hidden>
+        <li><a href="#kupong" data-vy="kupong"><b>Kupongen</b><span>Systemförslag för veckans V85</span></a></li>
+        <li><a href="#rattning" data-vy="rattning"><b>Förra omgången</b><span>Rättning av senaste V85</span></a></li>
+        <li><a href="#backtest" data-vy="backtest"><b>Om du spelat varje omgång</b><span>Insats, vinst och saldo sedan V85 startade</span></a></li>
+        <li><a href="#om" data-vy="om"><b>Så funkar Travguiden</b><span>Streck, chans, värde och hur systemet räknas fram</span></a></li>
+      </ul>
+    </nav>
+  </div>
+</header>
+
+<main>
+  <!-- ===== Kupongen ===== -->
+  <section class="vy" data-vy="kupong">
+    <div class="omgang">
+      <div class="omgang-inre">
+        <div class="topprad">
+          <h1 id="rubrik">Laddar V85 …</h1>
+          <span id="status" class="status" hidden></span>
+        </div>
+        <p id="underrubrik"></p>
+        <p id="nedrakning" class="nedrakning" hidden></p>
+      </div>
+    </div>
+    <div class="innehall tva-kolumner">
+      <div class="sidopanel">
+        <section class="kort budget" aria-labelledby="budget-rubrik">
+          <h2 id="budget-rubrik" class="kort-rubrik">Hur mycket vill du spela för?</h2>
+          <div id="budgetknappar" class="budgetknappar" role="radiogroup" aria-label="Insats"></div>
+          <p id="sammanfattning" class="sammanfattning" aria-live="polite"></p>
+          <p id="systemchans" class="forklaring-kort"></p>
+          <p id="fel" class="fel" role="alert" hidden></p>
+          <a class="lamna-in" href="https://www.atg.se/spel/V85" target="_blank" rel="noopener noreferrer">Lämna in hos ATG<span class="sr-only"> (öppnas i nytt fönster)</span> <span aria-hidden="true">↗</span></a>
+        </section>
+        <div id="banner" class="banner" hidden></div>
+        <p class="tips-rad">Tryck på rutan för att låsa en häst 🔒 · tryck på hästen för detaljer · <a href="#om">Så läser du kupongen</a></p>
+        <button id="rensa" class="knapp" type="button" hidden>Rensa låsningar</button>
+      </div>
+      <ol id="avdelningar" class="avdelningar" aria-label="Avdelningar"></ol>
+    </div>
+  </section>
+
+  <!-- ===== Förra omgången ===== -->
+  <section class="vy" data-vy="rattning" hidden>
+    <div class="omgang">
+      <div class="omgang-inre">
+        <div class="topprad"><h1 id="r-rubrik">Förra omgången</h1></div>
+        <p id="r-underrubrik"></p>
+      </div>
+    </div>
+    <div class="innehall tva-kolumner">
+      <div class="sidopanel">
+        <section class="kort budget" aria-labelledby="r-budget-rubrik">
+          <h2 id="r-budget-rubrik" class="kort-rubrik">Så gick systemet</h2>
+          <div id="r-budgetknappar" class="budgetknappar" role="radiogroup" aria-label="Insats i rättningen"></div>
+          <div id="r-resultat" aria-live="polite"><p class="dampad">Laddar …</p></div>
+        </section>
+        <section id="r-utdelning" class="kort" hidden>
+          <h2 class="kort-rubrik">Utdelning</h2>
+          <div id="r-utdelning-innehall"></div>
+        </section>
+      </div>
+      <ol id="r-avdelningar" class="avdelningar" aria-label="Avdelningar i förra omgången"></ol>
+    </div>
+  </section>
+
+  <!-- ===== Backtest ===== -->
+  <section class="vy innehall" data-vy="backtest" hidden>
+    <h1 class="vy-rubrik">Om du spelat varje omgång</h1>
+    <section class="kort">
+      <p>Travguidens förslag på varje V85 sedan starten i oktober 2025, rättat mot riktiga utdelningar.
+        Jämförs med samma system byggt på bara strecken.</p>
+      <div id="bt-budgetknappar" class="budgetknappar" role="radiogroup" aria-label="Insats i backtestet" style="margin-top:12px"></div>
+      <div id="backtest-innehall" aria-live="polite"><p class="dampad" style="margin-top:12px">Laddar historiken …</p></div>
+    </section>
+  </section>
+
+  <!-- ===== Om ===== -->
+  <section class="vy innehall om" data-vy="om" hidden>
+    <h1 class="vy-rubrik">Så funkar Travguiden</h1>
+    <section class="kort">
+      <h2>Kupongen</h2>
+      <p>Varje avdelning visar hästarna i startnummerordning. Rutan till höger har två siffror:</p>
+      <ul>
+        <li><b>Streck</b> – hur stor del av V85-spelarna som valt hästen.</li>
+        <li><b>Chans</b> – Travguidens bedömning av hur troligt det är att hästen vinner.</li>
+        <li><span class="prick inline" aria-hidden="true"></span> <b>Orange prick</b> – chansen är minst två procentenheter högre än strecken. Hästen är understreckad och betalar mer om den vinner.</li>
+        <li>Gröna rutor är systemets hästar. Tryck på en ruta för att låsa hästen 🔒 – den kommer då alltid med, och resten av systemet räknas om runt den.</li>
+      </ul>
+    </section>
+    <section class="kort">
+      <h2>Hur chansen räknas fram</h2>
+      <p>Grunden är strecken: miljontals kronor fördelade över hästarna. De är en bra bedömning men inte perfekt.
+        Historiken visar att folket är för säkert på favoriterna, så Travguiden plattar ut strecken något
+        (<i>chans ∝ streck<sup>a</sup></i>, där <i>a</i> skattas på alla avgjorda lopp). När vinnarpoolen har
+        tillräckligt med pengar på tävlingsdagen vägs vinnaroddsen in.</p>
+      <p>Hästarnas spår, tillägg, kuskens form och karriärstatistik har också testats. De förbättrade inte
+        bedömningen – strecken har redan tagit hänsyn till dem.</p>
+      <div id="om-statistik"></div>
+    </section>
+    <section class="kort">
+      <h2>Hur systemet väljs</h2>
+      <p>För varje avdelning prövas alla kombinationer av hästar. Poängen väger ihop två saker: chansen att
+        avdelningen sitter, och hur understreckade de valda hästarna är (understreckade hästar ger högre
+        utdelning). Sedan väljs den kombination över alla åtta avdelningar som ger högst total poäng inom
+        din insats. Raderna kostar 50 öre styck.</p>
+    </section>
+    <section class="kort">
+      <h2>Data och uppdateringar</h2>
+      <p>Hästar, streck, vinnarodds, resultat och utdelning hämtas från ATG:s öppna tävlingsinformation. En
+        automatisk körning uppdaterar under veckan och flera gånger på tävlingsdagen fram till spelstopp.</p>
+      <p>Travguiden är ett hobbyprojekt och ingen spelrådgivning. Spel om pengar kan vara beroendeframkallande –
+        spela för belopp du har råd att förlora. <a href="https://www.stodlinjen.se" target="_blank" rel="noopener noreferrer">Stödlinjen.se</a></p>
+    </section>
+  </section>
+</main>
+
+<footer class="fot">
+  <p id="fot-uppdaterad"></p>
+  <p>Hobbyprojekt · data från ATG · ingen spelrådgivning · 18 års åldersgräns</p>
+</footer>
+</body>
+</html>

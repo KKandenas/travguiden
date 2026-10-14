@@ -1,0 +1,12 @@
+{
+  "name": "Travguiden",
+  "short_name": "Travguiden",
+  "description": "Systemförslag till V85 med streck, chans och värde per häst.",
+  "lang": "sv",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#07110c",
+  "theme_color": "#0b1f15",
+  "icons": [{ "src": "bilder/ikon.svg?v=1", "sizes": "any", "type": "image/svg+xml" }]
+}
