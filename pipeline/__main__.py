@@ -34,6 +34,7 @@ from .sources import atg, atgtips
 from .tid import nu_utc
 
 log = logging.getLogger("pipeline")
+_SPELFORMER = ", ".join(f"'{s}'" for s in config.SPELFORMER)
 
 
 def _utc_om(timmar: float) -> str:
@@ -71,15 +72,17 @@ def _spara_spel(conn, spel_id: str) -> bool:
 
 
 def steg_atg(conn) -> bool:
-    try:
-        produkt = atg.hamta_produkt()
-    except HamtningsFel as e:
-        log.error("ATG: kunde inte hämta kommande omgångar: %s", e)
-        _satt_status(conn, "status:atg", {"ok": False, "fel": str(e)[:200]})
-        return False
-    kommande = [g["id"] for g in produkt.get("upcoming") or [] if g.get("id")]
+    kommande = []
+    for spelform in config.SPELFORMER:
+        try:
+            produkt = atg.hamta_produkt(spelform)
+        except HamtningsFel as e:
+            log.error("ATG: kunde inte hämta kommande %s: %s", spelform, e)
+            _satt_status(conn, "status:atg", {"ok": False, "fel": str(e)[:200]})
+            return False
+        kommande += [g["id"] for g in produkt.get("upcoming") or [] if g.get("id")]
     if not kommande:
-        log.info("ATG: ingen kommande %s just nu", config.SPELFORM)
+        log.info("ATG: ingen kommande %s just nu", " eller ".join(config.SPELFORMER))
     ok = all([_spara_spel(conn, sid) for sid in kommande])
     _satt_status(conn, "status:atg", {"ok": ok, "fel": None if ok else "minst en omgång gick inte att spara"})
     # Nyss stängda omgångar: hämta igen inom 48 h så att slutstrecken kommer med.
@@ -93,7 +96,7 @@ def steg_atg(conn) -> bool:
 def steg_experter(conn) -> None:
     """Experternas system för kommande omgångar. Valfri källa: fel loggas men stoppar aldrig pipelinen."""
     kommande = [r[0] for r in conn.execute(
-        "SELECT id FROM omgangar WHERE spelform = 'V85' AND avgjord = 0 AND spelstopp > ?", (nu_utc(),))]
+        f"SELECT id FROM omgangar WHERE spelform IN ({_SPELFORMER}) AND avgjord = 0 AND spelstopp > ?", (nu_utc(),))]
     if not kommande:
         return
     try:
@@ -116,8 +119,8 @@ def steg_kommentarer(conn) -> None:
         log.info("Kommentarer: hoppar över – %s", orsak)
         spara_ai_status(conn)
         return
-    for (sid,) in conn.execute("SELECT id FROM omgangar WHERE spelform = 'V85' AND avgjord = 0 AND spelstopp > ?",
-                               (nu_utc(),)).fetchall():
+    for (sid,) in conn.execute(f"SELECT id FROM omgangar WHERE spelform IN ({_SPELFORMER}) AND avgjord = 0 "
+                               "AND spelstopp > ?", (nu_utc(),)).fetchall():
         try:
             n = ai_kommentarer.uppdatera(conn, ai_klient.anropa_json, export.omgang_data(conn, sid))
             log.info("Kommentarer: %s – %d nya", sid, n)

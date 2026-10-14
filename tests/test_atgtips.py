@@ -81,3 +81,11 @@ def test_ateranvand_post_far_veckans_artikel_och_avsandare():
     assert k["artikel_id"] == "ny" and k["avsandare"] == "TR Media" and k["kalla"] == atgtips.KALLA_OVRIGA
     e = atgtips.tolka_kupong(las_fixture("atgtips_kupong.json"), k, None)
     assert e.namn == "TR Media (stora systemet)" and e.artikel == "Lördag 17/10: Tips till V85® på Gävle"
+
+
+def test_v75_kuponger_kanns_igen():
+    post = {"sys": {"id": "p"}, "title": "Kupong 1 Fem tippar",
+            "url": "https://www.atg.se/spel/V75_2026-11-28_5_5?couponId=1956601d-126e-4258-be6e-fdef45f1cfe0",
+            "linkedFrom": {"entryCollection": {"items": []}}}
+    [k] = atgtips.tolka_kupongposter([post], {"V75_2026-11-28_5_5"})
+    assert k["spel_id"] == "V75_2026-11-28_5_5"

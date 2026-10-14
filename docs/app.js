@@ -1,8 +1,8 @@
 import {
-  ANTAL_AVD, BUDGETAR, RADPRIS, VARDE_GRANS, deltagare, kronor, optimera, ratta, sammanfattning, skrallchanser,
+  BUDGETAR, RADPRIS, VARDE_GRANS, deltagare, kronor, optimera, ratta, sammanfattning, skrallchanser,
   skrallKrav, vinst,
-} from "./optimizer.js?v=20261014e";
-import { KALLOR, PERIODER, backtesta, iPeriod, sammanstall } from "./backtest.js?v=20261014e";
+} from "./optimizer.js?v=20261014f";
+import { KALLOR, PERIODER, backtesta, iPeriod, sammanstall } from "./backtest.js?v=20261014f";
 
 const $ = (id) => document.getElementById(id);
 const LAGRING = "travguiden";
@@ -75,7 +75,7 @@ async function hamta(fil) {
   const r = await fetch(fil, { cache: "no-cache" });
   if (!r.ok) throw new Error(`${fil}: ${r.status}`);
   const d = await r.json();
-  if (d.avdelningar && d.avdelningar.length !== ANTAL_AVD) throw new Error(`${fil}: väntade ${ANTAL_AVD} avdelningar`);
+  if (d.avdelningar && d.avdelningar.length !== spelFor(d).antal_avd) throw new Error(`${fil}: fel antal avdelningar`);
   return d;
 }
 
@@ -96,9 +96,16 @@ const avdelningarFor = (data, kalla = state.kalla) => data.avdelningar.map((a) =
 }));
 
 /** Optimera enligt ett förslag. Skrällchansen får krav på skrällar. */
+/** Spelreglerna för omgången (V85: 8 avdelningar och 50 öre; nya V75: 7 avdelningar och 60 öre). */
+function spelFor(data) {
+  return data?.spel ?? { spelform: data?.omgang?.spelform ?? "V85", antal_avd: data?.avdelningar?.length ?? 8,
+    radpris: RADPRIS, vinstgrupper: [8, 7, 6, 5] };
+}
+
 function optimeraForslag(data, kalla, budget, lasningar) {
   const avd = avdelningarFor(data, kalla);
-  return optimera(avd, budget, lasningar, undefined, kalla === "skrall" ? skrallKrav(avd, budget, lasningar) : {});
+  return optimera(avd, budget, lasningar, undefined, kalla === "skrall" ? skrallKrav(avd, budget, lasningar) : {},
+    spelFor(data).radpris);
 }
 
 /** Kort förklaring under sammanfattningen. */
@@ -166,9 +173,9 @@ async function start() {
   }
   markeraForslag();
   state.lasningar = (lagrat.lasningar || {})[state.data.omgang.id] || {};
-  byggBudgetknappar($("budgetknappar"), () => state.budget, (b) => { state.budget = b; uppdatera(); });
+  byggBudgetknappar($("budgetknappar"), () => state.budget, (b) => { state.budget = b; uppdatera(); }, spelFor(state.data).radpris);
   $("avdelningar").addEventListener("click", klickKupong);
-  fallText = fallKnapp($("fall-alla"), state.utfallda, uppdatera);
+  fallText = fallKnapp($("fall-alla"), state.utfallda, uppdatera, spelFor(state.data).antal_avd);
   $("rensa").addEventListener("click", () => { state.lasningar = {}; uppdatera(); });
   renderaOmStatistik();
   renderaDrift(state.data);
@@ -176,12 +183,14 @@ async function start() {
   setInterval(renderaTopp, 60_000);
 }
 
-function byggBudgetknappar(box, hamtaVald, valj) {
+/** radpris = null: antalet rader skrivs inte ut (backtestet blandar V85 och V75 med olika radpris). */
+function byggBudgetknappar(box, hamtaVald, valj, radpris = null) {
+  const rader = (b) => Math.floor(b / radpris + 1e-9);
   box.replaceChildren(...BUDGETAR.map((b) => el("button", {
     type: "button", role: "radio", "data-budget": b, "aria-checked": String(b === hamtaVald()),
-    "aria-label": `${b} kronor, upp till ${b / RADPRIS} rader`,
+    "aria-label": radpris ? `${b} kronor, upp till ${rader(b)} rader` : `${b} kronor`,
     onclick: () => { valj(b); markeraBudget(box, b); },
-  }, `${b} kr`, el("small", { text: `${b / RADPRIS} rader` }))));
+  }, `${b} kr`, radpris ? el("small", { text: `${rader(b)} rader` }) : null)));
 }
 function markeraBudget(box, b) {
   for (const k of box.querySelectorAll("button")) k.setAttribute("aria-checked", String(Number(k.dataset.budget) === b));
@@ -199,7 +208,7 @@ function uppdatera() {
   }
   const r = state.resultat;
   $("sammanfattning").textContent = r.ok ? sammanfattning(r) : r.fel;
-  $("systemchans").textContent = r.ok ? `Chans att systemet ger 8 rätt: ${chansText(r.chans)}` : "";
+  $("systemchans").textContent = r.ok ? `Chans att systemet ger ${spelFor(d).antal_avd} rätt: ${chansText(r.chans)}` : "";
   const info = forslagInfo(d, state.kalla, r);
   $("forslag-info").textContent = info;
   $("forslag-info").hidden = !info;
@@ -219,7 +228,10 @@ function renderaTopp() {
   const o = state.data.omgang;
   const stopp = new Date(o.spelstopp);
   const kvar = stopp - Date.now();
-  $("rubrik").textContent = `V85 · ${o.bana}`;
+  const spel = spelFor(state.data);
+  $("rubrik").textContent = `${spel.spelform} · ${o.bana}`;
+  $("undertitel").textContent = `Systemförslag till ${spel.spelform}`;
+  $("lamna-in").href = `https://www.atg.se/spel/${spel.spelform}`;
   $("underrubrik").textContent = `${versal(datumFmt.format(stopp))} · första start ${tidFmt.format(stopp)}` +
     (o.omsattning ? ` · omsättning ${kr(o.omsattning)}` : "");
   const status = $("status");
@@ -235,7 +247,7 @@ function renderaTopp() {
   const banner = $("banner");
   if (state.exempel) {
     banner.hidden = false;
-    banner.textContent = "Det här är en exempelomgång. Den riktiga visas när pipelinen har hämtat veckans V85.";
+    banner.textContent = "Det här är en exempelomgång. Den riktiga visas när pipelinen har hämtat veckans omgång.";
   } else if (kvar <= 0 && !o.avgjord) {
     banner.hidden = false;
     banner.textContent = "Spelstopp har passerat. Förslaget visar läget vid spelstopp – resultaten kommer under kvällen.";
@@ -291,12 +303,12 @@ function ritaAvdelningar(lista, data, val, lasningar, oppna, interaktiv, kalla, 
 }
 
 /** Knappen "Fäll ut alla / Fäll ihop alla" för en avdelningslista. */
-function fallKnapp(knapp, utfallda, rita) {
-  const uppdateraText = () => { knapp.textContent = utfallda.size === ANTAL_AVD ? "Fäll ihop alla" : "Fäll ut alla"; };
+function fallKnapp(knapp, utfallda, rita, antal) {
+  const uppdateraText = () => { knapp.textContent = utfallda.size === antal ? "Fäll ihop alla" : "Fäll ut alla"; };
   knapp.addEventListener("click", () => {
-    const alla = utfallda.size === ANTAL_AVD;
+    const alla = utfallda.size === antal;
     utfallda.clear();
-    if (!alla) for (let i = 1; i <= ANTAL_AVD; i++) utfallda.add(i);
+    if (!alla) for (let i = 1; i <= antal; i++) utfallda.add(i);
     rita();
   });
   return uppdateraText;
@@ -418,8 +430,9 @@ async function oppnaRattning() {
     }
     const sparad = (lasLagring().budgetar || {})[state.senaste.omgang.id];
     state.rBudget = BUDGETAR.includes(sparad) ? sparad : state.budget;
-    byggBudgetknappar($("r-budgetknappar"), () => state.rBudget, (b) => { state.rBudget = b; renderaRattning(); });
-    rFallText = fallKnapp($("r-fall-alla"), state.rUtfallda, renderaRattning);
+    byggBudgetknappar($("r-budgetknappar"), () => state.rBudget, (b) => { state.rBudget = b; renderaRattning(); },
+      spelFor(state.senaste).radpris);
+    rFallText = fallKnapp($("r-fall-alla"), state.rUtfallda, renderaRattning, spelFor(state.senaste).antal_avd);
     $("r-avdelningar").addEventListener("click", (e) => {
       const huvud = e.target.closest("[data-avd-toggle]");
       if (huvud) {
@@ -442,7 +455,7 @@ async function oppnaRattning() {
 function renderaRattning() {
   const d = state.senaste;
   const o = d.omgang;
-  $("r-rubrik").textContent = `V85 · ${o.bana}`;
+  $("r-rubrik").textContent = `${spelFor(d).spelform} · ${o.bana}`;
   $("r-underrubrik").textContent = versal(datumFmt.format(new Date(o.spelstopp))) +
     (o.omsattning ? ` · omsättning ${kr(o.omsattning)}` : "");
   const res = optimeraForslag(d, state.kalla, state.rBudget, {});
@@ -513,7 +526,7 @@ function renderaBacktest() {
   const [m] = serier;
   if (!m.spel.length) {
     box.replaceChildren(el("p", { class: "dampad", style: "margin-top:12px",
-      text: "Inga avgjorda omgångar i den här perioden än. Den första räknas när lördagens V85 är avgjord." }));
+      text: "Inga avgjorda omgångar i den här perioden än. Den första räknas när lördagens omgång är avgjord." }));
     return;
   }
   const exp = serier.find((s) => s.k === "experter");
@@ -528,10 +541,11 @@ function renderaBacktest() {
         : "Inga avgjorda omgångar med expertsystem än" })))),
     diagram(serier.filter((s) => s.spel.length)),
     el("div", { class: "tabell-scroll" }, el("table", { class: "stat-tabell", style: "margin-top:12px" },
-      el("thead", {}, el("tr", {}, el("th", { text: "" }), ...[8, 7, 6, 5].map((k) => el("th", { class: "tal", text: `${k} rätt` })),
+      el("thead", {}, el("tr", {}, el("th", { text: "" }),
+        ...["Alla rätt", "1 fel", "2 fel", "3 fel"].map((t) => el("th", { class: "tal", text: t })),
         el("th", { class: "tal", text: "Med vinst" }))),
       el("tbody", {}, ...serier.map((s) => el("tr", {}, el("td", { text: s.namn }),
-        ...[8, 7, 6, 5].map((k) => el("td", { class: "tal", text: s.spel.length ? s.sum.fordelning[k] : "–" })),
+        ...[0, 1, 2, 3].map((k) => el("td", { class: "tal", text: s.spel.length ? s.sum.fordelning[k] : "–" })),
         el("td", { class: "tal", text: s.spel.length ? `${s.sum.medVinst} av ${s.sum.omgangar}` : "–" })))))),
     el("h2", { class: "kort-rubrik", style: "margin-top:18px", text: "Omgång för omgång (Oddsen)" }),
     el("div", { class: "tabell-scroll" }, el("table", { class: "stat-tabell" },
@@ -621,7 +635,7 @@ function renderaDrift(d) {
   rad(exp && !exp.ok ? "fel" : system.length ? "ok" : "info", "Experternas system",
     exp && !exp.ok ? `Hämtningen misslyckades ${nar(exp.tid)}: ${exp.fel}`
       : system.length ? `${system.length} system: ${system.map((e) => e.namn).join(", ")}.`
-        : "Inga än – Fem tippar V85 publiceras oftast måndag eller tisdag.");
+        : `Inga än – Fem tippar ${spelFor(d).spelform} publiceras oftast måndag eller tisdag.`);
 
   const ai = drift.ai;
   if (!ai) {
@@ -654,11 +668,15 @@ function renderaOmStatistik() {
   if (!s || !s.lopp) return;
   const bra = s.forbattring > 2 * s.standardfel;
   $("om-statistik").replaceChildren(
-    el("p", { text: `Utvärdering på ${s.lopp} V85-lopp, där varje månad bedömts med vikter som bara sett tidigare lopp: ` +
-      `strecken gav vinnaren i snitt logloss ${decimal(s.logloss_streck, 3)}, Oddsen ${decimal(s.logloss_modell, 3)} (lägre är bättre). ` +
-      (bra ? "Skillnaden är tydlig." : "Skillnaden är liten och inte säkerställd än – den blir tydligare med fler omgångar.") +
-      ` Favoriten vann ${Math.round(s.favorit_vann * 100)} % av loppen.` }),
-    s.vikter ? el("p", { class: "dampad", text: `Aktuella vikter: a = ${decimal(s.vikter.log_streck, 2)}` +
+    el("p", { text: `Utvärdering på ${s.lopp.toLocaleString("sv-SE")} lopp, där varje månad bedömts med vikter som bara sett ` +
+      `tidigare lopp: strecken gav vinnaren i snitt logloss ${decimal(s.logloss_streck, 3)}, Oddsen ${decimal(s.logloss_modell, 3)} ` +
+      `(lägre är bättre). Favoriten vann ${Math.round(s.favorit_vann * 100)} % av loppen.` }),
+    ...Object.entries(s.per_spelform || {}).map(([form, u]) => el("p", { text: `${form} (${u.lopp.toLocaleString("sv-SE")} lopp): ` +
+      (u.forbattring > 2 * u.standardfel ? `Oddsen är tydligt bättre än strecken (${decimal(u.logloss_modell, 3)} mot ${decimal(u.logloss_streck, 3)}).`
+        : `ingen säker skillnad mot strecken (${decimal(u.logloss_modell, 3)} mot ${decimal(u.logloss_streck, 3)}).`) })),
+    !s.per_spelform ? el("p", { text: bra ? "Skillnaden är tydlig." : "Skillnaden är liten och inte säkerställd än." }) : null,
+    s.vikter ? el("p", { class: "dampad", text: `Aktuella vikter: a = ${decimal(s.vikter.log_streck + (s.vikter.log_streck_v85 || 0), 2)} i V85` +
+      ` och ${decimal(s.vikter.log_streck, 2)} i V75` +
       (s.vikter.odds_mot_streck ? `, vinnarodds ${decimal(s.vikter.odds_mot_streck, 2)}` : "") +
       ` (skattade på ${s.traningslopp.toLocaleString("sv-SE")} lopp).` }) : null);
 }

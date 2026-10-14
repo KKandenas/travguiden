@@ -1,7 +1,8 @@
-// Radoptimering för V85. Ren logik utan DOM – körs både i webbläsaren och i `node --test`.
+// Radoptimering för V85 och V75. Ren logik utan DOM – körs både i webbläsaren och i `node --test`.
 //
-// Ett system väljer en eller flera hästar i var och en av de 8 avdelningarna. Antalet rader är
-// produkten av antalet hästar per avdelning, och varje rad kostar RADPRIS kr.
+// Ett system väljer en eller flera hästar i varje avdelning (8 i V85, 7 i V75). Antalet rader är
+// produkten av antalet hästar per avdelning, och varje rad kostar radpriset (50 öre; nya V75 från
+// 28 november 2026: 60 öre). Radpris och antal avdelningar kommer från omgången (omgang.json → "spel").
 //
 // Poäng per avdelning med hästarna S (summeras över avdelningarna):
 //   (1 − λ) · log(Σ chans)          → sannolikheten att avdelningen sitter
@@ -12,11 +13,10 @@
 // bästa uppsättningen. Över avdelningarna väljer dynamisk programmering på antalet rader den
 // kombination som ger högst total poäng utan att gå över budgeten.
 
-export const RADPRIS = 0.5;                     // kr per rad
-export const BUDGETAR = [25, 50, 100, 120, 200, 300, 500, 1000];   // kr; 120 kr = 240 rader som ATG:s Fem tippar
+export const RADPRIS = 0.5;                     // kr per rad, om omgången inte anger annat
+export const BUDGETAR = [25, 50, 100, 120, 150, 200, 300, 500];   // kr; 120 kr = 240 rader i V85 (som Fem tippar)
 export const LAMBDA = 0.3;                      // risknivå, se README (backtest)
 export const VARDE_GRANS = 0.02;                // orange prick från 2 procentenheter understreckad
-export const ANTAL_AVD = 8;
 
 // Skrällchans: en häst som inte är favorit, har högst SKRALL_MAX_STRECK av strecken, minst SKRALL_MIN_CHANS
 // chans och tydligt högre chans än streck (kvot minst SKRALL_MIN_KVOT). Bästa kandidaten per avdelning,
@@ -102,12 +102,13 @@ export function bastaPerAntal(avd, lasta = [], lambda = LAMBDA) {
  * @param budget      kr, t.ex. 200
  * @param lasningar   {avd: [nr, ...]} – hästar som användaren låst (måste vara med)
  * @param krav        {avd: nr} – häst som måste vara med (Skrällchansen)
+ * @param radpris     kr per rad (V85 0,5; nya V75 0,6)
  * @returns {ok: true, val: [{avd, nr: [..], last: [..], skrall}], rader, kostnad, chans}
  *        | {ok: false, fel: "text"}
  */
-export function optimera(avdelningar, budget, lasningar = {}, lambda = LAMBDA, krav = {}) {
-  if (avdelningar.length !== ANTAL_AVD) return { ok: false, fel: `Omgången har ${avdelningar.length} avdelningar, väntade ${ANTAL_AVD}.` };
-  const maxRader = Math.floor(budget / RADPRIS + 1e-9);
+export function optimera(avdelningar, budget, lasningar = {}, lambda = LAMBDA, krav = {}, radpris = RADPRIS) {
+  if (avdelningar.length < 2) return { ok: false, fel: "Omgången saknar avdelningar." };
+  const maxRader = Math.floor(budget / radpris + 1e-9);
   if (maxRader < 1) return { ok: false, fel: "Budgeten räcker inte till en rad." };
 
   const maste = (a) => [...(lasningar[a.avd] || []), ...(krav[a.avd] != null ? [krav[a.avd]] : [])];
@@ -130,7 +131,7 @@ export function optimera(avdelningar, budget, lasningar = {}, lambda = LAMBDA, k
     }
     tillstand = nytt;
   }
-  if (!tillstand.size) return { ok: false, fel: lasningsfel(avdelningar, lasningar, maxRader) };
+  if (!tillstand.size) return { ok: false, fel: lasningsfel(avdelningar, lasningar, maxRader, radpris) };
 
   let bast = null, bastRader = 0;
   for (const [rader, s] of tillstand) if (!bast || s.poang > bast.poang) { bast = s; bastRader = rader; }
@@ -141,13 +142,13 @@ export function optimera(avdelningar, budget, lasningar = {}, lambda = LAMBDA, k
     return { avd: a.avd, nr: v.nr, last: (lasningar[a.avd] || []).filter((n) => v.nr.includes(n)),
       skrall: krav[a.avd] ?? null };
   });
-  return { ok: true, val, rader: bastRader, kostnad: bastRader * RADPRIS, chans };
+  return { ok: true, val, rader: bastRader, kostnad: Math.round(bastRader * radpris * 100) / 100, chans };
 }
 
-function lasningsfel(avdelningar, lasningar, maxRader) {
+function lasningsfel(avdelningar, lasningar, maxRader, radpris) {
   const kravd = avdelningar.reduce((a, x) => a * Math.max(1, (lasningar[x.avd] || []).length), 1);
   return kravd > maxRader
-    ? `Dina låsningar kräver minst ${kravd} rader (${kronor(kravd * RADPRIS)}). Välj en större budget eller lås upp något.`
+    ? `Dina låsningar kräver minst ${kravd} rader (${kronor(Math.round(kravd * radpris * 100) / 100)}). Välj en större budget eller lås upp något.`
     : "Dina låsningar går inte ihop med den här budgeten. Välj en annan budget eller lås upp något.";
 }
 

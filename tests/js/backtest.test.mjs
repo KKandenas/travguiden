@@ -39,3 +39,12 @@ test("perioder: alla, sedan premiären och från 2026", async () => {
   assert.ok(!iPeriod(o("2025-11-01"), "2026") && iPeriod(o("2026-01-03"), "2026"));
   assert.ok(!iPeriod(o("2026-10-10"), "premiar") && iPeriod(o(PREMIAR), "premiar"));
 });
+
+test("V75 i backtestet: 60 öre per rad och alla rätt = 7", () => {
+  const v75 = { id: "V75_2026-11-28_5_5", datum: "2026-11-28", bana: "Solvalla", spelform: "V75", radpris: 0.6,
+    utdelning: { 5: 10, 6: 100, 7: 50000 }, avd: [1, 1, 1, 1, 1, 1, 1].map((v) => avd([v])) };
+  const s = spelaOmgang(v75, 120);
+  assert.equal(s.ratt, 7);
+  assert.ok(s.rader <= 200 && s.insats === Math.round(s.rader * 0.6 * 100) / 100);
+  assert.equal(sammanstall([s]).fordelning[0], 1);    // 0 fel
+});

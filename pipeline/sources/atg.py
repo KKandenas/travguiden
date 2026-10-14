@@ -1,4 +1,4 @@
-"""ATG: V85-omgångar med lopp, hästar, streck, vinnarodds, resultat och utdelning.
+"""ATG: V85- och V75-omgångar med lopp, hästar, streck, vinnarodds, resultat och utdelning.
 
 Använder det öppna JSON-API som atg.se själv anropar (se DATAKALLOR.md). Ingen nyckel krävs.
 Tolkningsfunktionerna (tolka_*) är rena och testas mot sparade svar i tests/fixtures.
@@ -57,7 +57,7 @@ def _odds(v) -> Optional[float]:
     return v / 100
 
 
-def _tolka_start(s: dict, ar: str, likvid: bool) -> Start:
+def _tolka_start(s: dict, ar: str, likvid: bool, spelform: str) -> Start:
     h = s.get("horse") or {}
     stat = h.get("statistics") or {}
     liv = stat.get("life") or {}
@@ -65,7 +65,7 @@ def _tolka_start(s: dict, ar: str, likvid: bool) -> Start:
     i_ar = _ar(stat, ar)
     pools = s.get("pools") or {}
     res = s.get("result") or {}
-    streck = (pools.get("V85") or pools.get(next((k for k in pools if k.startswith("V")), ""), {}) or {}).get("betDistribution")
+    streck = (pools.get(spelform) or {}).get("betDistribution")
     vinnare = pools.get("vinnare") or {}
     snitt = ((stat.get("lastFiveStarts") or {}).get("averageOdds"))
     km = res.get("kmTime")
@@ -117,7 +117,7 @@ def tolka_spel(spel: dict, hamtad: str) -> Omgang:
     for i, r in enumerate(sorted(lopp, key=lambda r: r.get("startTime") or ""), start=1):
         oms = ((r.get("pools") or {}).get("vinnare") or {}).get("turnover")
         likvid = oms is None or oms / 100 >= MIN_VINNARPOOL
-        starter = [_tolka_start(s, ar, likvid) for s in r.get("starts") or []]
+        starter = [_tolka_start(s, ar, likvid, spelform) for s in r.get("starts") or []]
         if len(starter) < 2:
             raise ValideringsFel(f"{spel_id}: avdelning {i} har {len(starter)} hästar")
         if len({s.nr for s in starter}) != len(starter):

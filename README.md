@@ -1,6 +1,6 @@
 # Travguiden
 
-Föreslår ett V85-system utifrån hur mycket du vill spela för, med streck, chans och värde för varje häst.
+Föreslår ett system till lördagens V-spel (V85, och V75 från 28 november 2026) utifrån hur mycket du vill spela för, med streck, chans och värde för varje häst.
 Tre förslag: **Oddsen** (streck och vinnarodds), **Experterna** (Oddsen plus experternas system från ATG) och
 **Skrällchansen** (Oddsen med 1–2 understreckade hästar).
 Bakom appen samlar en automatisk pipeline på GitHub historik från ATG, så att bedömningen kan förbättras över tid.
@@ -21,6 +21,23 @@ GitHub Actions (schema)                          GitHub Pages
 - **AI** (Gemini) skriver en kort kommentar per avdelning, bara från pipelinen. Experternas tips är strukturerade
   ATG-kuponger och behöver ingen AI. Ingen inloggning än.
 
+## V85 och V75
+
+V85 ersatte V75 den 25 oktober 2025. **Den 28 november 2026 kommer V75 tillbaka** och V85 pausas (sista V85-datum
+är inte bestämt). Allt i Travguiden utgår från spelformen per omgång:
+
+| | V85 | Nya V75 (från 28 nov 2026) | Gamla V75 (2023–2025) |
+|---|---|---|---|
+| Avdelningar | 8 | 7 | 7 |
+| Utdelning | 8, 7, 6, 5 rätt | 7, 6, 5 rätt | 7, 6, 5 rätt |
+| Radpris | 50 öre | 60 öre | 50 öre |
+
+- Pipelinen följer `config.SPELFORMER = ["V85", "V75"]` och tar den närmaste kommande omgången av dem, så bytet
+  sker av sig självt när ATG lägger ut den första nya V75:an. Radpriset kommer från `config.radpris()`.
+- `omgang.json` har `"spel": {spelform, antal_avd, radpris, vinstgrupper}`, och appen läser allt därifrån.
+- Experternas kuponger känns igen för båda spelformerna (`V85_…` och `V75_…`).
+- **Inte med:** tillägget V7 (man avstår 6 och 5 rätt och får 2,5 gånger utdelningen för 7 rätt) och Boost.
+
 ## Kom igång lokalt
 
 Kräver Python 3.9 eller senare. Inga API-nycklar behövs.
@@ -36,7 +53,7 @@ python3 -m http.server 8766 -d docs     # öppna http://localhost:8766
 | Kommando | Gör |
 |---|---|
 | `python -m pipeline auto` | Det schemat kör: kommande omgång, resultat, träning när en ny omgång avgjorts, export |
-| `python -m pipeline atg` | Kommande V85: hästar, streck och vinnarodds |
+| `python -m pipeline atg` | Kommande V85/V75: hästar, streck och vinnarodds |
 | `python -m pipeline experter` | Experternas system ur ATG:s tipsartiklar för kommande V85 |
 | `python -m pipeline resultat` | Resultat och utdelning för omgångar efter spelstopp |
 | `python -m pipeline backfill 2025-10-25 2026-10-13` | Hämta alla V85 mellan två datum (pausar mellan anropen) |
@@ -86,20 +103,26 @@ summerar till cirka 100 % per avdelning). En avdelning med trasiga streck sparas
 
     chans ∝ streck^a · (oddschans / streck)^b
 
-- **a** plattar ut strecken. Folket är för säkert på favoriterna, så a < 1.
+- **a** plattar ut strecken och skattas **separat för V85 och V75** (egenskapen `log_streck_v85`). V85-spelarna
+  är för säkra på favoriterna (a ≈ 0,84), medan V75-strecken 2023–2025 redan var välkalibrerade (a ≈ 0,94, i
+  praktiken som strecken).
 - **b** väger in vinnaroddsen när vinnarpoolen har pengar (på tävlingsdagen). Skattas bara på avdelning 1,
   där slutoddsen sattes samtidigt som V85 stängde. I senare avdelningar är slutoddsen satta efter spelstopp och
   skulle läcka information.
 - Vikterna skattas med Newtons metod på alla avgjorda lopp, V85 och V75 sedan 2023 (cirka 2 100 lopp), med ett
   L2-straff mot "strecken har rätt" (a = 1, b = 0).
-- **Walk-forward:** varje månad skattas vikter på bara tidigare lopp. Backtestet och utvärderingen använder dem.
+- **Walk-forward:** varje månad (från juni 2023, när det finns 150 tidigare lopp) skattas vikter på bara tidigare
+  lopp. Backtestet och utvärderingen använder dem; omgångar utan sådana vikter tas inte med i backtestet.
 
-Utvärdering i oktober 2026, logloss för vinnaren (lägre är bättre):
+Walk-forward-utvärdering i oktober 2026, logloss för vinnaren (lägre är bättre):
 
-| Test | Lopp | Strecken | Modellen | Förbättring |
+| | Lopp | Strecken | Oddsen | Förbättring |
 |---|---|---|---|---|
-| Tränad på V75 2023–2025, testad på all V85 | 608 | 1,8091 | 1,8001 | 0,0090 ± 0,0028 |
-| Walk-forward på V85 | 608 | 1,8095 | 1,7990 | 0,0105 ± 0,0035 |
+| V85 | 608 | 1,8095 | 1,7995 | 0,0100 ± 0,0063 |
+| V75 2023–2025 | 1 302 | 1,7843 | 1,7848 | −0,0005 ± 0,0027 |
+| Alla | 1 910 | 1,7923 | 1,7895 | 0,0028 ± 0,0027 |
+
+(Med en gemensam exponent för båda spelformerna blev V85 0,0105 ± 0,0035 och V75 −0,0005.)
 
 Testat och inte infört (ingen förbättring utöver strecken i testet på V85): startspår i andra ledet (autostart),
 tillägg, kuskens segerprocent i år, hästens segerandel i karriären. Folket har redan prisat in dem.
@@ -127,8 +150,15 @@ Samma chans som Oddsen, men systemet måste innehålla omgångens bästa skräll
 en häst som inte är favorit, har högst 15 % av strecken, minst 5 % chans och chans/streck minst 1,15. Bästa kandidaten
 per avdelning, högst tre per omgång. En skräll upp till 200 kr, två över det.
 
-Backtest på 76 omgångar (återbetalning 50/100/200/500/1000 kr): Oddsen 34/24/23/39/47 %, Skrällchansen
-30/30/30/55/49 %. Trösklarna är valda i förväg och inte efter backtestet: närliggande trösklar gav allt från 21 till
+Backtest, återbetalning vid 25/50/100/120/150/200/300/500 kr:
+
+| | Alla 262 omgångar (V75 och V85 sedan juni 2023) | Bara V85 (76 omgångar) |
+|---|---|---|
+| Oddsen | 85/65/59/47/52/57/56/45 % | 34/34/24/27/24/23/35/39 % |
+| Skrällchansen | 84/62/52/46/43/43/41/38 % | 47/37/34/34/31/34/36/28 % |
+| Strecken | 87/67/59/47/45/54/59/43 % | 34/34/24/27/24/23/27/37 % |
+
+På bara V85 såg Skrällchansen bättre ut, men över hela perioden är den sämre än Oddsen. Trösklarna är valda i förväg och inte efter backtestet: närliggande trösklar gav allt från 21 till
 83 %, eftersom ett fåtal storvinster avgör. I historiken finns bara kalibrerade streck (inga vinnarodds före
 spelstopp), så kandidaterna blir få (0,45 per omgång). Skrällchansen blir meningsfull på tävlingsdagen, när
 vinnaroddsen säger emot strecken.
@@ -155,7 +185,7 @@ Första delen är chansen att avdelningen sitter. Den andra är förväntad utde
 mer. Inom en avdelning prövas alla delmängder av hästar (högst 2^16), och dynamisk programmering över antalet
 rader väljer den bästa kombinationen inom budgeten. Låsta hästar måste vara med.
 
-**λ = 0,3.** Backtest på 76 V85-omgångar (oktober 2025 – oktober 2026), återbetalning:
+**λ = 0,3.** Backtest på 76 V85-omgångar (oktober 2025 – oktober 2026, budgetarna som fanns då), återbetalning:
 
 | λ | 50 kr | 100 kr | 200 kr | 500 kr | 1000 kr |
 |---|---|---|---|---|---|
@@ -179,9 +209,9 @@ Vyer (`#` i adressen så att bakåtknappen fungerar):
 
 | Vy | Innehåll |
 |---|---|
-| `#kupong` | Veckans V85: välj förslag (Oddsen, Experterna, Skrällchansen) och insats (25–1000 kr, bland annat 120 kr = 240 rader). En rad per avdelning med de spelade hästarna; fäll ut för alla hästar, AI-kommentar, låsningar och detaljer |
+| `#kupong` | Veckans V85: välj förslag (Oddsen, Experterna, Skrällchansen) och insats (25–500 kr; bland annat 120 kr = 240 rader och 150 kr i V85). En rad per avdelning med de spelade hästarna; fäll ut för alla hästar, AI-kommentar, låsningar och detaljer |
 | `#rattning` | Förra omgången: vinnare, antal rätt, rader per antal rätt och vinst för valt förslag och insats |
-| `#backtest` | Om du spelat varje omgång: saldo över tid för förslagen och för bara strecken. Period: alla omgångar, sedan premiären (17 oktober 2026) eller från 2026 |
+| `#backtest` | Om du spelat varje omgång: saldo över tid för förslagen och för bara strecken. Period: alla omgångar (V75 och V85 sedan 2023), sedan premiären (17 oktober 2026), bara V85 eller från ett visst år. Antal rätt visas som "alla rätt / 1 fel / 2 fel / 3 fel" eftersom V75 och V85 har olika många avdelningar |
 | `#om` | Så funkar Travguiden: förslagen, chansen, systemet, aktuell utvärdering och källor |
 
 Vald insats och låsningar sparas i webbläsarens localStorage. Lägg till `?exempel` i adressen för exempelomgången.

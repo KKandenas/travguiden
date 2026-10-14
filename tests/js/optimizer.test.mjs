@@ -121,3 +121,14 @@ test("Skrällchansen: skrällen kommer med i systemet, 1 upp till 200 kr och ann
   assert.equal(r.val[avd - 1].skrall, 4);
   assert.deepEqual(skrallKrav(o, 100, { [avd]: [1] })[avd], undefined);   // låst avdelning får inget krav
 });
+
+test("V75: 7 avdelningar och 60 öre per rad", () => {
+  const o = omgang().slice(0, 7);
+  const r = optimera(o, 120, {}, undefined, {}, 0.6);
+  assert.ok(r.ok);
+  assert.equal(r.val.length, 7);
+  assert.ok(r.rader <= 200);                       // 120 kr / 0,60 kr
+  assert.equal(r.kostnad, Math.round(r.rader * 0.6 * 100) / 100);
+  const vinnare = Object.fromEntries(r.val.map((v) => [v.avd, [v.nr[0]]]));
+  assert.equal(ratta(r.val, vinnare).ratt, 7);
+});

@@ -67,3 +67,19 @@ def test_trasiga_streck_sparas_inte():
 def test_hoga_odds_ar_riktiga():
     assert atg._odds(30188) == pytest.approx(301.88)
     assert atg._odds(9999) is None and atg._odds(0) is None
+
+
+def test_v75_omgang():
+    o = atg.tolka_spel(las_fixture("atg_v75_avgjord.json"), HAMTAD)
+    assert o.spelform == "V75" and len(o.avdelningar) == 7 and o.avgjord
+    assert sorted(o.utdelning) == [5, 6, 7]
+    for a in o.avdelningar:
+        assert sum(s.streck for s in a.starter) == pytest.approx(1, abs=0.03)
+
+
+def test_radpris_och_vinstgrupper():
+    from pipeline import config
+    assert config.radpris("V85", "2026-10-17") == 0.5
+    assert config.radpris("V75", "2025-10-11") == 0.5           # gamla V75
+    assert config.radpris("V75", "2026-11-28") == 0.6           # nya V75
+    assert config.vinstgrupper(8) == [8, 7, 6, 5] and config.vinstgrupper(7) == [7, 6, 5]

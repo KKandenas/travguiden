@@ -4,7 +4,7 @@
 
 - streck:          chansen är V85-strecken (folkets bedömning). Referens.
 - kalibrerad-v1:   villkorad logit på log(streck) och, när de finns, vinnaroddsen
-                   (chans ∝ streck^a · (oddschans/streck)^b). Vikterna skattas i statistik.py. "Oddsen" i appen.
+                   (chans ∝ streck^a · (oddschans/streck)^b). Exponenten a skattas separat för V85 och V75. Vikterna skattas i statistik.py. "Oddsen" i appen.
 - experter-v1:     kalibrerad-v1 plus experternas system (chans ∝ … · (expertandel + 0,05)^c). Räknas bara
                    för lopp där expertsystem finns. "Experterna" i appen.
 """
@@ -22,15 +22,15 @@ log = logging.getLogger(__name__)
 
 AKTIV = "kalibrerad-v1"
 EXPERTMODELL = "experter-v1"
-EGENSKAPER = ["log_streck", "odds_mot_streck"]
+EGENSKAPER = ["log_streck", "log_streck_v85", "odds_mot_streck"]
 EXPERTEGENSKAPER = EGENSKAPER + ["experter"]
 # Experternas vikt innan det finns tillräckligt många avgjorda lopp att skatta den på (statistik.MIN_EXPERTLOPP).
 # Försiktig: experterna publicerar tidigt i veckan och strecken har redan tagit in mycket av deras bedömning.
 # c = 0,15 gör att en häst alla fem tar som spik får knappt 1,7 gånger så hög chans (före normering)
 # som en häst ingen tar med.
 STANDARD_EXPERTVIKT = 0.15
-# Används tills statistik.py har skattat vikter (ungefär vad historiken gav i oktober 2026)
-STANDARDVIKTER = {"log_streck": 0.85, "odds_mot_streck": 0.0}
+# Används tills statistik.py har skattat vikter: V75-strecken som de är, V85-strecken något utplattade
+STANDARDVIKTER = {"log_streck": 1.0, "log_streck_v85": -0.1, "odds_mot_streck": 0.0}
 MODELLER = {
     "streck": "Strecken",
     "kalibrerad-v1": "Oddsen",

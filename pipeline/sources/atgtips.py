@@ -1,4 +1,4 @@
-"""Experternas V85-system från ATG:s tipsartiklar (t.ex. "Fem tippar V85", Fernlund, Olsson).
+"""Experternas system (V85/V75) från ATG:s tipsartiklar (t.ex. "Fem tippar V85", Fernlund, Olsson).
 
 Artiklarna ligger i ATG:s CMS (Contentful). Nyckeln är den som atg.se själv skickar till alla besökare
 (clientConfig.contentful i sidans HTML). Den läses vid varje körning och sparas aldrig i repot, så ett
@@ -19,15 +19,16 @@ import requests
 from .. import config
 from ..http import HamtningsFel, hamta_json, session
 from ..modeller import Expertsystem, ValideringsFel
+from .atg import ANTAL_AVD
 
 log = logging.getLogger(__name__)
 
-TIPSSIDA = "https://www.atg.se/V85/tips"
+TIPSSIDA = "https://www.atg.se/"          # clientConfig finns på alla sidor
 KUPONG_API = "https://api.atg.se/horse-coupons/api-public/v1/coupons"
 KALLA_FEM = "Fem tippar"
 KALLA_OVRIGA = "ATG:s experter"
 _UUID = re.compile(r"couponId=([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})")
-_SPEL = re.compile(r"\b(V85_\d{4}-\d{2}-\d{2}_\d+_\d+)\b")
+_SPEL = re.compile(r"\b((?:V85|V75)_\d{4}-\d{2}-\d{2}_\d+_\d+)\b")
 # Titlar som inte säger vem som tippat ("Kupong 1 Fem tippar", "Stora systemet", en ren länk …)
 _ALLMAN_TITEL = re.compile(r"^(kupong\b|https?:|stora systemet|lilla systemet|system\b|v85\b)", re.I)
 
@@ -62,7 +63,7 @@ def _graphql(url: str, nyckel: str, query: str, variabler: Optional[dict] = None
 
 
 def hamta_expertsystem(spel_ids: List[str]) -> Tuple[List[Expertsystem], List[str]]:
-    """Expertsystem för de angivna V85-omgångarna. Returnerar (system, varningar)."""
+    """Expertsystem för de angivna omgångarna. Returnerar (system, varningar)."""
     url, nyckel = hamta_nyckel()
     poster = _graphql(url, nyckel, _KUPONGER)["couponCollection"]["items"]
     kandidater = tolka_kupongposter(poster, set(spel_ids))
@@ -98,7 +99,7 @@ def tolka_nyckel(html: str) -> Tuple[str, str]:
 
 
 def tolka_kupongposter(poster: List[dict], spel_ids: set) -> List[dict]:
-    """CMS-poster som är V85-kuponger för våra omgångar. Harry Boy (ATG:s slumpsystem) räknas inte."""
+    """CMS-poster som är kuponger för våra omgångar. Harry Boy (ATG:s slumpsystem) räknas inte."""
     ut = []
     for p in poster:
         url, titel = p.get("url") or "", (p.get("title") or "").strip()
@@ -159,8 +160,9 @@ def tolka_kupong(data: dict, post: dict, namn: Optional[str]) -> Expertsystem:
         nr = sorted({b["number"] for b in r.get("bets") or [] if isinstance(b.get("number"), int)})
         if r.get("id") and nr:
             val[r["id"]] = nr
-    if len(val) != 8:
-        raise ValideringsFel(f"kupongen {post['kupong_id']} har val i {len(val)} avdelningar, väntade 8")
+    antal = ANTAL_AVD.get(spel.split("_")[0])
+    if len(val) != antal:
+        raise ValideringsFel(f"kupongen {post['kupong_id']} har val i {len(val)} avdelningar, väntade {antal}")
     if not namn:
         if post["titel"] and not _ALLMAN_TITEL.search(post["titel"]):
             namn = post["titel"]

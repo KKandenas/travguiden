@@ -22,11 +22,11 @@ MIN_ALDER_TIMMAR = 20
 MAX_TECKEN = 350
 METOD = {"auto": "autostart", "volte": "voltstart"}
 
-SYSTEM = """Du skriver korta loppkommentarer till en svensk app för travspelet V85.
+SYSTEM = """Du skriver korta loppkommentarer till en svensk app för travspelen V85 och V75.
 
 För varje avdelning: 1–2 meningar på svenska, högst cirka 250 tecken. Lyft det viktigaste för den som ska välja hästar:
 - vem som är favorit och hur tydligt (chansen),
-- om V85-spelarna streckar annorlunda än chansen: nämn understreckade hästar (värde) eller överspelade favoriter,
+- om spelarna streckar annorlunda än chansen: nämn understreckade hästar (värde) eller överspelade favoriter,
 - vad experterna valt, särskilt spikar och om de går emot strecken,
 - något som sticker ut i uppgifterna, t.ex. tillägg, spår i andra ledet eller stark form i år.
 
@@ -123,7 +123,7 @@ def uppdatera(conn: sqlite3.Connection, anropa: Anropare, omgang: Dict[str, Any]
         log.info("Kommentarer: %s – inget nytt att kommentera", omgang_id)
         return 0
 
-    fraga = (f"V85 på {omgang['omgang']['bana']} {omgang['omgang']['datum']}. Skriv en kommentar per avdelning:\n"
+    fraga = (f"{omgang['omgang']['spelform']} på {omgang['omgang']['bana']} {omgang['omgang']['datum']}. Skriv en kommentar per avdelning:\n"
              + json.dumps(list(att_gora.values()), ensure_ascii=False, indent=1))
     svar = anropa(SYSTEM, fraga, SCHEMA, 8000)
     if not isinstance(svar, dict) or not isinstance(svar.get("kommentarer"), list):

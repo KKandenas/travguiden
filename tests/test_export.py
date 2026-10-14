@@ -49,3 +49,15 @@ def test_experter_i_exporten(conn):
     h = {x["nr"]: x for x in d["avdelningar"][1]["hastar"]}
     assert h[3]["experter"] == [0] and h[1]["experter"] == []
     assert h[3]["chans_exp"] > h[3]["chans"]
+
+
+def test_spelregler_i_exporten(conn):
+    _fyll(conn)
+    assert export.omgang_data(conn, "V85_2026-10-17_16_5")["spel"] == {
+        "spelform": "V85", "antal_avd": 8, "radpris": 0.5, "vinstgrupper": [8, 7, 6, 5]}
+    lagring.spara_omgang(conn, atg.tolka_spel(las_fixture("atg_v75_avgjord.json"), "x"))
+    modeller.berakna_prognoser(conn, alla=True)
+    d = export.omgang_data(conn, "V75_2025-10-11_5_7")
+    assert d["spel"]["antal_avd"] == 7 and d["spel"]["vinstgrupper"] == [7, 6, 5]
+    h = {o["id"]: o for o in export.historik(conn)["omgangar"]}
+    assert h["V75_2025-10-11_5_7"]["spelform"] == "V75" and len(h["V75_2025-10-11_5_7"]["avd"]) == 7

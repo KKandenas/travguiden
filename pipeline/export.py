@@ -1,8 +1,11 @@
 """Exporterar JSON till appen i docs/.
 
-- omgang.json:   närmaste kommande V85-omgång (annars den senaste), med alla hästar och chanser
-- senaste.json:  senast avgjorda V85-omgången, för rättningen
-- historik.json: alla avgjorda V85-omgångar i kompakt form, för backtestet
+- omgang.json:   närmaste kommande omgång av lördagens V-spel (V85/V75), annars den senaste, med alla hästar och chanser
+- senaste.json:  senast avgjorda omgången, för rättningen
+- historik.json: alla avgjorda omgångar i kompakt form, för backtestet (bara de som har walk-forward-vikter)
+
+Varje omgång har med sina spelregler ("spel": spelform, antal avdelningar, radpris och vinstgrupper), så att
+appen klarar bytet från V85 till V75 den 28 november 2026 utan att något behöver ändras där.
 """
 from __future__ import annotations
 
@@ -21,6 +24,12 @@ log = logging.getLogger(__name__)
 
 KON = {"stallion": "hingst", "mare": "sto", "gelding": "valack"}
 _SENASTE = "(SELECT {f} FROM {t} WHERE start_id = s.id ORDER BY tidpunkt DESC LIMIT 1)"
+_SPELFORMER = ", ".join(f"'{s}'" for s in config.SPELFORMER)
+
+
+def spel(spelform: str, datum: str, antal_avd: int) -> dict:
+    return {"spelform": spelform, "antal_avd": antal_avd, "radpris": config.radpris(spelform, datum),
+            "vinstgrupper": config.vinstgrupper(antal_avd)}
 
 
 def _skriv(sokvag: Path, data) -> None:
@@ -88,6 +97,7 @@ def omgang_data(conn: sqlite3.Connection, omgang_id: str, dolj_resultat: bool = 
         r["ratt"]: {"kr": r["kr"], "antal": r["antal"]}
         for r in conn.execute("SELECT * FROM utdelning WHERE omgang_id = ? ORDER BY ratt DESC", (omgang_id,))}
     return {
+        "spel": spel(o["spelform"], o["datum"], len(avdelningar)),
         "omgang": {"id": o["id"], "spelform": o["spelform"], "datum": o["datum"], "bana": o["bana"],
                    "spelstopp": o["spelstopp"], "status": o["status"], "omsattning": o["omsattning"],
                    "avgjord": bool(o["avgjord"]) and not dolj_resultat},
@@ -105,19 +115,24 @@ def bygg_drift(conn: sqlite3.Connection) -> dict:
     ut = {}
     for r in conn.execute("SELECT nyckel, varde, uppdaterad FROM installningar WHERE nyckel LIKE 'status:%'"):
         ut[r["nyckel"].split(":", 1)[1]] = {**json.loads(r["varde"]), "tid": r["uppdaterad"]}
-    senast = conn.execute("SELECT id, datum, bana FROM omgangar WHERE spelform = 'V85' AND avgjord = 1 "
+    senast = conn.execute(f"SELECT id, datum, bana FROM omgangar WHERE spelform IN ({_SPELFORMER}) AND avgjord = 1 "
                           "ORDER BY spelstopp DESC LIMIT 1").fetchone()
-    ut["senast_avgjord"] = {"datum": senast["datum"], "bana": senast["bana"]} if senast else None
+    ut["senast_avgjord"] = {"datum": senast["datum"], "bana": senast["bana"], "spelform": senast["id"].split("_")[0]} if senast else None
     # Omgångar vars sista lopp borde vara klart (spelstopp för mer än 12 h sedan) men som saknar resultat
     gransen = (datetime.now(timezone.utc) - timedelta(hours=12)).strftime("%Y-%m-%dT%H:%M:%SZ")
     ut["vantar_resultat"] = [r[0] for r in conn.execute(
-        "SELECT id FROM omgangar WHERE spelform = 'V85' AND avgjord = 0 AND spelstopp < ?", (gransen,))]
+        f"SELECT id FROM omgangar WHERE spelform IN ({_SPELFORMER}) AND avgjord = 0 AND spelstopp < ?", (gransen,))]
     return ut
 
 
 def historik(conn: sqlite3.Connection) -> dict:
+    # Bara omgångar vars månad har walk-forward-vikter, så att backtestet aldrig använder vikter som sett resultatet
+    sparat = _installning(conn, f"vikter:{modeller.AKTIV}") or {}
+    manader = set(sparat.get("per_manad") or {})
     ut = []
-    for o in conn.execute("SELECT * FROM omgangar WHERE spelform = 'V85' AND avgjord = 1 ORDER BY spelstopp"):
+    for o in conn.execute(f"SELECT * FROM omgangar WHERE spelform IN ({_SPELFORMER}) AND avgjord = 1 ORDER BY spelstopp"):
+        if manader and o["datum"][:7] not in manader:
+            continue
         avd = []
         for a in conn.execute("SELECT * FROM avdelningar WHERE omgang_id = ? ORDER BY avd", (o["id"],)):
             rader = conn.execute(f"""
@@ -137,31 +152,33 @@ def historik(conn: sqlite3.Connection) -> dict:
                 "h": [[r["nr"], round(r["chans"], 4), round(r["streck"], 4)]
                       + ([round(r["chans_exp"], 4)] if r["chans_exp"] is not None else []) for r in kvar],
             })
-        if len(avd) != 8:
+        antal = conn.execute("SELECT COUNT(*) FROM avdelningar WHERE omgang_id = ?", (o["id"],)).fetchone()[0]
+        if len(avd) != antal:
             continue
         utd = {r["ratt"]: r["kr"] for r in conn.execute("SELECT ratt, kr FROM utdelning WHERE omgang_id = ?", (o["id"],))}
-        ut.append({"id": o["id"], "datum": o["datum"], "bana": o["bana"], "utdelning": utd, "avd": avd})
+        ut.append({"id": o["id"], "datum": o["datum"], "bana": o["bana"], "spelform": o["spelform"],
+                   "radpris": config.radpris(o["spelform"], o["datum"]), "utdelning": utd, "avd": avd})
     return {"uppdaterad": nu_utc(), "omgangar": ut}
 
 
 def exportera_omgang(conn: sqlite3.Connection, omgang_id: Optional[str], till: str, dolj_resultat: bool = False) -> None:
     if not omgang_id:
-        omgang_id = conn.execute("SELECT id FROM omgangar WHERE spelform = 'V85' AND avgjord = 1 "
+        omgang_id = conn.execute(f"SELECT id FROM omgangar WHERE spelform IN ({_SPELFORMER}) AND avgjord = 1 "
                                  "ORDER BY spelstopp DESC LIMIT 1").fetchone()[0]
     _skriv(Path(till), omgang_data(conn, omgang_id, dolj_resultat))
 
 
 def exportera_allt(conn: sqlite3.Connection) -> None:
     nu = nu_utc()
-    rad = conn.execute("SELECT id FROM omgangar WHERE spelform = 'V85' AND avgjord = 0 AND spelstopp > ? "
+    rad = conn.execute(f"SELECT id FROM omgangar WHERE spelform IN ({_SPELFORMER}) AND avgjord = 0 AND spelstopp > ? "
                        "ORDER BY spelstopp LIMIT 1", (nu,)).fetchone() or \
-        conn.execute("SELECT id FROM omgangar WHERE spelform = 'V85' ORDER BY spelstopp DESC LIMIT 1").fetchone()
+        conn.execute(f"SELECT id FROM omgangar WHERE spelform IN ({_SPELFORMER}) ORDER BY spelstopp DESC LIMIT 1").fetchone()
     if rad:
         d = omgang_data(conn, rad[0])
         d["statistik"] = _installning(conn, "statistik")
         d["drift"] = bygg_drift(conn)
         _skriv(config.DOCS_DIR / "omgang.json", d)
-    senaste = conn.execute("SELECT id FROM omgangar WHERE spelform = 'V85' AND avgjord = 1 "
+    senaste = conn.execute(f"SELECT id FROM omgangar WHERE spelform IN ({_SPELFORMER}) AND avgjord = 1 "
                            "ORDER BY spelstopp DESC LIMIT 1").fetchone()
     if senaste:
         _skriv(config.DOCS_DIR / "senaste.json", omgang_data(conn, senaste[0]))

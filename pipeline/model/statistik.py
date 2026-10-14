@@ -3,8 +3,10 @@
 - Vikterna skattas på alla avgjorda lopp (V85 och, om de finns, äldre V75). Vinnaroddsen används bara i
   avdelning 1, där slutoddsen sattes i samma ögonblick som V85 stängde. I senare avdelningar är
   slutoddsen satta efter spelstopp och skulle läcka information.
-- Walk-forward: för varje månad med V85 skattas vikter på data före månaden. Backtestet använder dem.
-- Utvärderingen är också walk-forward: logloss för vinnaren per V85-lopp, modell mot streck.
+- Walk-forward: för varje månad skattas vikter på data före månaden (när det finns minst MIN_LOPP lopp).
+  Backtestet använder dem.
+- Utvärderingen är också walk-forward: logloss för vinnaren per lopp, modell mot streck, på alla lopp som har
+  walk-forward-vikter (V75 från 2023 och V85).
 """
 from __future__ import annotations
 
@@ -13,7 +15,7 @@ import logging
 import math
 import sqlite3
 import statistics as st
-from typing import Dict, List
+from typing import Dict, List, Tuple
 
 from ..tid import nu_utc
 from . import data, modeller, sannolikhet
@@ -37,21 +39,7 @@ def _skatta(lopp: List[dict]) -> Dict[str, float]:
     return sannolikhet.skatta(lopp, modeller.EGENSKAPER, l2=2.0)
 
 
-def utvardera(lopp: List[dict], per_manad: Dict[str, Dict[str, float]]) -> dict:
-    """Walk-forward-utvärdering på V85-lopp utan odds (som backtestet ser dem)."""
-    bas, mod, traff_s, traff_m = [], [], 0, 0
-    for l in lopp:
-        if l["spelform"] != "V85":
-            continue
-        l = {**l, "hastar": [{**h, "vinnarodds": None} for h in l["hastar"]]}
-        w = per_manad.get(l["datum"][:7], modeller.STANDARDVIKTER)
-        ps = sannolikhet.normalisera([h["streck"] for h in l["hastar"]])
-        pm = sannolikhet.chanser(l, w)
-        vinn = [i for i, h in enumerate(l["hastar"]) if h["nr"] in l["vinnare"]]
-        bas.append(-math.log(max(sum(ps[i] for i in vinn) / len(vinn), 1e-9)))
-        mod.append(-math.log(max(sum(pm[i] for i in vinn) / len(vinn), 1e-9)))
-        traff_s += max(range(len(ps)), key=ps.__getitem__) in vinn
-        traff_m += max(range(len(pm)), key=pm.__getitem__) in vinn
+def _sammanfatta(bas: List[float], mod: List[float], traff: int) -> dict:
     if len(bas) < 2:
         return {"lopp": len(bas)}
     d = [b - m for b, m in zip(bas, mod)]
@@ -59,8 +47,28 @@ def utvardera(lopp: List[dict], per_manad: Dict[str, Dict[str, float]]) -> dict:
         "lopp": len(bas),
         "logloss_streck": round(st.mean(bas), 4), "logloss_modell": round(st.mean(mod), 4),
         "forbattring": round(st.mean(d), 4), "standardfel": round(st.stdev(d) / math.sqrt(len(d)), 4),
-        "favorit_vann": round(traff_s / len(bas), 3),
+        "favorit_vann": round(traff / len(bas), 3),
     }
+
+
+def utvardera(lopp: List[dict], per_manad: Dict[str, Dict[str, float]]) -> dict:
+    """Walk-forward-utvärdering utan odds (som backtestet ser dem), på lopp vars månad har vikter.
+    Totalt och per spelform."""
+    per: Dict[str, Tuple[list, list, list]] = {}
+    for l in lopp:
+        if l["datum"][:7] not in per_manad:
+            continue
+        l = {**l, "hastar": [{**h, "vinnarodds": None} for h in l["hastar"]]}
+        ps = sannolikhet.normalisera([h["streck"] for h in l["hastar"]])
+        pm = sannolikhet.chanser(l, per_manad[l["datum"][:7]])
+        vinn = [i for i, h in enumerate(l["hastar"]) if h["nr"] in l["vinnare"]]
+        bas, mod, traff = per.setdefault(l["spelform"], ([], [], []))
+        bas.append(-math.log(max(sum(ps[i] for i in vinn) / len(vinn), 1e-9)))
+        mod.append(-math.log(max(sum(pm[i] for i in vinn) / len(vinn), 1e-9)))
+        traff.append(max(range(len(ps)), key=ps.__getitem__) in vinn)
+    alla = [sum((per[k][i] for k in per), []) for i in range(3)]
+    return {**_sammanfatta(alla[0], alla[1], sum(alla[2])),
+            "per_spelform": {k: _sammanfatta(b, m, sum(t)) for k, (b, m, t) in sorted(per.items())}}
 
 
 def kor(conn: sqlite3.Connection) -> dict:
@@ -68,7 +76,7 @@ def kor(conn: sqlite3.Connection) -> dict:
     if len(lopp) < MIN_LOPP:
         log.info("Statistik: bara %d avgjorda lopp – behåller standardvikterna", len(lopp))
         return {}
-    manader = sorted({l["datum"][:7] for l in lopp if l["spelform"] == "V85"})
+    manader = sorted({l["datum"][:7] for l in lopp})
     per_manad = {}
     for m in manader:
         fore = [l for l in lopp if l["datum"][:7] < m]

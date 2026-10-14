@@ -35,6 +35,12 @@ def _log_streck(h, lopp) -> float:
     return math.log(max(h["streck"], MIN_STRECK))
 
 
+def _log_streck_v85(h, lopp) -> float:
+    """Extra vikt på strecken i V85. Historiken visar att V85-spelarna är för säkra på favoriterna, medan
+    V75-strecken (2023–2025) redan var välkalibrerade – så spelformerna får var sin exponent."""
+    return _log_streck(h, lopp) if lopp.get("spelform") == "V85" else 0.0
+
+
 def _odds_mot_streck(h, lopp) -> float:
     """Hur mycket vinnarpoolen tror mer på hästen än V85-spelarna gör (0 om odds saknas)."""
     if not h.get("oddschans"):
@@ -77,6 +83,7 @@ def _experter(h, lopp) -> float:
 
 EGENSKAPER = {
     "log_streck": _log_streck,
+    "log_streck_v85": _log_streck_v85,
     "odds_mot_streck": _odds_mot_streck,
     "bakspar": _bakspar,
     "tillagg": _tillagg,

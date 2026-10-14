@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#0b1f15">
-<meta name="description" content="Travguiden – systemförslag till V85 med streck, chans och värde per häst.">
+<meta name="description" content="Travguiden – systemförslag till lördagens V85 och V75 med streck, chans och värde per häst.">
 <title>Travguiden</title>
 <link rel="icon" type="image/svg+xml" href="bilder/ikon.svg?v=1">
 <link rel="manifest" href="manifest.webmanifest">
@@ -12,8 +12,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@600;700;800&display=swap">
-<link rel="stylesheet" href="app.css?v=20261014e">
-<script type="module" src="app.js?v=20261014e"></script>
+<link rel="stylesheet" href="app.css?v=20261014f">
+<script type="module" src="app.js?v=20261014f"></script>
 </head>
 <body data-vy="kupong">
 <header class="topp">
@@ -22,7 +22,7 @@
       <img class="varumarke-ikon" src="bilder/ikon.svg?v=1" width="38" height="38" alt="">
       <span class="varumarke-text">
         <span class="ordmarke">TRAV<span>GUIDEN</span></span>
-        <span class="undertitel">Systemförslag till V85</span>
+        <span id="undertitel" class="undertitel">Systemförslag till V85 och V75</span>
       </span>
     </a>
     <nav class="meny-val" aria-label="Huvudmeny">
@@ -30,9 +30,9 @@
         <span id="meny-aktuell">Kupongen</span><span class="pil" aria-hidden="true">▾</span>
       </button>
       <ul id="meny-lista" class="meny-lista" hidden>
-        <li><a href="#kupong" data-vy="kupong"><b>Kupongen</b><span>Systemförslag för veckans V85</span></a></li>
-        <li><a href="#rattning" data-vy="rattning"><b>Förra omgången</b><span>Rättning av senaste V85</span></a></li>
-        <li><a href="#backtest" data-vy="backtest"><b>Om du spelat varje omgång</b><span>Insats, vinst och saldo sedan V85 startade</span></a></li>
+        <li><a href="#kupong" data-vy="kupong"><b>Kupongen</b><span>Systemförslag för lördagens omgång</span></a></li>
+        <li><a href="#rattning" data-vy="rattning"><b>Förra omgången</b><span>Rättning av senaste omgången</span></a></li>
+        <li><a href="#backtest" data-vy="backtest"><b>Om du spelat varje omgång</b><span>Insats, vinst och saldo sedan 2023</span></a></li>
         <li><a href="#om" data-vy="om"><b>Så funkar Travguiden</b><span>Streck, chans, värde och hur systemet räknas fram</span></a></li>
       </ul>
     </nav>
@@ -45,7 +45,7 @@
     <div class="omgang">
       <div class="omgang-inre">
         <div class="topprad">
-          <h1 id="rubrik">Laddar V85 …</h1>
+          <h1 id="rubrik">Laddar …</h1>
           <span id="status" class="status" hidden></span>
         </div>
         <p id="underrubrik"></p>
@@ -66,7 +66,7 @@
           <p id="systemchans" class="forklaring-kort"></p>
           <p id="forslag-info" class="forklaring-kort" aria-live="polite" hidden></p>
           <p id="fel" class="fel" role="alert" hidden></p>
-          <a class="lamna-in" href="https://www.atg.se/spel/V85" target="_blank" rel="noopener noreferrer">Lämna in hos ATG<span class="sr-only"> (öppnas i nytt fönster)</span> <span aria-hidden="true">↗</span></a>
+          <a id="lamna-in" class="lamna-in" href="https://www.atg.se/spel/V85" target="_blank" rel="noopener noreferrer">Lämna in hos ATG<span class="sr-only"> (öppnas i nytt fönster)</span> <span aria-hidden="true">↗</span></a>
         </section>
         <div id="banner" class="banner" hidden></div>
         <p class="tips-rad">Tryck på en avdelning för att se alla hästar · tryck på rutan för att låsa en häst 🔒 · <a href="#om">Så läser du kupongen</a></p>
@@ -113,7 +113,7 @@
   <section class="vy innehall" data-vy="backtest" hidden>
     <h1 class="vy-rubrik">Om du spelat varje omgång</h1>
     <section class="kort">
-      <p>Travguidens förslag på varje V85 sedan starten i oktober 2025, rättat mot riktiga utdelningar.
+      <p>Travguidens förslag på varje V75 (2023–2025) och V85 (sedan oktober 2025), rättat mot riktiga utdelningar.
         Förslagen jämförs med samma system byggt på bara strecken.</p>
       <label class="arsval">Visa <select id="bt-period" class="arsval-lista" aria-label="Period"></select></label>
       <div id="bt-budgetknappar" class="budgetknappar" role="radiogroup" aria-label="Insats i backtestet"></div>
@@ -128,11 +128,18 @@
       <h2>Kupongen</h2>
       <p>Varje avdelning visar hästarna i startnummerordning. Rutan till höger har två siffror:</p>
       <ul>
-        <li><b>Streck</b> – hur stor del av V85-spelarna som valt hästen.</li>
+        <li><b>Streck</b> – hur stor del av spelarna som valt hästen.</li>
         <li><b>Chans</b> – Travguidens bedömning av hur troligt det är att hästen vinner.</li>
         <li><span class="prick inline" aria-hidden="true"></span> <b>Orange prick</b> – chansen är minst två procentenheter högre än strecken. Hästen är understreckad och betalar mer om den vinner.</li>
         <li>Gröna rutor är systemets hästar. Tryck på en ruta för att låsa hästen 🔒 – den kommer då alltid med, och resten av systemet räknas om runt den.</li>
       </ul>
+    </section>
+    <section class="kort">
+      <h2>V85 och V75</h2>
+      <p>V85 ersatte V75 den 25 oktober 2025. Den 28 november 2026 kommer V75 tillbaka och V85 pausas. Travguiden
+        följer båda: nya V75 har 7 avdelningar, utdelning för 7, 6 och 5 rätt och radpriset 60 öre (V85: 8 avdelningar,
+        8–5 rätt och 50 öre). Appen byter av sig själv när ATG lägger ut den första nya V75-omgången. Tillägget V7
+        (bara utdelning på 7 rätt) räknas inte med.</p>
     </section>
     <section class="kort">
       <h2>Tre förslag</h2>
@@ -173,13 +180,12 @@
       <h2>Källor</h2>
       <ul class="kallista">
         <li><b>ATG – tävlingsinformation</b> (<a href="https://www.atg.se/spel/V85" target="_blank" rel="noopener noreferrer">atg.se</a>):
-          startlistor, hästarnas och kuskarnas statistik, V85-strecken, vinnarodds, resultat och utdelning. Hämtas
+          startlistor, hästarnas och kuskarnas statistik, strecken, vinnarodds, resultat och utdelning. Hämtas
           från samma öppna data som atg.se själv använder.</li>
         <li><b>ATG – tipsartiklar</b> (<a href="https://www.atg.se/V85/tips" target="_blank" rel="noopener noreferrer">atg.se/V85/tips</a>):
           experternas system, bland annat <i>Fem tippar V85</i>. Systemen är ATG-kuponger, så vilka hästar experterna
           valt läses direkt utan tolkning.</li>
-        <li><b>Historik:</b> alla V85-omgångar sedan premiären 25 oktober 2025, och V75-omgångar 2023–2025 som extra
-          underlag när chansen skattas.</li>
+        <li><b>Historik:</b> alla V75-omgångar sedan 2023 och alla V85-omgångar sedan premiären 25 oktober 2025.</li>
         <li><b>Google Gemini</b> skriver den korta AI-kommentaren till varje lopp, utifrån uppgifterna ovan. Inget
           annat material skickas till AI:n.</li>
       </ul>
