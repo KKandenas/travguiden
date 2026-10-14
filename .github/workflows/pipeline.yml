@@ -20,7 +20,7 @@ on:
         description: "Vad ska köras?"
         type: choice
         default: auto
-        options: [auto, atg, experter, resultat, statistik, backfill]
+        options: [auto, atg, experter, kommentarer, resultat, statistik, backfill]
       fran:
         description: "backfill: första datum (YYYY-MM-DD)"
         required: false
@@ -53,6 +53,9 @@ jobs:
         id: pipeline
         continue-on-error: true
         env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GEMINI_MODELL: ${{ vars.GEMINI_MODELL }}
+          GEMINI_RESERVMODELLER: ${{ vars.GEMINI_RESERVMODELLER }}
           KOMMANDO: ${{ inputs.kommando || 'auto' }}
           FRAN: ${{ inputs.fran }}
           TILL: ${{ inputs.till }}

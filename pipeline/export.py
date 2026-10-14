@@ -77,6 +77,9 @@ def omgang_data(conn: sqlite3.Connection, omgang_id: str, dolj_resultat: bool = 
             hastar.append(h)
         avd = {"avd": a["avd"], "loppnr": a["loppnr"], "namn": a["namn"], "distans": a["distans"],
                "startmetod": a["startmetod"], "starttid": a["starttid"], "hastar": hastar}
+        k = conn.execute("SELECT text FROM kommentarer WHERE omgang_id = ? AND avd = ?", (omgang_id, a["avd"])).fetchone()
+        if k:
+            avd["kommentar"] = k[0]
         if a["vinnare"] and not dolj_resultat:
             avd["vinnare"] = [int(x) for x in a["vinnare"].split(",")]
         avdelningar.append(avd)

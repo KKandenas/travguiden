@@ -5,7 +5,7 @@
 //   h = [[nr, chans, streck], ...] för hästarna som startade.
 // Chanserna är walk-forward: räknade med vikter som bara sett lopp före omgångens månad.
 
-import { LAMBDA, SKRALL, optimera, ratta, skrallKrav, vinst } from "./optimizer.js?v=20261014c";
+import { LAMBDA, SKRALL, optimera, ratta, skrallKrav, vinst } from "./optimizer.js?v=20261014d";
 
 // Förslagen i appen plus Strecken (folkets bedömning som chans) som jämförelse. Experterna finns bara för
 // omgångar där experternas system sparades (h har då ett fjärde värde).
@@ -15,6 +15,15 @@ export const KALLOR = {
   skrall: { namn: "Skrällchansen", chans: (h) => h[1], skrall: true },
   streck: { namn: "Strecken", chans: (h) => h[2] },
 };
+
+// Perioder i backtestet. Premiären = första V85 efter att Travguiden publicerades (14 oktober 2026).
+export const PREMIAR = "2026-10-17";
+export const PERIODER = {
+  alla: { namn: "Alla omgångar (sedan oktober 2025)", fran: "" },
+  premiar: { namn: "Sedan premiären (17 oktober 2026)", fran: PREMIAR },
+  2026: { namn: "Från 2026", fran: "2026-01-01" },
+};
+export const iPeriod = (omg, period) => omg.datum >= (PERIODER[period] || PERIODER.alla).fran;
 
 export function avdelningarFran(omg, kalla = "modell") {
   const c = KALLOR[kalla].chans;

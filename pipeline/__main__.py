@@ -3,6 +3,7 @@
     python -m pipeline auto                              # det som schemat kör: allt som är aktuellt just nu
     python -m pipeline atg                               # kommande omgångar: hästar, streck, vinnarodds
     python -m pipeline experter                          # experternas system ur ATG:s tipsartiklar
+    python -m pipeline kommentarer                       # AI-kommentarer per avdelning (kräver GEMINI_API_KEY)
     python -m pipeline resultat                          # resultat och utdelning för omgångar efter spelstopp
     python -m pipeline backfill 2025-10-25 2026-10-10    # hämta historiska omgångar (1 s paus mellan anrop)
     python -m pipeline backfill 2023-01-01 2025-10-18 --spelform V75   # äldre V75 som träningsdata
@@ -23,6 +24,8 @@ import time
 from datetime import date, datetime, timedelta, timezone
 
 from . import config, db, export, lagring
+from .ai import klient as ai_klient
+from .ai import kommentarer as ai_kommentarer
 from .http import HamtningsFel
 from .model import modeller, statistik
 from .modeller import ValideringsFel
@@ -83,6 +86,21 @@ def steg_experter(conn) -> None:
     log.info("Experter: %d system sparade (%s)", n, ", ".join(sorted({f"{s.namn}" for s in system})) or "inga")
 
 
+def steg_kommentarer(conn) -> None:
+    """AI-kommentarer för kommande omgångar. Valfritt: utan nyckel eller vid fel loggas det och körningen fortsätter."""
+    ok, orsak = ai_klient.tillganglig()
+    if not ok:
+        log.info("Kommentarer: hoppar över – %s", orsak)
+        return
+    for (sid,) in conn.execute("SELECT id FROM omgangar WHERE spelform = 'V85' AND avgjord = 0 AND spelstopp > ?",
+                               (nu_utc(),)).fetchall():
+        try:
+            n = ai_kommentarer.uppdatera(conn, ai_klient.anropa_json, export.omgang_data(conn, sid))
+            log.info("Kommentarer: %s – %d nya", sid, n)
+        except ai_klient.AiFel as e:
+            log.warning("Kommentarer: %s – %s", sid, e)
+
+
 def steg_resultat(conn) -> bool:
     ok = True
     for sid in lagring.ej_avgjorda(conn, nu_utc()):
@@ -115,7 +133,7 @@ def main(argv=None) -> int:
     p = argparse.ArgumentParser(prog="pipeline", description="Travguidens datapipeline")
     p.add_argument("-v", "--verbose", action="store_true")
     sub = p.add_subparsers(dest="kommando", required=True)
-    for k in ("auto", "atg", "experter", "resultat", "statistik", "migrera"):
+    for k in ("auto", "atg", "experter", "kommentarer", "resultat", "statistik", "migrera"):
         sub.add_parser(k)
     b = sub.add_parser("backfill")
     b.add_argument("fran")
@@ -152,7 +170,9 @@ def main(argv=None) -> int:
     if a.kommando in ("auto", "atg", "experter", "resultat", "backfill", "prognos", "statistik"):
         # Efter ny träning räknas även avgjorda omgångar om (walk-forward-vikter, se statistik.py)
         modeller.berakna_prognoser(conn, alla=tranad or getattr(a, "alla", False))
-    if a.kommando in ("auto", "atg", "experter", "resultat", "export", "statistik"):
+    if a.kommando in ("auto", "kommentarer"):
+        steg_kommentarer(conn)
+    if a.kommando in ("auto", "atg", "experter", "kommentarer", "resultat", "export", "statistik"):
         try:
             if getattr(a, "till", None):
                 export.exportera_omgang(conn, a.omgang, a.till, dolj_resultat=a.dolj_resultat)

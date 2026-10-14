@@ -1,1 +1,4 @@
 requests>=2.31
+# AI-kommentarer. Kräver Python 3.10+; på äldre Python hoppar AI-steget över.
+google-genai; python_version >= "3.10"
+anthropic; python_version >= "3.10"

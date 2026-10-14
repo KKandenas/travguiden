@@ -12,8 +12,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@600;700;800&display=swap">
-<link rel="stylesheet" href="app.css?v=20261014c">
-<script type="module" src="app.js?v=20261014c"></script>
+<link rel="stylesheet" href="app.css?v=20261014d">
+<script type="module" src="app.js?v=20261014d"></script>
 </head>
 <body data-vy="kupong">
 <header class="topp">
@@ -69,8 +69,11 @@
           <a class="lamna-in" href="https://www.atg.se/spel/V85" target="_blank" rel="noopener noreferrer">Lämna in hos ATG<span class="sr-only"> (öppnas i nytt fönster)</span> <span aria-hidden="true">↗</span></a>
         </section>
         <div id="banner" class="banner" hidden></div>
-        <p class="tips-rad">Tryck på rutan för att låsa en häst 🔒 · tryck på hästen för detaljer · <a href="#om">Så läser du kupongen</a></p>
-        <button id="rensa" class="knapp" type="button" hidden>Rensa låsningar</button>
+        <p class="tips-rad">Tryck på en avdelning för att se alla hästar · tryck på rutan för att låsa en häst 🔒 · <a href="#om">Så läser du kupongen</a></p>
+        <div class="knapprad">
+          <button id="fall-alla" class="knapp" type="button">Fäll ut alla</button>
+          <button id="rensa" class="knapp" type="button" hidden>Rensa låsningar</button>
+        </div>
       </div>
       <ol id="avdelningar" class="avdelningar" aria-label="Avdelningar"></ol>
     </div>
@@ -96,6 +99,7 @@
           <div id="r-budgetknappar" class="budgetknappar" role="radiogroup" aria-label="Insats i rättningen"></div>
           <div id="r-resultat" aria-live="polite"><p class="dampad">Laddar …</p></div>
         </section>
+        <div class="knapprad"><button id="r-fall-alla" class="knapp" type="button">Fäll ut alla</button></div>
         <section id="r-utdelning" class="kort" hidden>
           <h2 class="kort-rubrik">Utdelning</h2>
           <div id="r-utdelning-innehall"></div>
@@ -111,7 +115,8 @@
     <section class="kort">
       <p>Travguidens förslag på varje V85 sedan starten i oktober 2025, rättat mot riktiga utdelningar.
         Förslagen jämförs med samma system byggt på bara strecken.</p>
-      <div id="bt-budgetknappar" class="budgetknappar" role="radiogroup" aria-label="Insats i backtestet" style="margin-top:12px"></div>
+      <label class="arsval">Visa <select id="bt-period" class="arsval-lista" aria-label="Period"></select></label>
+      <div id="bt-budgetknappar" class="budgetknappar" role="radiogroup" aria-label="Insats i backtestet"></div>
       <div id="backtest-innehall" aria-live="polite"><p class="dampad" style="margin-top:12px">Laddar historiken …</p></div>
     </section>
   </section>
@@ -160,11 +165,24 @@
         din insats. Raderna kostar 50 öre styck.</p>
     </section>
     <section class="kort">
-      <h2>Data och uppdateringar</h2>
-      <p>Hästar, streck, vinnarodds, resultat och utdelning hämtas från ATG:s öppna tävlingsinformation. En
-        automatisk körning uppdaterar under veckan och flera gånger på tävlingsdagen fram till spelstopp.</p>
-      <p>Travguiden är ett hobbyprojekt och ingen spelrådgivning. Spel om pengar kan vara beroendeframkallande –
-        spela för belopp du har råd att förlora. <a href="https://www.stodlinjen.se" target="_blank" rel="noopener noreferrer">Stödlinjen.se</a></p>
+      <h2>Källor</h2>
+      <ul class="kallista">
+        <li><b>ATG – tävlingsinformation</b> (<a href="https://www.atg.se/spel/V85" target="_blank" rel="noopener noreferrer">atg.se</a>):
+          startlistor, hästarnas och kuskarnas statistik, V85-strecken, vinnarodds, resultat och utdelning. Hämtas
+          från samma öppna data som atg.se själv använder.</li>
+        <li><b>ATG – tipsartiklar</b> (<a href="https://www.atg.se/V85/tips" target="_blank" rel="noopener noreferrer">atg.se/V85/tips</a>):
+          experternas system, bland annat <i>Fem tippar V85</i>. Systemen är ATG-kuponger, så vilka hästar experterna
+          valt läses direkt utan tolkning.</li>
+        <li><b>Historik:</b> alla V85-omgångar sedan premiären 25 oktober 2025, och V75-omgångar 2023–2025 som extra
+          underlag när chansen skattas.</li>
+        <li><b>Google Gemini</b> skriver den korta AI-kommentaren till varje lopp, utifrån uppgifterna ovan. Inget
+          annat material skickas till AI:n.</li>
+      </ul>
+      <p>Data hämtas automatiskt flera gånger om dagen och extra ofta på lördagar fram till spelstopp.
+        Koden finns på <a href="https://github.com/KKandenas/travguiden" target="_blank" rel="noopener noreferrer">GitHub</a>.</p>
+      <p>Travguiden är ett hobbyprojekt utan koppling till ATG och ingen spelrådgivning. Spel om pengar kan vara
+        beroendeframkallande – spela för belopp du har råd att förlora.
+        <a href="https://www.stodlinjen.se" target="_blank" rel="noopener noreferrer">Stödlinjen.se</a></p>
     </section>
   </section>
 </main>

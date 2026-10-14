@@ -13,7 +13,7 @@
 // kombination som ger högst total poäng utan att gå över budgeten.
 
 export const RADPRIS = 0.5;                     // kr per rad
-export const BUDGETAR = [50, 100, 200, 300, 500, 1000];   // kr
+export const BUDGETAR = [25, 50, 100, 120, 200, 300, 500, 1000];   // kr; 120 kr = 240 rader som ATG:s Fem tippar
 export const LAMBDA = 0.3;                      // risknivå, se README (backtest)
 export const VARDE_GRANS = 0.02;                // orange prick från 2 procentenheter understreckad
 export const ANTAL_AVD = 8;

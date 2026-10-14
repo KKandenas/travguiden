@@ -31,3 +31,11 @@ test("Experterna spelas bara på omgångar med expertsystem", () => {
   assert.equal(spel.length, 1);
   assert.equal(spel[0].ratt, 8);          // experterna tror på nr 2 överallt
 });
+
+test("perioder: alla, sedan premiären och från 2026", async () => {
+  const { iPeriod, PREMIAR } = await import("../../docs/backtest.js");
+  const o = (datum) => ({ datum });
+  assert.ok(iPeriod(o("2025-11-01"), "alla"));
+  assert.ok(!iPeriod(o("2025-11-01"), "2026") && iPeriod(o("2026-01-03"), "2026"));
+  assert.ok(!iPeriod(o("2026-10-10"), "premiar") && iPeriod(o(PREMIAR), "premiar"));
+});

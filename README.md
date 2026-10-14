@@ -18,8 +18,8 @@ GitHub Actions (schema)                          GitHub Pages
 - **Pipeline** (`pipeline/`): Python. Hämtar data från ATG, sparar i SQLite (`data/trav.db`, committas
   till repot), räknar chans per häst och exporterar JSON till appen.
 - **App** (`docs/`): HTML, CSS och JS utan byggsteg. Ingen backend och inga nycklar.
-- Ingen inloggning och ingen AI än (se [Idéer](#idéer-som-väntar)). Experternas tips är strukturerade
-  ATG-kuponger och behöver ingen AI.
+- **AI** (Gemini) skriver en kort kommentar per avdelning, bara från pipelinen. Experternas tips är strukturerade
+  ATG-kuponger och behöver ingen AI. Ingen inloggning än.
 
 ## Kom igång lokalt
 
@@ -46,11 +46,13 @@ python3 -m http.server 8766 -d docs     # öppna http://localhost:8766
 | `python -m pipeline export` | Skriv `docs/omgang.json`, `senaste.json` och `historik.json` |
 | `python -m pipeline export --omgang V85_2026-10-10_5_6 --till docs/exempel-omgang.json --dolj-resultat` | Skapa exempelfilen |
 
+| `python -m pipeline kommentarer` | AI-kommentarer per avdelning för kommande V85 (kräver `GEMINI_API_KEY`) |
+
 Lägg till `-v` för mer loggning. Miljövariabeln `TRAV_DB` styr vilken databasfil som används.
 
 ## GitHub
 
-1. Skapa ett publikt repo och pusha. Inga secrets behövs.
+1. Skapa ett publikt repo och pusha. Secret `GEMINI_API_KEY` behövs bara för AI-kommentarerna.
 2. **Settings → Pages**: Deploy from branch, `main` och `/docs`.
 3. Om workflowet får "permission denied" vid push: **Settings → Actions → General → Workflow permissions → Read and write**.
 
@@ -131,6 +133,18 @@ Backtest på 76 omgångar (återbetalning 50/100/200/500/1000 kr): Oddsen 34/24/
 spelstopp), så kandidaterna blir få (0,45 per omgång). Skrällchansen blir meningsfull på tävlingsdagen, när
 vinnaroddsen säger emot strecken.
 
+## AI-kommentarer
+
+`pipeline/ai/klient.py` är samma klient som i Stryktipsguiden (Gemini med reservmodeller, Claude som alternativ,
+tidsgränser). `pipeline/ai/kommentarer.py` skriver 1–2 meningar per avdelning från streck, chans, experternas val och
+hästarnas statistik. AI:n får inga artikeltexter. En kommentar skrivs om när en häst stryks eller nya expertsystem
+kommer, eller när underlaget ändrats och kommentaren är äldre än 20 timmar. Alla avdelningar som behöver en ny
+kommentar tas i ett anrop, så det blir ett par anrop om dagen.
+
+**Egen kvot:** Geminis gratisgränser gäller per Google-projekt, inte per nyckel. Travguidens nyckel ska därför
+komma från ett **eget projekt** i Google AI Studio, så att Stryktipsguidens kvot inte påverkas.
+Utan nyckel (eller på Python < 3.10) hoppas steget över med en loggrad.
+
 ## Systemet (`docs/optimizer.js`)
 
 Antalet rader är produkten av antalet hästar per avdelning, och en rad kostar 50 öre. Poäng per avdelning med hästarna S:
@@ -165,10 +179,10 @@ Vyer (`#` i adressen så att bakåtknappen fungerar):
 
 | Vy | Innehåll |
 |---|---|
-| `#kupong` | Veckans V85: välj förslag (Oddsen, Experterna, Skrällchansen) och insats, lås hästar, se detaljer och vilka experter som tagit med hästen |
+| `#kupong` | Veckans V85: välj förslag (Oddsen, Experterna, Skrällchansen) och insats (25–1000 kr, bland annat 120 kr = 240 rader). En rad per avdelning med de spelade hästarna; fäll ut för alla hästar, AI-kommentar, låsningar och detaljer |
 | `#rattning` | Förra omgången: vinnare, antal rätt, rader per antal rätt och vinst för valt förslag och insats |
-| `#backtest` | Om du spelat varje omgång: saldo över tid för förslagen och för bara strecken |
-| `#om` | Så funkar Travguiden, med aktuell utvärdering |
+| `#backtest` | Om du spelat varje omgång: saldo över tid för förslagen och för bara strecken. Period: alla omgångar, sedan premiären (17 oktober 2026) eller från 2026 |
+| `#om` | Så funkar Travguiden: förslagen, chansen, systemet, aktuell utvärdering och källor |
 
 Vald insats och låsningar sparas i webbläsarens localStorage. Lägg till `?exempel` i adressen för exempelomgången.
 

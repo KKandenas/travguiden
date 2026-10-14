@@ -1,8 +1,8 @@
 import {
   ANTAL_AVD, BUDGETAR, RADPRIS, VARDE_GRANS, deltagare, kronor, optimera, ratta, sammanfattning, skrallchanser,
   skrallKrav, vinst,
-} from "./optimizer.js?v=20261014c";
-import { KALLOR, backtesta, sammanstall } from "./backtest.js?v=20261014c";
+} from "./optimizer.js?v=20261014d";
+import { KALLOR, PERIODER, backtesta, iPeriod, sammanstall } from "./backtest.js?v=20261014d";
 
 const $ = (id) => document.getElementById(id);
 const LAGRING = "travguiden";
@@ -19,8 +19,11 @@ const state = {
   senaste: null,        // senaste.json – förra omgången
   rBudget: null,
   rOppna: new Set(),
+  utfallda: new Set(),  // avdelningar med utfälld hästlista
+  rUtfallda: new Set(),
   historik: null,       // historik.json, laddas först när backtestet öppnas
   btBudget: null,
+  btPeriod: "alla",
 };
 
 // ---------- lagring (localStorage kan saknas eller kasta, t.ex. i privat läge) ----------
@@ -165,6 +168,7 @@ async function start() {
   state.lasningar = (lagrat.lasningar || {})[state.data.omgang.id] || {};
   byggBudgetknappar($("budgetknappar"), () => state.budget, (b) => { state.budget = b; uppdatera(); });
   $("avdelningar").addEventListener("click", klickKupong);
+  fallText = fallKnapp($("fall-alla"), state.utfallda, uppdatera);
   $("rensa").addEventListener("click", () => { state.lasningar = {}; uppdatera(); });
   renderaOmStatistik();
   uppdatera();
@@ -200,7 +204,8 @@ function uppdatera() {
   $("forslag-info").hidden = !info;
   $("rensa").hidden = !Object.values(state.lasningar).some((l) => l.length);
   renderaTopp();
-  ritaAvdelningar($("avdelningar"), d, r.ok ? r.val : [], state.lasningar, state.oppna, true, state.kalla);
+  ritaAvdelningar($("avdelningar"), d, r.ok ? r.val : [], state.lasningar, state.oppna, true, state.kalla, state.utfallda);
+  fallText();
   sparaLagring();
 }
 
@@ -242,7 +247,7 @@ const versal = (s) => s.charAt(0).toUpperCase() + s.slice(1);
 /**
  * Ritar avdelningarna. val: [{avd, nr: [...]}] från optimeraren; interaktiv = låsning och detaljer på klick.
  */
-function ritaAvdelningar(lista, data, val, lasningar, oppna, interaktiv, kalla) {
+function ritaAvdelningar(lista, data, val, lasningar, oppna, interaktiv, kalla, utfallda) {
   const valPer = Object.fromEntries(val.map((v) => [v.avd, new Set(v.nr)]));
   const optAvd = avdelningarFor(data, kalla);
   const skrallar = kalla === "skrall" ? skrallchanser(avdelningarFor(data, "modell")) : {};
@@ -258,16 +263,42 @@ function ritaAvdelningar(lista, data, val, lasningar, oppna, interaktiv, kalla) 
     const start = a.starttid ? tidFmt.format(new Date(a.starttid)) : "";
     const typ = valda.size === 1 ? el("span", { class: "avd-typ spik", text: "SPIK" })
       : el("span", { class: "avd-typ", text: valda.size ? `${valda.size} hästar` : "" });
-    return el("li", { class: "avd" + (avgjord && valda.size ? (traff ? " traff" : " miss") : ""), "data-avd": a.avd },
-      el("div", { class: "avd-huvud" },
+    const utfalld = utfallda.has(a.avd);
+    const id = `avd-${interaktiv ? "k" : "r"}-${a.avd}`;
+    const hast = (nr) => a.hastar.find((h) => h.nr === nr);
+    const valdaSorterade = [...valda].sort((x, y) => x - y);
+    const brickor = valdaSorterade.map((nr) => el("span", {
+      class: ["bricka", last.has(nr) && "last", skrall === nr && "skrall", vinnare.has(nr) && "vann"].filter(Boolean).join(" "),
+      title: hast(nr)?.namn,
+    }, el("b", { text: nr }), valda.size === 1 ? ` ${hast(nr)?.namn ?? ""}` : null));
+    const vinnartext = avgjord && !traff
+      ? el("span", { class: "vann-annan", text: `Vann: ${[...vinnare].map((nr) => `${nr} ${hast(nr)?.namn ?? ""}`).join(", ")}` }) : null;
+    return el("li", { class: "avd" + (avgjord && valda.size ? (traff ? " traff" : " miss") : "") + (utfalld ? " utfalld" : ""), "data-avd": a.avd },
+      el("button", { type: "button", class: "avd-huvud", "data-avd-toggle": "1", "aria-expanded": String(utfalld), "aria-controls": id },
         el("span", { class: "avd-nr", "aria-label": `Avdelning ${a.avd}`, text: a.avd }),
-        el("div", { class: "avd-text" },
-          el("b", { text: `Lopp ${a.loppnr} · ${a.distans} m ${METOD[a.startmetod] || a.startmetod || ""}${start ? " · " + start : ""}` }),
-          el("span", { text: kortLoppnamn(a.namn), title: a.namn || "" })),
-        typ),
-      el("ul", { class: "hastar" }, ...a.hastar.map((h) => hastRad(a, h, andel[h.nr], valda.has(h.nr), last.has(h.nr),
-        vinnare.has(h.nr), oppna.has(`${a.avd}-${h.nr}`), interaktiv, { skrall: skrall === h.nr, experter: experter(a, h) }))));
+        el("span", { class: "avd-text" },
+          el("b", { text: `Lopp ${a.loppnr} · ${start}${start ? " · " : ""}${a.distans} m ${METOD[a.startmetod] || a.startmetod || ""}` }),
+          el("span", { class: "brickor" }, ...brickor, vinnartext)),
+        typ,
+        el("span", { class: "pil", "aria-hidden": "true", text: "▾" })),
+      utfalld ? el("div", { class: "avd-kropp", id },
+        el("p", { class: "loppnamn", text: kortLoppnamn(a.namn), title: a.namn || "" }),
+        a.kommentar ? el("p", { class: "ai-kommentar" }, el("span", { class: "ai-etikett", text: "AI" }), a.kommentar) : null,
+        el("ul", { class: "hastar" }, ...a.hastar.map((h) => hastRad(a, h, andel[h.nr], valda.has(h.nr), last.has(h.nr),
+          vinnare.has(h.nr), oppna.has(`${a.avd}-${h.nr}`), interaktiv, { skrall: skrall === h.nr, experter: experter(a, h) })))) : null);
   }));
+}
+
+/** Knappen "Fäll ut alla / Fäll ihop alla" för en avdelningslista. */
+function fallKnapp(knapp, utfallda, rita) {
+  const uppdateraText = () => { knapp.textContent = utfallda.size === ANTAL_AVD ? "Fäll ihop alla" : "Fäll ut alla"; };
+  knapp.addEventListener("click", () => {
+    const alla = utfallda.size === ANTAL_AVD;
+    utfallda.clear();
+    if (!alla) for (let i = 1; i <= ANTAL_AVD; i++) utfallda.add(i);
+    rita();
+  });
+  return uppdateraText;
 }
 
 /** (avd, häst) -> {antal, totalt, namn: ["Mats E Djuse (spik)", ...]} om experternas system finns. */
@@ -346,7 +377,17 @@ function detaljer(h, andel, id, exp) {
     }) : null);
 }
 
+let fallText = () => {};
+let rFallText = () => {};
+
 function klickKupong(e) {
+  const huvud = e.target.closest("[data-avd-toggle]");
+  if (huvud) {
+    const avd = Number(huvud.closest(".avd").dataset.avd);
+    state.utfallda.has(avd) ? state.utfallda.delete(avd) : state.utfallda.add(avd);
+    uppdatera();
+    return;
+  }
   const li = e.target.closest(".hast");
   const avd = Number(e.target.closest(".avd")?.dataset.avd);
   if (!li || !avd) return;
@@ -377,7 +418,15 @@ async function oppnaRattning() {
     const sparad = (lasLagring().budgetar || {})[state.senaste.omgang.id];
     state.rBudget = BUDGETAR.includes(sparad) ? sparad : state.budget;
     byggBudgetknappar($("r-budgetknappar"), () => state.rBudget, (b) => { state.rBudget = b; renderaRattning(); });
+    rFallText = fallKnapp($("r-fall-alla"), state.rUtfallda, renderaRattning);
     $("r-avdelningar").addEventListener("click", (e) => {
+      const huvud = e.target.closest("[data-avd-toggle]");
+      if (huvud) {
+        const avd = Number(huvud.closest(".avd").dataset.avd);
+        state.rUtfallda.has(avd) ? state.rUtfallda.delete(avd) : state.rUtfallda.add(avd);
+        renderaRattning();
+        return;
+      }
       const li = e.target.closest(".hast");
       const avd = e.target.closest(".avd")?.dataset.avd;
       if (!li || !avd || !e.target.closest("[data-detalj]")) return;
@@ -425,7 +474,8 @@ function renderaRattning() {
       el("tr", { class: r.perRatt[k] ? "har-vinst" : "" }, el("td", { text: `${k} rätt` }), el("td", { class: "tal", text: kr(u.kr) }),
         el("td", { class: "tal", text: u.antal != null ? u.antal.toLocaleString("sv-SE") : "–" }),
         el("td", { class: "tal", text: r.perRatt[k] || "–" }))))));
-  ritaAvdelningar($("r-avdelningar"), d, res.val, {}, state.rOppna, false, state.kalla);
+  ritaAvdelningar($("r-avdelningar"), d, res.val, {}, state.rOppna, false, state.kalla, state.rUtfallda);
+  rFallText();
 }
 
 // ---------- backtest ----------
@@ -440,6 +490,10 @@ async function oppnaBacktest() {
     }
     state.btBudget = state.budget;
     byggBudgetknappar($("bt-budgetknappar"), () => state.btBudget, (b) => { state.btBudget = b; renderaBacktest(); });
+    const val = $("bt-period");
+    val.replaceChildren(...Object.entries(PERIODER).map(([k, p]) => el("option", { value: k, text: p.namn })));
+    val.value = state.btPeriod;
+    val.addEventListener("change", () => { state.btPeriod = val.value; renderaBacktest(); });
   }
   renderaBacktest();
 }
@@ -450,25 +504,34 @@ function renderaBacktest() {
     box.replaceChildren(el("p", { class: "dampad", text: "Ingen historik ännu." }));
     return;
   }
+  const historik = { omgangar: state.historik.omgangar.filter((o) => iPeriod(o, state.btPeriod)) };
   const serier = Object.keys(KALLOR).map((k, i) => {
-    const spel = backtesta(state.historik, state.btBudget, k);
+    const spel = backtesta(historik, state.btBudget, k);
     return { k, namn: KALLOR[k].namn, spel, sum: sammanstall(spel), farg: `var(--serie-${i + 1})` };
-  }).filter((s) => s.spel.length);
-  const utanExperter = !serier.some((s) => s.k === "experter");
+  });
   const [m] = serier;
+  if (!m.spel.length) {
+    box.replaceChildren(el("p", { class: "dampad", style: "margin-top:12px",
+      text: "Inga avgjorda omgångar i den här perioden än. Den första räknas när lördagens V85 är avgjord." }));
+    return;
+  }
+  const exp = serier.find((s) => s.k === "experter");
   const forsta = m.spel[0]?.datum;
   box.replaceChildren(
     el("div", { class: "r-stort" }, ...serier.map((s) => el("div", {},
       el("span", {}, el("i", { class: "nyckel", style: `background:${s.farg}` }), s.namn),
-      el("b", { class: s.sum.netto >= 0 ? "plus" : "minus", text: plusKr(s.sum.netto) }),
-      el("span", { text: `${kr(s.sum.insats)} in · ${kr(s.sum.tillbaka)} tillbaka · ${Math.round(s.sum.aterbetalning * 100)} % återbetalning` })))),
-    diagram(serier),
+      s.spel.length ? el("b", { class: s.sum.netto >= 0 ? "plus" : "minus", text: plusKr(s.sum.netto) }) : el("b", { class: "dampad", text: "–" }),
+      el("span", { text: s.spel.length
+        ? `${kr(s.sum.insats)} in · ${kr(s.sum.tillbaka)} tillbaka · ${Math.round(s.sum.aterbetalning * 100)} % återbetalning`
+          + (s.spel.length < m.spel.length ? ` · ${s.spel.length} omgångar` : "")
+        : "Inga avgjorda omgångar med expertsystem än" })))),
+    diagram(serier.filter((s) => s.spel.length)),
     el("div", { class: "tabell-scroll" }, el("table", { class: "stat-tabell", style: "margin-top:12px" },
       el("thead", {}, el("tr", {}, el("th", { text: "" }), ...[8, 7, 6, 5].map((k) => el("th", { class: "tal", text: `${k} rätt` })),
         el("th", { class: "tal", text: "Med vinst" }))),
       el("tbody", {}, ...serier.map((s) => el("tr", {}, el("td", { text: s.namn }),
-        ...[8, 7, 6, 5].map((k) => el("td", { class: "tal", text: s.sum.fordelning[k] })),
-        el("td", { class: "tal", text: `${s.sum.medVinst} av ${s.sum.omgangar}` })))))),
+        ...[8, 7, 6, 5].map((k) => el("td", { class: "tal", text: s.spel.length ? s.sum.fordelning[k] : "–" })),
+        el("td", { class: "tal", text: s.spel.length ? `${s.sum.medVinst} av ${s.sum.omgangar}` : "–" })))))),
     el("h2", { class: "kort-rubrik", style: "margin-top:18px", text: "Omgång för omgång (Oddsen)" }),
     el("div", { class: "tabell-scroll" }, el("table", { class: "stat-tabell" },
       el("thead", {}, el("tr", {}, el("th", { text: "Datum" }), el("th", { text: "Bana" }), el("th", { class: "tal", text: "Rätt" }),
@@ -477,8 +540,9 @@ function renderaBacktest() {
         el("td", { text: s.datum }), el("td", { text: s.bana }), el("td", { class: "tal", text: s.ratt }),
         el("td", { class: "tal", text: s.vinst ? kr(s.vinst) : "–" }),
         el("td", { class: "tal", text: plusKr(s.saldo) })))))),
-    utanExperter ? el("p", { class: "bt-not", text: "Experterna saknas i backtestet: ATG raderar experternas kuponger efter loppet, " +
-      "så de har bara sparats sedan oktober 2026. Förslaget kommer med här när de första omgångarna med expertsystem är avgjorda." }) : null,
+    exp.spel.length < m.spel.length ? el("p", { class: "bt-not", text: "Experterna räknas bara för omgångar där experternas " +
+      "system sparades, alltså sedan 14 oktober 2026 (ATG raderar kupongerna efter loppet). Jämför därför Experterna med de " +
+      "andra under \"Sedan premiären\"." }) : null,
     el("p", { class: "bt-not", text: `${m.sum.omgangar} omgångar sedan ${forsta}. Chanserna i backtestet är räknade med vikter som bara sett ` +
       "lopp före omgångens månad, och utan vinnarodds (de finns inte sparade från före spelstopp i historiken). " +
       "Utdelningen per rad är ordinarie (utan Boost). Ett fåtal stora vinster avgör mycket, så läs resultatet som en riktning, inte en garanti." }),
@@ -487,7 +551,9 @@ function renderaBacktest() {
 
 function diagram(serier) {
   const B = 640, H = 220, P = { v: 56, h: 8, t: 10, b: 22 };
-  const n = Math.max(...serier.map((s) => s.spel.length));
+  const datum = [...new Set(serier.flatMap((s) => s.spel.map((x) => x.datum + x.id)))].sort();
+  const pos = Object.fromEntries(datum.map((d, i) => [d, i]));
+  const n = datum.length;
   const alla = serier.flatMap((s) => s.spel.map((x) => x.saldo)).concat(0);
   const min = Math.min(...alla), max = Math.max(...alla);
   const sp = max - min || 1;
@@ -510,7 +576,7 @@ function diagram(serier) {
   }
   add("line", { class: "noll", x1: P.v, x2: B - P.h, y1: y(0), y2: y(0) });
   for (const s of serier) {
-    add("polyline", { class: "linje", stroke: s.farg, points: s.spel.map((p, i) => `${x(i)},${y(p.saldo)}`).join(" ") });
+    add("polyline", { class: "linje", stroke: s.farg, points: s.spel.map((p) => `${x(pos[p.datum + p.id])},${y(p.saldo)}`).join(" ") });
   }
   const forst = serier[0].spel[0], sist = serier[0].spel.at(-1);
   if (forst) add("text", { class: "axel", x: P.v, y: H - 6 }, forst.datum);

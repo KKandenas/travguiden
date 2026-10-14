@@ -125,7 +125,7 @@ h1 { font-family: var(--rubrikfont); font-size: 36px; font-weight: 800; line-hei
 .forslag button[aria-checked="true"] { background: var(--yta); box-shadow: 0 1px 4px rgba(10, 40, 25, .15); }
 .forslag button[aria-checked="true"] b { color: var(--primar); }
 .forslag button:focus-visible { outline: 2px solid var(--gul); outline-offset: 2px; }
-.budgetknappar { display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; }
+.budgetknappar { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
 .budgetknappar button {
   min-height: 46px; border-radius: 10px; border: 1.5px solid var(--ruta-kant); background: var(--yta-2);
   font-family: var(--rubrikfont); font-weight: 700; font-size: 17px; cursor: pointer; padding: 0; line-height: 1;
@@ -146,14 +146,43 @@ h1 { font-family: var(--rubrikfont); font-size: 36px; font-weight: 800; line-hei
 /* ---------- avdelningar ---------- */
 .avdelningar { list-style: none; margin: 0; padding: 0; }
 .avd { background: var(--yta); border-radius: 14px; margin-bottom: 10px; overflow: hidden; box-shadow: var(--skugga); }
-.avd-huvud { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-bottom: 1px solid var(--linje); }
+.avd-huvud {
+  display: flex; align-items: center; gap: 10px; padding: 10px 12px; width: 100%;
+  background: none; border: 0; text-align: left; cursor: pointer;
+}
+.avd.utfalld .avd-huvud { border-bottom: 1px solid var(--linje); }
+.avd-huvud .pil { flex: none; color: var(--dampad); transition: transform .15s; }
+.avd.utfalld .avd-huvud .pil { transform: rotate(180deg); }
+.avd-huvud:focus-visible { outline: 2px solid var(--gul); outline-offset: -2px; }
+.brickor { display: flex !important; flex-wrap: wrap; gap: 4px; margin-top: 4px; white-space: normal !important; }
+.bricka {
+  display: inline-flex; align-items: center; gap: 4px; min-width: 24px; height: 24px; padding: 0 7px; border-radius: 7px;
+  background: var(--primar); color: #fff; font-size: 13px; font-weight: 600;
+}
+.bricka b { font-family: var(--rubrikfont); font-size: 15px; }
+.bricka.last { box-shadow: 0 0 0 2px var(--gul); }
+.bricka.skrall { background: var(--orange); }
+.bricka.vann { background: var(--ratt); }
+.bricka.vann::after { content: "✓"; font-size: 12px; }
+.avd.miss .bricka { background: var(--dampad); }
+.vann-annan { font-size: 12px; color: var(--fel); font-weight: 600; align-self: center; }
+.avd-kropp .loppnamn { font-size: 12.5px; color: var(--dampad); padding: 8px 12px 0; }
+.ai-kommentar {
+  margin: 8px 12px 4px; padding: 9px 11px; border-radius: 10px; background: var(--yta-2);
+  border-left: 3px solid var(--gul); font-size: 14px; line-height: 1.45;
+}
+.ai-etikett {
+  display: inline-block; font-size: 10px; font-weight: 800; letter-spacing: .06em; color: var(--gul-text);
+  background: var(--gul); border-radius: 4px; padding: 1px 5px; margin-right: 6px; vertical-align: 1px;
+}
+.knapprad { display: flex; gap: 8px; margin-bottom: 12px; }
+.knapprad .knapp { min-height: 40px; font-size: 14px; }
 .avd-nr {
   flex: none; display: grid; place-items: center; width: 34px; height: 34px; border-radius: 10px;
   background: var(--primar); color: #fff; font-family: var(--rubrikfont); font-weight: 800; font-size: 18px; line-height: 1;
 }
 .avd-text { min-width: 0; flex: 1; }
-.avd-text b { display: block; font-size: 15px; }
-.avd-text span { display: block; font-size: 12px; color: var(--dampad); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.avd-text > b { display: block; font-size: 15px; }
 .avd-typ { flex: none; font-family: var(--rubrikfont); font-weight: 800; font-size: 14px; letter-spacing: .03em; color: var(--dampad); text-align: right; line-height: 1.1; }
 .avd-typ.spik { color: var(--gul-text); background: var(--gul); padding: 3px 8px; border-radius: 999px; }
 .avd.traff .avd-nr { background: var(--ratt); }
@@ -228,7 +257,12 @@ h1 { font-family: var(--rubrikfont); font-size: 36px; font-weight: 800; line-hei
 .bt-diagram .linje { fill: none; stroke-width: 2; stroke-linejoin: round; }
 .nyckel { display: inline-block; width: 14px; height: 3px; border-radius: 1px; vertical-align: middle; margin-right: 4px; }
 .bt-not { color: var(--dampad); font-size: 13px; margin-top: 10px; }
-.arsval { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
+.arsval { display: flex; align-items: center; gap: 8px; margin: 12px 0; font-size: 14px; font-weight: 600; color: var(--dampad); }
+.arsval-lista {
+  font: inherit; font-weight: 700; color: var(--text); background: var(--yta-2); min-height: 40px; flex: 1; min-width: 0;
+  border: 1.5px solid var(--ruta-kant); border-radius: 10px; padding: 8px 10px; cursor: pointer;
+}
+.arsval-lista:focus-visible { outline: 2px solid var(--gul); outline-offset: 2px; }
 
 /* ---------- om-sidan ---------- */
 .om h2 { font-family: var(--rubrikfont); font-size: 22px; font-weight: 800; margin-bottom: 8px; }
@@ -236,6 +270,8 @@ h1 { font-family: var(--rubrikfont); font-size: 36px; font-weight: 800; line-hei
 .om p + p { margin-top: 10px; }
 .om ul { margin: 10px 0; padding-left: 20px; font-size: 15px; line-height: 1.5; }
 .om li { margin-bottom: 6px; }
+.om .kallista { list-style: none; padding-left: 0; }
+.om .kallista li { padding: 8px 0; border-top: 1px solid var(--linje); margin: 0; }
 
 .fot { padding: 8px 16px 24px; text-align: center; color: var(--dampad); font-size: 12px; }
 .fot p + p { margin-top: 4px; }
@@ -248,7 +284,6 @@ h1 { font-family: var(--rubrikfont); font-size: 36px; font-weight: 800; line-hei
   .sidopanel { position: sticky; top: 90px; margin-top: -44px; }
   .sidopanel .budget { margin-top: 0; }
   .tva-kolumner > .avdelningar { margin-top: 18px; }
-  .budgetknappar { grid-template-columns: repeat(3, 1fr); }
   .valruta { grid-template-columns: 56px 56px; }
   .ordmarke { font-size: 28px; }
 }
