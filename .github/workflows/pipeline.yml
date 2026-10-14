@@ -20,7 +20,7 @@ on:
         description: "Vad ska köras?"
         type: choice
         default: auto
-        options: [auto, atg, resultat, statistik, backfill]
+        options: [auto, atg, experter, resultat, statistik, backfill]
       fran:
         description: "backfill: första datum (YYYY-MM-DD)"
         required: false

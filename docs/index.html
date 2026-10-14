@@ -12,8 +12,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@600;700;800&display=swap">
-<link rel="stylesheet" href="app.css?v=20261014b">
-<script type="module" src="app.js?v=20261014b"></script>
+<link rel="stylesheet" href="app.css?v=20261014c">
+<script type="module" src="app.js?v=20261014c"></script>
 </head>
 <body data-vy="kupong">
 <header class="topp">
@@ -55,10 +55,16 @@
     <div class="innehall tva-kolumner">
       <div class="sidopanel">
         <section class="kort budget" aria-labelledby="budget-rubrik">
+<div class="forslag" role="radiogroup" aria-label="Vilket förslag">
+            <button type="button" role="radio" data-kalla="modell" aria-checked="true"><b>Oddsen</b><span>Streck + vinnarodds</span></button>
+            <button type="button" role="radio" data-kalla="experter" aria-checked="false"><b>Experterna</b><span>Oddsen + expertsystem</span></button>
+            <button type="button" role="radio" data-kalla="skrall" aria-checked="false"><b>Skrällchansen</b><span>Oddsen + 1–2 skrällar</span></button>
+          </div>
           <h2 id="budget-rubrik" class="kort-rubrik">Hur mycket vill du spela för?</h2>
           <div id="budgetknappar" class="budgetknappar" role="radiogroup" aria-label="Insats"></div>
           <p id="sammanfattning" class="sammanfattning" aria-live="polite"></p>
           <p id="systemchans" class="forklaring-kort"></p>
+          <p id="forslag-info" class="forklaring-kort" aria-live="polite" hidden></p>
           <p id="fel" class="fel" role="alert" hidden></p>
           <a class="lamna-in" href="https://www.atg.se/spel/V85" target="_blank" rel="noopener noreferrer">Lämna in hos ATG<span class="sr-only"> (öppnas i nytt fönster)</span> <span aria-hidden="true">↗</span></a>
         </section>
@@ -81,6 +87,11 @@
     <div class="innehall tva-kolumner">
       <div class="sidopanel">
         <section class="kort budget" aria-labelledby="r-budget-rubrik">
+<div class="forslag" role="radiogroup" aria-label="Vilket förslag i rättningen">
+            <button type="button" role="radio" data-kalla="modell" aria-checked="true"><b>Oddsen</b><span>Streck + vinnarodds</span></button>
+            <button type="button" role="radio" data-kalla="experter" aria-checked="false"><b>Experterna</b><span>Oddsen + expertsystem</span></button>
+            <button type="button" role="radio" data-kalla="skrall" aria-checked="false"><b>Skrällchansen</b><span>Oddsen + 1–2 skrällar</span></button>
+          </div>
           <h2 id="r-budget-rubrik" class="kort-rubrik">Så gick systemet</h2>
           <div id="r-budgetknappar" class="budgetknappar" role="radiogroup" aria-label="Insats i rättningen"></div>
           <div id="r-resultat" aria-live="polite"><p class="dampad">Laddar …</p></div>
@@ -99,7 +110,7 @@
     <h1 class="vy-rubrik">Om du spelat varje omgång</h1>
     <section class="kort">
       <p>Travguidens förslag på varje V85 sedan starten i oktober 2025, rättat mot riktiga utdelningar.
-        Jämförs med samma system byggt på bara strecken.</p>
+        Förslagen jämförs med samma system byggt på bara strecken.</p>
       <div id="bt-budgetknappar" class="budgetknappar" role="radiogroup" aria-label="Insats i backtestet" style="margin-top:12px"></div>
       <div id="backtest-innehall" aria-live="polite"><p class="dampad" style="margin-top:12px">Laddar historiken …</p></div>
     </section>
@@ -116,6 +127,19 @@
         <li><b>Chans</b> – Travguidens bedömning av hur troligt det är att hästen vinner.</li>
         <li><span class="prick inline" aria-hidden="true"></span> <b>Orange prick</b> – chansen är minst två procentenheter högre än strecken. Hästen är understreckad och betalar mer om den vinner.</li>
         <li>Gröna rutor är systemets hästar. Tryck på en ruta för att låsa hästen 🔒 – den kommer då alltid med, och resten av systemet räknas om runt den.</li>
+      </ul>
+    </section>
+    <section class="kort">
+      <h2>Tre förslag</h2>
+      <ul>
+        <li><b>Oddsen</b> – chansen räknad på strecken och, på tävlingsdagen, vinnaroddsen (se nedan).</li>
+        <li><b>Experterna</b> – Oddsen plus experternas egna system från ATG:s tipsartiklar, till exempel
+          <i>Fem tippar V85</i> där fem kuskar, tränare och gäster lägger var sitt system. En häst som många experter
+          tar med, särskilt som spik, får högre chans. Hur mycket experterna väger skattas när tillräckligt många
+          omgångar med expertsystem är avgjorda; tills dess väger de försiktigt.</li>
+        <li><b>Skrällchansen</b> – Oddsens chans, men systemet måste ha med omgångens bästa skrällar: en häst som
+          inte är favorit, har högst 15 % av strecken och tydligt högre chans än streck. En skräll upp till 200 kr,
+          två över det.</li>
       </ul>
     </section>
     <section class="kort">

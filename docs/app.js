@@ -1,7 +1,8 @@
 import {
-  ANTAL_AVD, BUDGETAR, RADPRIS, VARDE_GRANS, deltagare, kronor, optimera, ratta, sammanfattning, vinst,
-} from "./optimizer.js?v=20261014b";
-import { KALLOR, backtesta, sammanstall } from "./backtest.js?v=20261014b";
+  ANTAL_AVD, BUDGETAR, RADPRIS, VARDE_GRANS, deltagare, kronor, optimera, ratta, sammanfattning, skrallchanser,
+  skrallKrav, vinst,
+} from "./optimizer.js?v=20261014c";
+import { KALLOR, backtesta, sammanstall } from "./backtest.js?v=20261014c";
 
 const $ = (id) => document.getElementById(id);
 const LAGRING = "travguiden";
@@ -11,6 +12,7 @@ const state = {
   data: null,           // omgang.json
   exempel: false,
   budget: 200,          // kr
+  kalla: "modell",      // valt förslag, se FORSLAG
   lasningar: {},        // {avd: [nr, ...]} för aktuell omgång
   oppna: new Set(),     // "avd-nr" för hästar med utfällda detaljer
   resultat: null,       // senaste optimeringen
@@ -31,6 +33,7 @@ function sparaLagring() {
     const d = lasLagring();
     const id = state.data.omgang.id;
     d.budget = state.budget;
+    d.kalla = state.kalla;
     d.lasningar = { [id]: state.lasningar };          // bara aktuell omgång behöver sparas
     d.budgetar = { ...(d.budgetar || {}), [id]: state.budget };
     const nycklar = Object.keys(d.budgetar).sort().slice(-6);   // budgeten per omgång till rättningen
@@ -73,16 +76,58 @@ async function hamta(fil) {
   return d;
 }
 
-/** Avdelningarna i optimerarens format. */
-const avdelningarFor = (data) => data.avdelningar.map((a) => ({
-  avd: a.avd, hastar: a.hastar.map((h) => ({ nr: h.nr, chans: h.chans, streck: h.streck, struken: Boolean(h.struken) })),
+// Förslagen. Experterna = Oddsen plus experternas system (chans_exp, där systemen finns). Skrällchansen =
+// Oddsens chans, men systemet måste ha med omgångens bästa skrällar (1 upp till 200 kr, annars 2).
+const FORSLAG = {
+  modell: { namn: "Oddsen", under: "Streck + vinnarodds" },
+  experter: { namn: "Experterna", under: "Oddsen + expertsystem" },
+  skrall: { namn: "Skrällchansen", under: "Oddsen + 1–2 skrällar" },
+};
+const harExperter = (data) => Boolean(data?.experter?.length);
+const chansFor = (h, kalla) => (kalla === "experter" && h.chans_exp != null ? h.chans_exp : h.chans);
+
+/** Avdelningarna i optimerarens format, med chansen enligt valt förslag. */
+const avdelningarFor = (data, kalla = state.kalla) => data.avdelningar.map((a) => ({
+  avd: a.avd,
+  hastar: a.hastar.map((h) => ({ nr: h.nr, chans: chansFor(h, kalla), streck: h.streck, struken: Boolean(h.struken) })),
 }));
 
-/** Chans och streck som andelar bland de hästar som startar (samma som optimeraren räknar med). */
-function andelar(avd) {
-  return Object.fromEntries(deltagare({ hastar: avd.hastar.map((h) => ({ ...h, struken: Boolean(h.struken) })) })
-    .map((h) => [h.nr, h]));
+/** Optimera enligt ett förslag. Skrällchansen får krav på skrällar. */
+function optimeraForslag(data, kalla, budget, lasningar) {
+  const avd = avdelningarFor(data, kalla);
+  return optimera(avd, budget, lasningar, undefined, kalla === "skrall" ? skrallKrav(avd, budget, lasningar) : {});
 }
+
+/** Kort förklaring under sammanfattningen. */
+function forslagInfo(data, kalla, res) {
+  if (kalla === "experter") {
+    if (!harExperter(data)) {
+      return data.omgang.avgjord ? "Experternas system sparades inte för den här omgången – förslaget är samma som Oddsen."
+        : "Experternas system har inte publicerats än – förslaget är samma som Oddsen.";
+    }
+    const namn = data.experter.map((e) => e.namn);
+    return `Bygger på ${namn.length} expertsystem: ${namn.join(", ")}.`;
+  }
+  if (kalla === "skrall" && res?.ok) {
+    const s = res.val.filter((v) => v.skrall != null);
+    if (!s.length) return "Inga skrällchanser i omgången just nu – förslaget är samma som Oddsen.";
+    const namn = (v) => data.avdelningar[v.avd - 1].hastar.find((h) => h.nr === v.skrall)?.namn;
+    return `Skrällar i systemet: ${s.map((v) => `${v.skrall} ${namn(v)} (avd ${v.avd})`).join(" och ")}.`;
+  }
+  return "";
+}
+
+function byggForslag(box, valj) {
+  for (const b of box.querySelectorAll("button")) {
+    b.addEventListener("click", () => valj(b.dataset.kalla));
+  }
+}
+function markeraForslag() {
+  for (const b of document.querySelectorAll(".forslag button")) b.setAttribute("aria-checked", String(b.dataset.kalla === state.kalla));
+}
+
+/** Chans och streck som andelar bland de hästar som startar (samma som optimeraren räknar med). */
+const andelar = (optAvd) => Object.fromEntries(deltagare(optAvd).map((h) => [h.nr, h]));
 
 // ---------- kupongen ----------
 
@@ -107,6 +152,16 @@ async function start() {
   }
   const lagrat = lasLagring();
   if (BUDGETAR.includes(lagrat.budget)) state.budget = lagrat.budget;
+  if (FORSLAG[lagrat.kalla]) state.kalla = lagrat.kalla;
+  for (const box of document.querySelectorAll(".forslag")) {
+    byggForslag(box, (k) => {
+      state.kalla = k;
+      markeraForslag();
+      uppdatera();
+      if (state.senaste) renderaRattning();
+    });
+  }
+  markeraForslag();
   state.lasningar = (lagrat.lasningar || {})[state.data.omgang.id] || {};
   byggBudgetknappar($("budgetknappar"), () => state.budget, (b) => { state.budget = b; uppdatera(); });
   $("avdelningar").addEventListener("click", klickKupong);
@@ -129,20 +184,23 @@ function markeraBudget(box, b) {
 
 function uppdatera() {
   const d = state.data;
-  state.resultat = optimera(avdelningarFor(d), state.budget, state.lasningar);
+  state.resultat = optimeraForslag(d, state.kalla, state.budget, state.lasningar);
   if (!state.resultat.ok && Object.keys(state.lasningar).length) {
     $("fel").textContent = state.resultat.fel;
     $("fel").hidden = false;
-    state.resultat = optimera(avdelningarFor(d), state.budget, {});   // visa förslaget utan låsningar
+    state.resultat = optimeraForslag(d, state.kalla, state.budget, {});   // visa förslaget utan låsningar
   } else {
     $("fel").hidden = true;
   }
   const r = state.resultat;
   $("sammanfattning").textContent = r.ok ? sammanfattning(r) : r.fel;
   $("systemchans").textContent = r.ok ? `Chans att systemet ger 8 rätt: ${chansText(r.chans)}` : "";
+  const info = forslagInfo(d, state.kalla, r);
+  $("forslag-info").textContent = info;
+  $("forslag-info").hidden = !info;
   $("rensa").hidden = !Object.values(state.lasningar).some((l) => l.length);
   renderaTopp();
-  ritaAvdelningar($("avdelningar"), d, r.ok ? r.val : [], state.lasningar, state.oppna, true);
+  ritaAvdelningar($("avdelningar"), d, r.ok ? r.val : [], state.lasningar, state.oppna, true, state.kalla);
   sparaLagring();
 }
 
@@ -184,12 +242,16 @@ const versal = (s) => s.charAt(0).toUpperCase() + s.slice(1);
 /**
  * Ritar avdelningarna. val: [{avd, nr: [...]}] från optimeraren; interaktiv = låsning och detaljer på klick.
  */
-function ritaAvdelningar(lista, data, val, lasningar, oppna, interaktiv) {
+function ritaAvdelningar(lista, data, val, lasningar, oppna, interaktiv, kalla) {
   const valPer = Object.fromEntries(val.map((v) => [v.avd, new Set(v.nr)]));
-  lista.replaceChildren(...data.avdelningar.map((a) => {
+  const optAvd = avdelningarFor(data, kalla);
+  const skrallar = kalla === "skrall" ? skrallchanser(avdelningarFor(data, "modell")) : {};
+  const experter = expertInfo(data);
+  lista.replaceChildren(...data.avdelningar.map((a, i) => {
     const valda = valPer[a.avd] || new Set();
     const last = new Set(lasningar[a.avd] || []);
-    const andel = andelar(a);
+    const andel = andelar(optAvd[i]);
+    const skrall = skrallar[a.avd]?.nr;
     const vinnare = new Set(a.vinnare || []);
     const avgjord = vinnare.size > 0;
     const traff = avgjord && [...valda].some((n) => vinnare.has(n));
@@ -204,8 +266,22 @@ function ritaAvdelningar(lista, data, val, lasningar, oppna, interaktiv) {
           el("span", { text: kortLoppnamn(a.namn), title: a.namn || "" })),
         typ),
       el("ul", { class: "hastar" }, ...a.hastar.map((h) => hastRad(a, h, andel[h.nr], valda.has(h.nr), last.has(h.nr),
-        vinnare.has(h.nr), oppna.has(`${a.avd}-${h.nr}`), interaktiv))));
+        vinnare.has(h.nr), oppna.has(`${a.avd}-${h.nr}`), interaktiv, { skrall: skrall === h.nr, experter: experter(a, h) }))));
   }));
+}
+
+/** (avd, häst) -> {antal, totalt, namn: ["Mats E Djuse (spik)", ...]} om experternas system finns. */
+function expertInfo(data) {
+  if (!harExperter(data)) return () => null;
+  const perAvd = {};          // "avd-expert" -> antal valda hästar
+  for (const a of data.avdelningar) {
+    for (const h of a.hastar) for (const e of h.experter || []) perAvd[`${a.avd}-${e}`] = (perAvd[`${a.avd}-${e}`] || 0) + 1;
+  }
+  return (a, h) => ({
+    antal: (h.experter || []).length,
+    totalt: data.experter.length,
+    namn: (h.experter || []).map((e) => data.experter[e].namn + (perAvd[`${a.avd}-${e}`] === 1 ? " (spik)" : "")),
+  });
 }
 
 function kortLoppnamn(namn) {
@@ -213,20 +289,23 @@ function kortLoppnamn(namn) {
   return namn.split(" - ").filter((d) => !/^\(.*\)$/.test(d)).slice(-2).join(" – ").replace(/\s*\(.*\)\s*$/, "");
 }
 
-function hastRad(a, h, andel, vald, last, vann, oppen, interaktiv) {
+function hastRad(a, h, andel, vald, last, vann, oppen, interaktiv, extra = {}) {
+  const exp = extra.experter;
   const struken = Boolean(h.struken);
   const varde = andel && andel.chans - andel.streck >= VARDE_GRANS;
   const id = `d-${interaktiv ? "k" : "r"}-${a.avd}-${h.nr}`;
   const klass = ["hast", vald && "vald", last && "last", struken && "struken", vann && "vinnare"].filter(Boolean).join(" ");
   const undertext = [h.kusk, a.startmetod === "auto" && h.spar ? `spår ${h.spar}` : null,
     h.distans && a.distans && h.distans > a.distans ? `+${h.distans - a.distans} m` : null,
+    exp && exp.antal ? `${exp.antal}/${exp.totalt} experter` : null,
     h.placering != null && !struken ? (h.placering ? `${h.placering}:a` : "oplac.") : null].filter(Boolean).join(" · ");
   return el("li", { class: klass, "data-nr": h.nr },
     el("div", { class: "hast-rad" },
       el("button", { type: "button", class: "hast-info", "data-detalj": "1", "aria-expanded": String(oppen), "aria-controls": id },
         el("span", { class: "startnr", text: h.nr }),
         el("span", { class: "namnblock" },
-          el("span", { class: "hastnamn" }, h.namn, vann ? el("span", { class: "vinnar-mark", text: " ✓ vann" }) : null),
+          el("span", { class: "hastnamn" }, h.namn, extra.skrall && !struken ? el("span", { class: "skrall-mark", text: " SKRÄLL" }) : null,
+            vann ? el("span", { class: "vinnar-mark", text: " ✓ vann" }) : null),
           el("span", { class: "kusk", text: struken ? "Struken" : undertext }))),
       el("button", {
         type: "button", class: "valruta", "data-las": interaktiv ? "1" : null, disabled: struken || !interaktiv || null,
@@ -237,10 +316,10 @@ function hastRad(a, h, andel, vald, last, vann, oppen, interaktiv) {
         varde ? el("span", { class: "prick", "aria-hidden": "true" }) : null,
         el("span", { class: "del" }, el("b", { text: procent(h.streck) }), el("small", { text: "streck" })),
         el("span", { class: "del" }, el("b", { text: struken ? "–" : procent(andel?.chans) }), el("small", { text: "chans" })))),
-    oppen ? detaljer(h, andel, id) : null);
+    oppen ? detaljer(h, andel, id, exp) : null);
 }
 
-function detaljer(h, andel, id) {
+function detaljer(h, andel, id, exp) {
   const [ls, lv, lp] = h.livs || [];
   const [as, av] = h.ar || [];
   const rader = [
@@ -255,6 +334,7 @@ function detaljer(h, andel, id) {
     ["Vinnarodds nu", h.odds ? decimal(h.odds) : null],
     ["Slutodds", h.slutodds ? decimal(h.slutodds) : null],
     ["Km-tid", h.km_tid],
+    ["Experter", exp ? (exp.namn.length ? `${exp.antal} av ${exp.totalt}: ${exp.namn.join(", ")}` : `ingen av ${exp.totalt}`) : null],
   ].filter(([, v]) => v);
   const v = andel ? andel.chans - andel.streck : null;
   return el("div", { class: "detaljer", id },
@@ -315,7 +395,7 @@ function renderaRattning() {
   $("r-rubrik").textContent = `V85 · ${o.bana}`;
   $("r-underrubrik").textContent = versal(datumFmt.format(new Date(o.spelstopp))) +
     (o.omsattning ? ` · omsättning ${kr(o.omsattning)}` : "");
-  const res = optimera(avdelningarFor(d), state.rBudget, {});
+  const res = optimeraForslag(d, state.kalla, state.rBudget, {});
   if (!res.ok) { $("r-resultat").replaceChildren(el("p", { class: "fel", text: res.fel })); return; }
   const vinnare = Object.fromEntries(d.avdelningar.map((a) => [a.avd, a.vinnare || []]));
   const ersattare = Object.fromEntries(d.avdelningar.map((a) => {
@@ -326,8 +406,10 @@ function renderaRattning() {
   const r = ratta(res.val, vinnare, ersattare);
   const utd = Object.fromEntries(Object.entries(d.utdelning).map(([k, u]) => [k, u.kr]));
   const v = vinst(r.perRatt, utd);
+  const info = forslagInfo(d, state.kalla, res);
   $("r-resultat").replaceChildren(
     el("p", { class: "sammanfattning", text: sammanfattning(res) }),
+    info ? el("p", { class: "forklaring-kort", text: info }) : null,
     el("div", { class: "r-stort" },
       el("div", {}, el("b", { text: `${r.ratt} rätt` }), el("span", { text: "bästa raden" })),
       el("div", {}, el("b", { class: v - res.kostnad >= 0 ? "plus" : "", text: kr(v) }),
@@ -343,7 +425,7 @@ function renderaRattning() {
       el("tr", { class: r.perRatt[k] ? "har-vinst" : "" }, el("td", { text: `${k} rätt` }), el("td", { class: "tal", text: kr(u.kr) }),
         el("td", { class: "tal", text: u.antal != null ? u.antal.toLocaleString("sv-SE") : "–" }),
         el("td", { class: "tal", text: r.perRatt[k] || "–" }))))));
-  ritaAvdelningar($("r-avdelningar"), d, res.val, {}, state.rOppna, false);
+  ritaAvdelningar($("r-avdelningar"), d, res.val, {}, state.rOppna, false, state.kalla);
 }
 
 // ---------- backtest ----------
@@ -371,7 +453,8 @@ function renderaBacktest() {
   const serier = Object.keys(KALLOR).map((k, i) => {
     const spel = backtesta(state.historik, state.btBudget, k);
     return { k, namn: KALLOR[k].namn, spel, sum: sammanstall(spel), farg: `var(--serie-${i + 1})` };
-  });
+  }).filter((s) => s.spel.length);
+  const utanExperter = !serier.some((s) => s.k === "experter");
   const [m] = serier;
   const forsta = m.spel[0]?.datum;
   box.replaceChildren(
@@ -386,7 +469,7 @@ function renderaBacktest() {
       el("tbody", {}, ...serier.map((s) => el("tr", {}, el("td", { text: s.namn }),
         ...[8, 7, 6, 5].map((k) => el("td", { class: "tal", text: s.sum.fordelning[k] })),
         el("td", { class: "tal", text: `${s.sum.medVinst} av ${s.sum.omgangar}` })))))),
-    el("h2", { class: "kort-rubrik", style: "margin-top:18px", text: "Omgång för omgång (Travguiden)" }),
+    el("h2", { class: "kort-rubrik", style: "margin-top:18px", text: "Omgång för omgång (Oddsen)" }),
     el("div", { class: "tabell-scroll" }, el("table", { class: "stat-tabell" },
       el("thead", {}, el("tr", {}, el("th", { text: "Datum" }), el("th", { text: "Bana" }), el("th", { class: "tal", text: "Rätt" }),
         el("th", { class: "tal", text: "Tillbaka" }), el("th", { class: "tal", text: "Saldo" }))),
@@ -394,6 +477,8 @@ function renderaBacktest() {
         el("td", { text: s.datum }), el("td", { text: s.bana }), el("td", { class: "tal", text: s.ratt }),
         el("td", { class: "tal", text: s.vinst ? kr(s.vinst) : "–" }),
         el("td", { class: "tal", text: plusKr(s.saldo) })))))),
+    utanExperter ? el("p", { class: "bt-not", text: "Experterna saknas i backtestet: ATG raderar experternas kuponger efter loppet, " +
+      "så de har bara sparats sedan oktober 2026. Förslaget kommer med här när de första omgångarna med expertsystem är avgjorda." }) : null,
     el("p", { class: "bt-not", text: `${m.sum.omgangar} omgångar sedan ${forsta}. Chanserna i backtestet är räknade med vikter som bara sett ` +
       "lopp före omgångens månad, och utan vinnarodds (de finns inte sparade från före spelstopp i historiken). " +
       "Utdelningen per rad är ordinarie (utan Boost). Ett fåtal stora vinster avgör mycket, så läs resultatet som en riktning, inte en garanti." }),
@@ -441,7 +526,7 @@ function renderaOmStatistik() {
   const bra = s.forbattring > 2 * s.standardfel;
   $("om-statistik").replaceChildren(
     el("p", { text: `Utvärdering på ${s.lopp} V85-lopp, där varje månad bedömts med vikter som bara sett tidigare lopp: ` +
-      `strecken gav vinnaren i snitt logloss ${decimal(s.logloss_streck, 3)}, Travguiden ${decimal(s.logloss_modell, 3)} (lägre är bättre). ` +
+      `strecken gav vinnaren i snitt logloss ${decimal(s.logloss_streck, 3)}, Oddsen ${decimal(s.logloss_modell, 3)} (lägre är bättre). ` +
       (bra ? "Skillnaden är tydlig." : "Skillnaden är liten och inte säkerställd än – den blir tydligare med fler omgångar.") +
       ` Favoriten vann ${Math.round(s.favorit_vann * 100)} % av loppen.` }),
     s.vikter ? el("p", { class: "dampad", text: `Aktuella vikter: a = ${decimal(s.vikter.log_streck, 2)}` +

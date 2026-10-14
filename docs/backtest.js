@@ -5,11 +5,14 @@
 //   h = [[nr, chans, streck], ...] för hästarna som startade.
 // Chanserna är walk-forward: räknade med vikter som bara sett lopp före omgångens månad.
 
-import { LAMBDA, optimera, ratta, vinst } from "./optimizer.js?v=20261014b";
+import { LAMBDA, SKRALL, optimera, ratta, skrallKrav, vinst } from "./optimizer.js?v=20261014c";
 
-// Förslag att jämföra: Travguiden (modellens chans) och Strecken (folkets bedömning som chans).
+// Förslagen i appen plus Strecken (folkets bedömning som chans) som jämförelse. Experterna finns bara för
+// omgångar där experternas system sparades (h har då ett fjärde värde).
 export const KALLOR = {
-  modell: { namn: "Travguiden", chans: (h) => h[1] },
+  modell: { namn: "Oddsen", chans: (h) => h[1] },
+  experter: { namn: "Experterna", chans: (h) => h[3], kraver: (omg) => omg.avd.every((a) => a.h.every((h) => h.length > 3)) },
+  skrall: { namn: "Skrällchansen", chans: (h) => h[1], skrall: true },
   streck: { namn: "Strecken", chans: (h) => h[2] },
 };
 
@@ -22,8 +25,11 @@ export function avdelningarFran(omg, kalla = "modell") {
 }
 
 /** En omgång: systemet, antal rätt, insats och vinst. */
-export function spelaOmgang(omg, budget, kalla = "modell", lambda = LAMBDA) {
-  const res = optimera(avdelningarFran(omg, kalla), budget, {}, lambda);
+export function spelaOmgang(omg, budget, kalla = "modell", lambda = LAMBDA, regler = SKRALL) {
+  if (KALLOR[kalla].kraver && !KALLOR[kalla].kraver(omg)) return null;
+  const avd = avdelningarFran(omg, kalla);
+  const krav = KALLOR[kalla].skrall ? skrallKrav(avd, budget, {}, regler) : {};
+  const res = optimera(avd, budget, {}, lambda, krav);
   if (!res.ok) return null;
   const vinnare = Object.fromEntries(omg.avd.map((a, i) => [i + 1, a.v]));
   const ersattare = Object.fromEntries(omg.avd.map((a, i) => [i + 1, { struken: a.s, favorit: a.f }]));
@@ -33,11 +39,11 @@ export function spelaOmgang(omg, budget, kalla = "modell", lambda = LAMBDA) {
 }
 
 /** Alla omgångar i ordning, med löpande saldo. */
-export function backtesta(historik, budget, kalla = "modell", lambda = LAMBDA) {
+export function backtesta(historik, budget, kalla = "modell", lambda = LAMBDA, regler = SKRALL) {
   let saldo = 0;
   const ut = [];
   for (const omg of historik.omgangar) {
-    const s = spelaOmgang(omg, budget, kalla, lambda);
+    const s = spelaOmgang(omg, budget, kalla, lambda, regler);
     if (!s) continue;
     saldo += s.vinst - s.insats;
     ut.push({ ...s, saldo });

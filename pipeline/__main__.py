@@ -2,6 +2,7 @@
 
     python -m pipeline auto                              # det som schemat kör: allt som är aktuellt just nu
     python -m pipeline atg                               # kommande omgångar: hästar, streck, vinnarodds
+    python -m pipeline experter                          # experternas system ur ATG:s tipsartiklar
     python -m pipeline resultat                          # resultat och utdelning för omgångar efter spelstopp
     python -m pipeline backfill 2025-10-25 2026-10-10    # hämta historiska omgångar (1 s paus mellan anrop)
     python -m pipeline backfill 2023-01-01 2025-10-18 --spelform V75   # äldre V75 som träningsdata
@@ -25,7 +26,7 @@ from . import config, db, export, lagring
 from .http import HamtningsFel
 from .model import modeller, statistik
 from .modeller import ValideringsFel
-from .sources import atg
+from .sources import atg, atgtips
 from .tid import nu_utc
 
 log = logging.getLogger("pipeline")
@@ -65,6 +66,23 @@ def steg_atg(conn) -> bool:
     return ok
 
 
+def steg_experter(conn) -> None:
+    """Experternas system för kommande omgångar. Valfri källa: fel loggas men stoppar aldrig pipelinen."""
+    kommande = [r[0] for r in conn.execute(
+        "SELECT id FROM omgangar WHERE spelform = 'V85' AND avgjord = 0 AND spelstopp > ?", (nu_utc(),))]
+    if not kommande:
+        return
+    try:
+        system, varningar = atgtips.hamta_expertsystem(kommande)
+    except Exception as e:  # en valfri källa får aldrig stoppa pipelinen
+        log.error("Experter: kunde inte hämta systemen: %s", e)
+        return
+    for v in varningar:
+        log.warning("Experter: %s", v)
+    n = lagring.spara_expertsystem(conn, system, nu_utc())
+    log.info("Experter: %d system sparade (%s)", n, ", ".join(sorted({f"{s.namn}" for s in system})) or "inga")
+
+
 def steg_resultat(conn) -> bool:
     ok = True
     for sid in lagring.ej_avgjorda(conn, nu_utc()):
@@ -97,7 +115,7 @@ def main(argv=None) -> int:
     p = argparse.ArgumentParser(prog="pipeline", description="Travguidens datapipeline")
     p.add_argument("-v", "--verbose", action="store_true")
     sub = p.add_subparsers(dest="kommando", required=True)
-    for k in ("auto", "atg", "resultat", "statistik", "migrera"):
+    for k in ("auto", "atg", "experter", "resultat", "statistik", "migrera"):
         sub.add_parser(k)
     b = sub.add_parser("backfill")
     b.add_argument("fran")
@@ -123,16 +141,18 @@ def main(argv=None) -> int:
         ok = steg_backfill(conn, a.fran, a.till, a.spelform)
     if a.kommando in ("auto", "atg"):
         ok &= steg_atg(conn)
+    if a.kommando in ("auto", "experter"):
+        steg_experter(conn)
     if a.kommando in ("auto", "resultat"):
         ok &= steg_resultat(conn)
     tranad = False
     if a.kommando in ("statistik", "backfill") or (a.kommando == "auto" and statistik.behover_traning(conn)):
         statistik.kor(conn)
         tranad = True
-    if a.kommando in ("auto", "atg", "resultat", "backfill", "prognos", "statistik"):
+    if a.kommando in ("auto", "atg", "experter", "resultat", "backfill", "prognos", "statistik"):
         # Efter ny träning räknas även avgjorda omgångar om (walk-forward-vikter, se statistik.py)
         modeller.berakna_prognoser(conn, alla=tranad or getattr(a, "alla", False))
-    if a.kommando in ("auto", "atg", "resultat", "export", "statistik"):
+    if a.kommando in ("auto", "atg", "experter", "resultat", "export", "statistik"):
         try:
             if getattr(a, "till", None):
                 export.exportera_omgang(conn, a.omgang, a.till, dolj_resultat=a.dolj_resultat)

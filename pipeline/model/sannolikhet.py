@@ -65,6 +65,16 @@ def _form(h, lopp) -> float:
     return ((h.get("livs_segrar") or 0) + 0.5) / (s + 5) - 0.1
 
 
+EXPERT_EPS = 0.05      # en häst ingen expert tagit med kan ändå vinna
+
+
+def _experter(h, lopp) -> float:
+    """Experternas stöd: snittet över systemen av 1/(antal valda i avdelningen) om hästen är med.
+    Saknas expertsystem för loppet är egenskapen 0 för alla hästar och påverkar inte chansen."""
+    andel = h.get("expertandel")
+    return math.log(andel + EXPERT_EPS) if andel is not None else 0.0
+
+
 EGENSKAPER = {
     "log_streck": _log_streck,
     "odds_mot_streck": _odds_mot_streck,
@@ -72,6 +82,7 @@ EGENSKAPER = {
     "tillagg": _tillagg,
     "kusk": _kusk,
     "form": _form,
+    "experter": _experter,
 }
 
 

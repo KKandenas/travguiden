@@ -50,3 +50,12 @@ def test_dott_lopp_delar_vinsten():
     l = _lopp([0.5, 0.5])
     l["vinnare"] = [1, 2]
     assert S.logloss([l], {"log_streck": 1.0}) == [pytest.approx(-math.log(0.5))]
+
+
+def test_experter_hojer_chansen_bara_dar_system_finns():
+    l = _lopp([0.5, 0.5])
+    l["hastar"][0]["expertandel"] = 1.0
+    l["hastar"][1]["expertandel"] = 0.0
+    p = S.chanser(l, {"log_streck": 1.0, "experter": 0.15})
+    assert p[0] > 0.5 > p[1]
+    assert S.chanser(_lopp([0.5, 0.5]), {"log_streck": 1.0, "experter": 0.15}) == pytest.approx([0.5, 0.5])

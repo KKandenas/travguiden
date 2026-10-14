@@ -1,6 +1,8 @@
 # Travguiden
 
 Föreslår ett V85-system utifrån hur mycket du vill spela för, med streck, chans och värde för varje häst.
+Tre förslag: **Oddsen** (streck och vinnarodds), **Experterna** (Oddsen plus experternas system från ATG) och
+**Skrällchansen** (Oddsen med 1–2 understreckade hästar).
 Bakom appen samlar en automatisk pipeline på GitHub historik från ATG, så att bedömningen kan förbättras över tid.
 Systerprojekt till [Stryktipsguiden](../Stryktipsguiden), med samma upplägg.
 
@@ -16,7 +18,8 @@ GitHub Actions (schema)                          GitHub Pages
 - **Pipeline** (`pipeline/`): Python. Hämtar data från ATG, sparar i SQLite (`data/trav.db`, committas
   till repot), räknar chans per häst och exporterar JSON till appen.
 - **App** (`docs/`): HTML, CSS och JS utan byggsteg. Ingen backend och inga nycklar.
-- Ingen inloggning och ingen AI än (se [Idéer](#idéer-som-väntar)).
+- Ingen inloggning och ingen AI än (se [Idéer](#idéer-som-väntar)). Experternas tips är strukturerade
+  ATG-kuponger och behöver ingen AI.
 
 ## Kom igång lokalt
 
@@ -34,6 +37,7 @@ python3 -m http.server 8766 -d docs     # öppna http://localhost:8766
 |---|---|
 | `python -m pipeline auto` | Det schemat kör: kommande omgång, resultat, träning när en ny omgång avgjorts, export |
 | `python -m pipeline atg` | Kommande V85: hästar, streck och vinnarodds |
+| `python -m pipeline experter` | Experternas system ur ATG:s tipsartiklar för kommande V85 |
 | `python -m pipeline resultat` | Resultat och utdelning för omgångar efter spelstopp |
 | `python -m pipeline backfill 2025-10-25 2026-10-13` | Hämta alla V85 mellan två datum (pausar mellan anropen) |
 | `python -m pipeline backfill 2023-01-01 2025-10-24 --spelform V75` | Äldre V75 som extra träningsdata (används inte i backtestet) |
@@ -68,6 +72,7 @@ i nummerordning. Ändra aldrig en fil som redan körts – lägg till en ny.
 | `streck` | V85-strecken (andel), en rad per ögonblicksbild där värdet ändrats |
 | `vinnarodds` | Vinnaroddsen per ögonblicksbild, bara när vinnarpoolen omsätter minst 100 000 kr |
 | `prognoser` | Chans per häst och modellversion |
+| `expertsystem`, `expertval` | Experternas system (en rad per kupong) och valda hästar per avdelning |
 | `installningar` | Skattade vikter och utvärdering |
 
 **Felhantering:** varje omgång valideras innan den sparas (8 avdelningar, unika startnummer, streck som
@@ -96,6 +101,35 @@ Utvärdering i oktober 2026, logloss för vinnaren (lägre är bättre):
 
 Testat och inte infört (ingen förbättring utöver strecken i testet på V85): startspår i andra ledet (autostart),
 tillägg, kuskens segerprocent i år, hästens segerandel i karriären. Folket har redan prisat in dem.
+
+## Experterna
+
+`pipeline/sources/atgtips.py` hämtar experternas system ur ATG:s tipsartiklar, främst *Fem tippar V85* (fem kuskar,
+tränare och gäster, 240 rader var) och artiklar med Fernlund, Olsson med flera. Se DATAKALLOR.md för hur.
+Harry Boy-kuponger (ATG:s slumpsystem) räknas inte. **ATG raderar kupongerna efter loppet**, så de sparas när de
+hittas, och historik finns bara från och med oktober 2026. Därför går Experterna inte att backtesta bakåt.
+
+Modellen `experter-v1` lägger till en egenskap i Oddsens logit:
+
+    chans ∝ … · (expertandel + 0,05)^c
+
+där *expertandel* är snittet över systemen av 1/(antal valda hästar i avdelningen) om hästen är med (en spik hos
+alla ger 1, en av fyra hos en av fem tippare 0,05). Hästar i lopp utan expertsystem påverkas inte. **c = 0,15**
+tills det finns 150 avgjorda lopp med expertsystem (cirka 19 omgångar); därefter skattas c walk-forward som Oddsens
+vikter. Experterna publicerar tidigt i veckan och strecken tar in mycket av deras bedömning, därav den försiktiga
+startvikten.
+
+## Skrällchansen
+
+Samma chans som Oddsen, men systemet måste innehålla omgångens bästa skrällar (`SKRALL` i `docs/optimizer.js`):
+en häst som inte är favorit, har högst 15 % av strecken, minst 5 % chans och chans/streck minst 1,15. Bästa kandidaten
+per avdelning, högst tre per omgång. En skräll upp till 200 kr, två över det.
+
+Backtest på 76 omgångar (återbetalning 50/100/200/500/1000 kr): Oddsen 34/24/23/39/47 %, Skrällchansen
+30/30/30/55/49 %. Trösklarna är valda i förväg och inte efter backtestet: närliggande trösklar gav allt från 21 till
+83 %, eftersom ett fåtal storvinster avgör. I historiken finns bara kalibrerade streck (inga vinnarodds före
+spelstopp), så kandidaterna blir få (0,45 per omgång). Skrällchansen blir meningsfull på tävlingsdagen, när
+vinnaroddsen säger emot strecken.
 
 ## Systemet (`docs/optimizer.js`)
 
@@ -131,9 +165,9 @@ Vyer (`#` i adressen så att bakåtknappen fungerar):
 
 | Vy | Innehåll |
 |---|---|
-| `#kupong` | Veckans V85 med systemförslag, låsningar och hästdetaljer |
-| `#rattning` | Förra omgången: vinnare, antal rätt, rader per antal rätt och vinst för vald insats |
-| `#backtest` | Om du spelat varje omgång: saldo över tid, Travguiden mot strecken |
+| `#kupong` | Veckans V85: välj förslag (Oddsen, Experterna, Skrällchansen) och insats, lås hästar, se detaljer och vilka experter som tagit med hästen |
+| `#rattning` | Förra omgången: vinnare, antal rätt, rader per antal rätt och vinst för valt förslag och insats |
+| `#backtest` | Om du spelat varje omgång: saldo över tid för förslagen och för bara strecken |
 | `#om` | Så funkar Travguiden, med aktuell utvärdering |
 
 Vald insats och låsningar sparas i webbläsarens localStorage. Lägg till `?exempel` i adressen för exempelomgången.
@@ -153,6 +187,8 @@ node --test tests/js/*.test.mjs     # kräver Node 18+, körs annars i GitHub Ac
 | Idé | När |
 |---|---|
 | Utvärdera vinnaroddsen (b) på riktiga ögonblicksbilder före spelstopp | När ett par månaders odds från lördagarna finns sparade |
+| Skatta experternas vikt (c) och backtesta Experterna | Efter cirka 19 omgångar med sparade expertsystem (februari 2027) |
+| Fler experter: ATG:s tipskommentarer per häst, tipssajter | Tipssajterna kräver AI-tolkning (Gemini) |
 | Ompröva λ med fler omgångar | Våren 2027 |
 | Inloggning och Mina spel som i Stryktipsguiden | Senare |
 | AI-kommentarer per avdelning (travtips från tidningar) | Senare, så att Geminis gratiskvot räcker till Stryktipsguiden |

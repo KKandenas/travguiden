@@ -68,3 +68,14 @@ class Omgang:
     utdelning: Dict[int, float] = field(default_factory=dict)   # antal rätt -> kr per rad
     vinnande_rader: Dict[int, int] = field(default_factory=dict)
     avgjord: bool = False
+
+
+@dataclass
+class Expertsystem:
+    id: str                                 # ATG:s kupong-id
+    omgang_id: str
+    kalla: str
+    namn: str
+    artikel: Optional[str]
+    rader: Optional[int]
+    val: Dict[str, List[int]]               # lopp-id -> startnummer

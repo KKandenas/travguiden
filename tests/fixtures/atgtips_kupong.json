@@ -1,0 +1,148 @@
+{
+ "id": "1956601d-126e-4258-be6e-fdef45f1cfe0",
+ "type": "SHARED",
+ "readOnly": true,
+ "modified": "2026-10-12T13:19:14Z",
+ "game": {
+  "id": "V85_2026-10-17_16_5",
+  "tracks": [
+   {
+    "id": 16,
+    "name": "Gävle"
+   }
+  ],
+  "betType": "V85",
+  "date": "2026-10-17",
+  "type": "V85"
+ },
+ "stake": 50,
+ "betCost": 12000,
+ "rows": 240,
+ "systems": 1,
+ "races": [
+  {
+   "id": "2026-10-17_16_5",
+   "bets": [
+    {
+     "number": 2
+    },
+    {
+     "number": 3
+    },
+    {
+     "number": 10
+    }
+   ],
+   "reserves": [],
+   "harryOpen": false,
+   "number": 5
+  },
+  {
+   "id": "2026-10-17_16_6",
+   "bets": [
+    {
+     "number": 3,
+     "name": "Direction Face"
+    }
+   ],
+   "reserves": [],
+   "harryOpen": false,
+   "number": 6
+  },
+  {
+   "id": "2026-10-17_16_7",
+   "bets": [
+    {
+     "number": 1
+    },
+    {
+     "number": 7
+    },
+    {
+     "number": 10
+    },
+    {
+     "number": 12
+    }
+   ],
+   "reserves": [],
+   "harryOpen": false,
+   "number": 7
+  },
+  {
+   "id": "2026-10-17_16_8",
+   "bets": [
+    {
+     "number": 1,
+     "name": "Borups Victory"
+    }
+   ],
+   "reserves": [],
+   "harryOpen": false,
+   "number": 8
+  },
+  {
+   "id": "2026-10-17_16_9",
+   "bets": [
+    {
+     "number": 6
+    },
+    {
+     "number": 8
+    }
+   ],
+   "reserves": [],
+   "harryOpen": false,
+   "number": 9
+  },
+  {
+   "id": "2026-10-17_16_10",
+   "bets": [
+    {
+     "number": 5
+    },
+    {
+     "number": 9
+    }
+   ],
+   "reserves": [],
+   "harryOpen": false,
+   "number": 10
+  },
+  {
+   "id": "2026-10-17_16_11",
+   "bets": [
+    {
+     "number": 7,
+     "name": "Great Old Dance"
+    }
+   ],
+   "reserves": [],
+   "harryOpen": false,
+   "number": 11
+  },
+  {
+   "id": "2026-10-17_16_12",
+   "bets": [
+    {
+     "number": 7
+    },
+    {
+     "number": 9
+    },
+    {
+     "number": 10
+    },
+    {
+     "number": 11
+    },
+    {
+     "number": 12
+    }
+   ],
+   "reserves": [],
+   "harryOpen": false,
+   "number": 12
+  }
+ ]
+}

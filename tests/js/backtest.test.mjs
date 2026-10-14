@@ -22,3 +22,12 @@ test("saldot ackumuleras och sammanställningen stämmer", () => {
   assert.equal(s.omgangar, 2);
   assert.equal(s.netto, s.tillbaka - s.insats);
 });
+
+test("Experterna spelas bara på omgångar med expertsystem", () => {
+  const utan = omg("2026-01-01", [1, 1, 1, 1, 1, 1, 1, 1]);
+  const med = { ...omg("2026-01-08", [2, 2, 2, 2, 2, 2, 2, 2]) };
+  med.avd = med.avd.map((a) => ({ ...a, h: [[1, 0.5, 0.5, 0.2], [2, 0.3, 0.3, 0.6], [3, 0.2, 0.2, 0.2]] }));
+  const spel = backtesta({ omgangar: [utan, med] }, 50, "experter");
+  assert.equal(spel.length, 1);
+  assert.equal(spel[0].ratt, 8);          // experterna tror på nr 2 överallt
+});

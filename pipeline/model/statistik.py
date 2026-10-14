@@ -21,6 +21,7 @@ from . import data, modeller, sannolikhet
 log = logging.getLogger(__name__)
 
 MIN_LOPP = 150          # färre lopp än så före en månad: använd standardvikterna
+MIN_EXPERTLOPP = 150    # avgjorda lopp med expertsystem innan experternas vikt skattas (ungefär 19 omgångar)
 
 
 def traningslopp(conn: sqlite3.Connection) -> List[dict]:
@@ -75,15 +76,30 @@ def kor(conn: sqlite3.Connection) -> dict:
             per_manad[m] = _skatta(fore)
     senaste = _skatta(lopp)
     utv = utvardera(lopp, per_manad)
+    expertlopp = [l for l in lopp if any(h.get("expertandel") is not None for h in l["hastar"])]
+    if len(expertlopp) >= MIN_EXPERTLOPP:
+        ev = sannolikhet.skatta(expertlopp, modeller.EXPERTEGENSKAPER, l2=2.0)
+        ev_manad = {}
+        for m in manader:
+            fore = [l for l in expertlopp if l["datum"][:7] < m]
+            if len(fore) >= MIN_EXPERTLOPP:
+                ev_manad[m] = sannolikhet.skatta(fore, modeller.EXPERTEGENSKAPER, l2=2.0)
+        log.info("Statistik: expertvikter %s (%d lopp)", {k: round(v, 3) for k, v in ev.items()}, len(expertlopp))
+        _spara(conn, f"vikter:{modeller.EXPERTMODELL}", {"senaste": ev, "per_manad": ev_manad})
+    utv["expertlopp"] = len(expertlopp)
     log.info("Statistik: vikter %s, utvärdering %s", {k: round(v, 3) for k, v in senaste.items()}, utv)
-    with conn:
-        for nyckel, varde in ((f"vikter:{modeller.AKTIV}", {"senaste": senaste, "per_manad": per_manad}),
-                              ("statistik", {**utv, "vikter": senaste, "traningslopp": len(lopp),
-                                             "senast_avgjord": max(l["datum"] for l in lopp)})):
-            conn.execute("""INSERT INTO installningar (nyckel, varde, uppdaterad) VALUES (?, ?, ?)
-                            ON CONFLICT(nyckel) DO UPDATE SET varde = excluded.varde, uppdaterad = excluded.uppdaterad""",
-                         (nyckel, json.dumps(varde, ensure_ascii=False), nu_utc()))
+    _spara(conn, f"vikter:{modeller.AKTIV}", {"senaste": senaste, "per_manad": per_manad})
+    _spara(conn, "statistik", {**utv, "vikter": senaste, "traningslopp": len(lopp),
+                               "senast_avgjord": max(l["datum"] for l in lopp)})
     return utv
+
+
+def _spara(conn, nyckel: str, varde) -> None:
+    with conn:
+        conn.execute("""INSERT INTO installningar (nyckel, varde, uppdaterad) VALUES (?, ?, ?)
+                        ON CONFLICT(nyckel) DO UPDATE SET varde = excluded.varde, uppdaterad = excluded.uppdaterad""",
+                     (nyckel, json.dumps(varde, ensure_ascii=False), nu_utc()))
+
 
 
 def behover_traning(conn: sqlite3.Connection) -> bool:

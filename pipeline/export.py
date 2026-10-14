@@ -40,14 +40,22 @@ def omgang_data(conn: sqlite3.Connection, omgang_id: str, dolj_resultat: bool = 
     o = conn.execute("SELECT * FROM omgangar WHERE id = ?", (omgang_id,)).fetchone()
     if o is None:
         raise ValueError(f"Omgången {omgang_id} finns inte")
+    system = conn.execute("SELECT id, kalla, namn, artikel, rader FROM expertsystem WHERE omgang_id = ? "
+                          "ORDER BY kalla DESC, namn", (omgang_id,)).fetchall()
+    valda: dict = {}            # (avd, nr) -> [index i system]
+    for i, e in enumerate(system):
+        for v in conn.execute("SELECT avd, nr FROM expertval WHERE system_id = ?", (e["id"],)):
+            valda.setdefault((v["avd"], v["nr"]), []).append(i)
     avdelningar = []
     for a in conn.execute("SELECT * FROM avdelningar WHERE omgang_id = ? ORDER BY avd", (omgang_id,)):
         hastar = []
         for s in conn.execute(f"""
                 SELECT s.*, {_SENASTE.format(f='andel', t='streck')} AS streck,
                        {_SENASTE.format(f='odds', t='vinnarodds')} AS odds,
-                       (SELECT chans FROM prognoser WHERE start_id = s.id AND modellversion = ?) AS chans
-                FROM starter s WHERE s.avdelning_id = ? ORDER BY s.nr""", (modeller.AKTIV, a["id"])):
+                       (SELECT chans FROM prognoser WHERE start_id = s.id AND modellversion = ?) AS chans,
+                       (SELECT chans FROM prognoser WHERE start_id = s.id AND modellversion = ?) AS chans_exp
+                FROM starter s WHERE s.avdelning_id = ? ORDER BY s.nr""",
+                (modeller.AKTIV, modeller.EXPERTMODELL, a["id"])):
             h = {
                 "nr": s["nr"], "namn": s["hast"], "kusk": s["kusk"], "tranare": s["tranare"],
                 "spar": s["spar"], "distans": s["distans"], "alder": s["alder"], "kon": KON.get(s["kon"], s["kon"]),
@@ -58,6 +66,10 @@ def omgang_data(conn: sqlite3.Connection, omgang_id: str, dolj_resultat: bool = 
                 "ar": [s["ar_starter"], s["ar_segrar"]], "intjant": s["intjant"],
                 "snittodds": s["snittodds_5"], "kusk_proc": s["kusk_segerproc"],
             }
+            if s["chans_exp"] is not None and not s["struken"]:
+                h["chans_exp"] = round(s["chans_exp"], 4)
+            if system:
+                h["experter"] = valda.get((a["avd"], s["nr"]), [])     # index i "experter" nedan
             if s["struken"]:
                 h["struken"] = True
             if not dolj_resultat and s["placering"] is not None:
@@ -78,6 +90,8 @@ def omgang_data(conn: sqlite3.Connection, omgang_id: str, dolj_resultat: bool = 
         "modell": {"version": modeller.AKTIV, "namn": modeller.MODELLER[modeller.AKTIV]},
         "uppdaterad": nu_utc(),
         "avdelningar": avdelningar,
+        "experter": [{"namn": e["namn"], "kalla": e["kalla"], "artikel": e["artikel"], "rader": e["rader"]}
+                     for e in system],
         "utdelning": utdelning,
     }
 
@@ -89,8 +103,10 @@ def historik(conn: sqlite3.Connection) -> dict:
         for a in conn.execute("SELECT * FROM avdelningar WHERE omgang_id = ? ORDER BY avd", (o["id"],)):
             rader = conn.execute(f"""
                 SELECT s.nr, s.struken, {_SENASTE.format(f='andel', t='streck')} AS streck,
-                       (SELECT chans FROM prognoser WHERE start_id = s.id AND modellversion = ?) AS chans
-                FROM starter s WHERE s.avdelning_id = ? ORDER BY s.nr""", (modeller.AKTIV, a["id"])).fetchall()
+                       (SELECT chans FROM prognoser WHERE start_id = s.id AND modellversion = ?) AS chans,
+                       (SELECT chans FROM prognoser WHERE start_id = s.id AND modellversion = ?) AS chans_exp
+                FROM starter s WHERE s.avdelning_id = ? ORDER BY s.nr""",
+                (modeller.AKTIV, modeller.EXPERTMODELL, a["id"])).fetchall()
             kvar = [r for r in rader if not r["struken"] and r["streck"] is not None and r["chans"] is not None]
             if not kvar:
                 break
@@ -98,7 +114,9 @@ def historik(conn: sqlite3.Connection) -> dict:
                 "v": [int(x) for x in a["vinnare"].split(",")],
                 "f": max(kvar, key=lambda r: r["streck"])["nr"],
                 "s": [r["nr"] for r in rader if r["struken"]],
-                "h": [[r["nr"], round(r["chans"], 4), round(r["streck"], 4)] for r in kvar],
+                # [nr, chans, streck] och, om experternas system fanns, Experternas chans som fjärde värde
+                "h": [[r["nr"], round(r["chans"], 4), round(r["streck"], 4)]
+                      + ([round(r["chans_exp"], 4)] if r["chans_exp"] is not None else []) for r in kvar],
             })
         if len(avd) != 8:
             continue

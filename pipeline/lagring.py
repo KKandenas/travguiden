@@ -6,7 +6,7 @@ import logging
 import sqlite3
 from typing import Dict, List
 
-from .modeller import Omgang
+from .modeller import Expertsystem, Omgang
 
 log = logging.getLogger(__name__)
 
@@ -86,3 +86,26 @@ def ej_avgjorda(conn: sqlite3.Connection, nu: str) -> List[str]:
     """Omgångar vars spelstopp har passerat men som inte är avgjorda."""
     return [r[0] for r in conn.execute(
         "SELECT id FROM omgangar WHERE spelstopp < ? AND avgjord = 0 ORDER BY spelstopp", (nu,))]
+
+
+def spara_expertsystem(conn: sqlite3.Connection, system: List[Expertsystem], hamtad: str) -> int:
+    """Spara experternas system. Ett system som redan finns ersätts (tipparen kan ändra före spelstopp).
+    System för omgångar eller lopp som inte finns i databasen hoppas över."""
+    n = 0
+    with conn:
+        for e in system:
+            avd = {r["lopp_id"]: r["avd"] for r in conn.execute(
+                "SELECT lopp_id, avd FROM avdelningar WHERE omgang_id = ?", (e.omgang_id,))}
+            if set(e.val) - set(avd) or not avd:
+                log.warning("Expertsystem %s (%s): loppen matchar inte omgången %s – hoppar över", e.id, e.namn, e.omgang_id)
+                continue
+            conn.execute("""INSERT INTO expertsystem (id, omgang_id, kalla, namn, artikel, rader, hamtad)
+                            VALUES (?, ?, ?, ?, ?, ?, ?)
+                            ON CONFLICT(id) DO UPDATE SET kalla = excluded.kalla, namn = excluded.namn,
+                                artikel = excluded.artikel, rader = excluded.rader, hamtad = excluded.hamtad""",
+                         (e.id, e.omgang_id, e.kalla, e.namn, e.artikel, e.rader, hamtad))
+            conn.execute("DELETE FROM expertval WHERE system_id = ?", (e.id,))
+            conn.executemany("INSERT INTO expertval (system_id, avd, nr) VALUES (?, ?, ?)",
+                             [(e.id, avd[lopp], nr) for lopp, nrs in e.val.items() for nr in nrs])
+            n += 1
+    return n

@@ -49,6 +49,24 @@ Tidigt i veckan omsätter vinnarpoolen bara några hundra kronor per lopp, och o
 brukar en V85-avdelning omsätta runt en miljon kronor. Pipelinen sparar därför vinnarodds först när poolen
 har minst 100 000 kr (`atg.MIN_VINNARPOOL`).
 
+## Experternas system (ATG:s tipsartiklar)
+
+ATG:s tipsartiklar (atg.se/V85/tips) ligger i deras CMS, Contentful. Systemen i artiklarna är vanliga ATG-kuponger.
+
+1. **Nyckel:** atg.se skickar `clientConfig.contentful = {apiUrl, deliveryToken}` i sidans HTML till alla besökare.
+   Pipelinen läser den från `https://www.atg.se/V85/tips` vid varje körning och sparar den aldrig.
+2. **Kupongposter:** GraphQL mot `apiUrl` (`couponCollection`, senaste 60) ger titel, `url`
+   (`https://www.atg.se/spel/V85_…?couponId=<uuid>`) och vilken artikel kupongen sitter i.
+3. **Namn:** artikelns `body.json` (rich text). Tipparens namn står på första raden i stycket före kupongen.
+4. **Kupongen:** `GET https://api.atg.se/horse-coupons/api-public/v1/coupons/{uuid}` (ingen nyckel) ger
+   `game.id`, `rows` och `races[].bets[].number` per lopp-id.
+
+Viktigt:
+- *Fem tippar V85* är en och samma artikel och samma fem kupongposter som skrivs över varje vecka. Kupongernas
+  uuid är nya varje vecka.
+- Kupongerna svarar **404 efter loppet**. Gamla system går alltså inte att hämta i efterhand.
+- Det här är inofficiellt. Byter ATG upplägg loggas ett fel och Experterna blir samma som Oddsen tills källan anpassats.
+
 ## Spelregler som appen bygger på
 
 - 8 avdelningar, vinnaren i varje avdelning. Utdelning för 8, 7, 6 och 5 rätt.

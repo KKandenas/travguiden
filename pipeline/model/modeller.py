@@ -4,7 +4,9 @@
 
 - streck:          chansen är V85-strecken (folkets bedömning). Referens.
 - kalibrerad-v1:   villkorad logit på log(streck) och, när de finns, vinnaroddsen
-                   (chans ∝ streck^a · (oddschans/streck)^b). Vikterna skattas i statistik.py.
+                   (chans ∝ streck^a · (oddschans/streck)^b). Vikterna skattas i statistik.py. "Oddsen" i appen.
+- experter-v1:     kalibrerad-v1 plus experternas system (chans ∝ … · (expertandel + 0,05)^c). Räknas bara
+                   för lopp där expertsystem finns. "Experterna" i appen.
 """
 from __future__ import annotations
 
@@ -19,12 +21,20 @@ from . import data, sannolikhet
 log = logging.getLogger(__name__)
 
 AKTIV = "kalibrerad-v1"
+EXPERTMODELL = "experter-v1"
 EGENSKAPER = ["log_streck", "odds_mot_streck"]
+EXPERTEGENSKAPER = EGENSKAPER + ["experter"]
+# Experternas vikt innan det finns tillräckligt många avgjorda lopp att skatta den på (statistik.MIN_EXPERTLOPP).
+# Försiktig: experterna publicerar tidigt i veckan och strecken har redan tagit in mycket av deras bedömning.
+# c = 0,15 gör att en häst alla fem tar som spik får knappt 1,7 gånger så hög chans (före normering)
+# som en häst ingen tar med.
+STANDARD_EXPERTVIKT = 0.15
 # Används tills statistik.py har skattat vikter (ungefär vad historiken gav i oktober 2026)
 STANDARDVIKTER = {"log_streck": 0.85, "odds_mot_streck": 0.0}
 MODELLER = {
     "streck": "Strecken",
-    "kalibrerad-v1": "Kalibrerade strecken",
+    "kalibrerad-v1": "Oddsen",
+    "experter-v1": "Experterna",
 }
 
 
@@ -39,6 +49,19 @@ def vikter(conn: sqlite3.Connection, manad: Optional[str] = None) -> Dict[str, f
         return sparat["senaste"]
     tidigare = [m for m in sparat.get("per_manad", {}) if m <= manad]
     return sparat["per_manad"][max(tidigare)] if tidigare else dict(STANDARDVIKTER)
+
+
+def expertvikter(conn: sqlite3.Connection, oddsvikter: Dict[str, float], manad: Optional[str] = None) -> Dict[str, float]:
+    """Skattade vikter för experter-v1 (walk-forward som vikter()), annars Oddsens vikter plus standardvikten."""
+    standard = {**oddsvikter, "experter": STANDARD_EXPERTVIKT}
+    r = conn.execute("SELECT varde FROM installningar WHERE nyckel = ?", (f"vikter:{EXPERTMODELL}",)).fetchone()
+    if not r:
+        return standard
+    sparat = json.loads(r[0])
+    if manad is None:
+        return sparat["senaste"]
+    tidigare = [m for m in sparat.get("per_manad", {}) if m <= manad]
+    return sparat["per_manad"][max(tidigare)] if tidigare else standard
 
 
 def _odds_fore_spelstopp(conn, lopp: List[dict]) -> None:
@@ -64,8 +87,12 @@ def berakna_prognoser(conn: sqlite3.Connection, alla: bool = False) -> int:
             # Avgjorda omgångar räknas om med vikterna från före sin månad, så att backtestet aldrig
             # använder vikter som sett resultatet. Kommande omgångar använder de senaste vikterna.
             w = vikter(conn, l["datum"][:7]) if alla else vikter(conn)
-            for modell, p in (("streck", sannolikhet.normalisera([h["streck"] for h in l["hastar"]])),
-                              (AKTIV, sannolikhet.chanser(l, w))):
+            modeller = [("streck", sannolikhet.normalisera([h["streck"] for h in l["hastar"]])),
+                        (AKTIV, sannolikhet.chanser(l, w))]
+            if any(h.get("expertandel") is not None for h in l["hastar"]):
+                ew = expertvikter(conn, w, l["datum"][:7] if alla else None)
+                modeller.append((EXPERTMODELL, sannolikhet.chanser(l, ew)))
+            for modell, p in modeller:
                 for h, c in zip(l["hastar"], p):
                     conn.execute("""INSERT INTO prognoser (start_id, modellversion, chans, skapad) VALUES (?, ?, ?, ?)
                                     ON CONFLICT(start_id, modellversion) DO UPDATE SET chans = excluded.chans,

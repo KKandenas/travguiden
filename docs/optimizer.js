@@ -18,6 +18,12 @@ export const LAMBDA = 0.3;                      // risknivå, se README (backtes
 export const VARDE_GRANS = 0.02;                // orange prick från 2 procentenheter understreckad
 export const ANTAL_AVD = 8;
 
+// Skrällchans: en häst som inte är favorit, har högst SKRALL_MAX_STRECK av strecken, minst SKRALL_MIN_CHANS
+// chans och tydligt högre chans än streck (kvot minst SKRALL_MIN_KVOT). Bästa kandidaten per avdelning,
+// högst SKRALL_MAX per omgång. Förslaget Skrällchansen kräver 1–2 av dem i systemet. Se README (backtest).
+export const SKRALL = { maxStreck: 0.15, minChans: 0.05, minKvot: 1.15, max: 3 };
+export const skrallarForBudget = (kr) => (kr <= 200 ? 1 : 2);
+
 const MIN_STRECK = 0.002;                       // skydd mot division med ~0 för nästan ostreckade hästar
 const MAX_HASTAR = 16;
 
@@ -31,6 +37,34 @@ export function deltagare(avd) {
     chans: Math.max((h.chans || 0) / sc, 1e-6),
     streck: Math.max(ss > 0 ? (h.streck || 0) / ss : (h.chans || 0) / sc, MIN_STRECK),
   }));
+}
+
+/** Omgångens skrällchanser: {avd: {avd, nr, chans, streck, kvot}}. */
+export function skrallchanser(avdelningar, regler = SKRALL) {
+  const kandidater = [];
+  for (const a of avdelningar) {
+    const h = deltagare(a);
+    if (h.length < 3) continue;
+    const favorit = h.reduce((b, x) => (x.chans > b.chans ? x : b));
+    let bast = null;
+    for (const x of h) {
+      if (x === favorit || x.streck > regler.maxStreck || x.chans < regler.minChans) continue;
+      const kvot = x.chans / x.streck;
+      if (kvot >= regler.minKvot && (!bast || kvot > bast.kvot)) bast = { avd: a.avd, nr: x.nr, chans: x.chans, streck: x.streck, kvot };
+    }
+    if (bast) kandidater.push(bast);
+  }
+  kandidater.sort((a, b) => b.kvot - a.kvot);
+  return Object.fromEntries(kandidater.slice(0, regler.max).map((k) => [k.avd, k]));
+}
+
+/** Krav för Skrällchansen: {avd: nr} för de bästa skrällarna (1 eller 2 beroende på insats).
+ *  Avdelningar där användaren låst något får inget krav – låsningen gäller. */
+export function skrallKrav(avdelningar, budget, lasningar = {}, regler = SKRALL) {
+  return Object.fromEntries(Object.values(skrallchanser(avdelningar, regler))
+    .filter((s) => !(lasningar[s.avd] || []).length)
+    .slice(0, skrallarForBudget(budget))
+    .map((s) => [s.avd, s.nr]));
 }
 
 export function poang(chansSumma, kvotSumma, lambda = LAMBDA) {
@@ -67,15 +101,17 @@ export function bastaPerAntal(avd, lasta = [], lambda = LAMBDA) {
  * @param avdelningar [{avd, hastar: [{nr, chans, streck, struken}]}]
  * @param budget      kr, t.ex. 200
  * @param lasningar   {avd: [nr, ...]} – hästar som användaren låst (måste vara med)
- * @returns {ok: true, val: [{avd, nr: [..], last: [..]}], rader, kostnad, chans}
+ * @param krav        {avd: nr} – häst som måste vara med (Skrällchansen)
+ * @returns {ok: true, val: [{avd, nr: [..], last: [..], skrall}], rader, kostnad, chans}
  *        | {ok: false, fel: "text"}
  */
-export function optimera(avdelningar, budget, lasningar = {}, lambda = LAMBDA) {
+export function optimera(avdelningar, budget, lasningar = {}, lambda = LAMBDA, krav = {}) {
   if (avdelningar.length !== ANTAL_AVD) return { ok: false, fel: `Omgången har ${avdelningar.length} avdelningar, väntade ${ANTAL_AVD}.` };
   const maxRader = Math.floor(budget / RADPRIS + 1e-9);
   if (maxRader < 1) return { ok: false, fel: "Budgeten räcker inte till en rad." };
 
-  const alternativ = avdelningar.map((a) => bastaPerAntal(a, lasningar[a.avd] || [], lambda));
+  const maste = (a) => [...(lasningar[a.avd] || []), ...(krav[a.avd] != null ? [krav[a.avd]] : [])];
+  const alternativ = avdelningar.map((a) => bastaPerAntal(a, maste(a), lambda));
   const tom = alternativ.findIndex((alt) => !alt.length);
   if (tom >= 0) return { ok: false, fel: `Avdelning ${avdelningar[tom].avd} saknar hästar att välja.` };
 
@@ -102,7 +138,8 @@ export function optimera(avdelningar, budget, lasningar = {}, lambda = LAMBDA) {
   const val = avdelningar.map((a, i) => {
     const v = alternativ[i][bast.val[i]];
     chans *= v.chans;
-    return { avd: a.avd, nr: v.nr, last: (lasningar[a.avd] || []).filter((n) => v.nr.includes(n)) };
+    return { avd: a.avd, nr: v.nr, last: (lasningar[a.avd] || []).filter((n) => v.nr.includes(n)),
+      skrall: krav[a.avd] ?? null };
   });
   return { ok: true, val, rader: bastRader, kostnad: bastRader * RADPRIS, chans };
 }

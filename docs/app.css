@@ -19,7 +19,9 @@
   --fel: #c0392b;
   --banner: #fbf1d6;
   --serie-1: #2a78d6;
-  --serie-2: #eb6834;
+  --serie-2: #8a5bd6;
+  --serie-3: #eb6834;
+  --serie-4: #8a958e;
   --skugga: 0 1px 2px rgba(10, 40, 25, .06), 0 4px 14px rgba(10, 40, 25, .07);
   --radie: 16px;
   --rubrikfont: "Barlow Condensed", "Arial Narrow", system-ui, sans-serif;
@@ -31,7 +33,7 @@
     --bg: #07110c; --yta: #0f1c15; --yta-2: #14241b; --text: #e9f2ec; --dampad: #93a89b;
     --linje: #1f3428; --ruta: #172a1f; --ruta-kant: #2a4535; --vald-text: #ffffff;
     --orange: #ff9c33; --orange-text: #ff9c33; --ratt: #4cc27f; --fel: #ef6b5b; --banner: #2b2510;
-    --serie-1: #3987e5; --serie-2: #d95926;
+    --serie-1: #3987e5; --serie-2: #a07ce8; --serie-3: #d95926; --serie-4: #7c8a82;
     --skugga: 0 1px 2px rgba(0, 0, 0, .35), 0 4px 14px rgba(0, 0, 0, .3);
     color-scheme: dark;
   }
@@ -41,7 +43,7 @@
   --bg: #07110c; --yta: #0f1c15; --yta-2: #14241b; --text: #e9f2ec; --dampad: #93a89b;
   --linje: #1f3428; --ruta: #172a1f; --ruta-kant: #2a4535; --vald-text: #ffffff;
   --orange: #ff9c33; --orange-text: #ff9c33; --ratt: #4cc27f; --fel: #ef6b5b; --banner: #2b2510;
-  --serie-1: #3987e5; --serie-2: #d95926;
+  --serie-1: #3987e5; --serie-2: #a07ce8; --serie-3: #d95926; --serie-4: #7c8a82;
   --skugga: 0 1px 2px rgba(0, 0, 0, .35), 0 4px 14px rgba(0, 0, 0, .3);
   color-scheme: dark;
 }
@@ -116,6 +118,13 @@ h1 { font-family: var(--rubrikfont); font-size: 36px; font-weight: 800; line-hei
 .kort { background: var(--yta); border-radius: var(--radie); padding: 16px; margin-bottom: 12px; box-shadow: var(--skugga); }
 .kort-rubrik { font-family: var(--rubrikfont); font-size: 20px; font-weight: 700; margin-bottom: 10px; }
 .budget { margin-top: -44px; position: relative; z-index: 1; }
+.forslag { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; padding: 4px; background: var(--ruta); border-radius: 12px; margin-bottom: 14px; }
+.forslag button { border: 0; border-radius: 9px; background: transparent; padding: 8px 4px; cursor: pointer; text-align: center; line-height: 1.2; }
+.forslag button b { display: block; font-family: var(--rubrikfont); font-size: 16px; font-weight: 800; }
+.forslag button span { display: block; font-size: 10.5px; color: var(--dampad); }
+.forslag button[aria-checked="true"] { background: var(--yta); box-shadow: 0 1px 4px rgba(10, 40, 25, .15); }
+.forslag button[aria-checked="true"] b { color: var(--primar); }
+.forslag button:focus-visible { outline: 2px solid var(--gul); outline-offset: 2px; }
 .budgetknappar { display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; }
 .budgetknappar button {
   min-height: 46px; border-radius: 10px; border: 1.5px solid var(--ruta-kant); background: var(--yta-2);
@@ -168,6 +177,7 @@ h1 { font-family: var(--rubrikfont); font-size: 36px; font-weight: 800; line-hei
 .hast.struken .hastnamn { text-decoration: line-through; color: var(--dampad); }
 .hast.struken .startnr { opacity: .5; }
 .vinnar-mark { color: var(--ratt); font-weight: 800; }
+.skrall-mark { color: var(--orange-text); font-weight: 800; font-size: 11px; letter-spacing: .04em; }
 
 .valruta {
   position: relative; display: grid; grid-template-columns: 44px 44px; align-items: center; margin: 5px 10px 5px 0;
