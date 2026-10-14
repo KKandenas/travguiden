@@ -165,8 +165,10 @@ vinnaroddsen säger emot strecken.
 
 ## AI-kommentarer
 
-`pipeline/ai/klient.py` är samma klient som i Stryktipsguiden (Gemini med reservmodeller, Claude som alternativ,
-tidsgränser). `pipeline/ai/kommentarer.py` skriver 1–2 meningar per avdelning från streck, chans, experternas val och
+`pipeline/ai/klient.py` är samma klient som i Stryktipsguiden: Gemini med reservkedjan gemini-3.8-flash →
+3.5-flash-lite → 3.1-flash-lite → 3.7-flash → 3.6-flash (repo-variabel `GEMINI_RESERVMODELLER`), högst 4 anrop per
+minut och modell (gratisnivån tillåter 5; repo-variabel `GEMINI_RPM`), en minuts vila för en modell som svarar 429,
+tidsgränser och Claude som alternativ. Håll filen lika i båda repona. `pipeline/ai/kommentarer.py` skriver 1–2 meningar per avdelning från streck, chans, experternas val och
 hästarnas statistik. AI:n får inga artikeltexter. En kommentar skrivs om när en häst stryks eller nya expertsystem
 kommer, eller när underlaget ändrats och kommentaren är äldre än 20 timmar. Alla avdelningar som behöver en ny
 kommentar tas i ett anrop, så det blir ett par anrop om dagen.
