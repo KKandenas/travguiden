@@ -9,6 +9,7 @@ from __future__ import annotations
 import json
 import logging
 import sqlite3
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Optional
 
@@ -99,6 +100,21 @@ def omgang_data(conn: sqlite3.Connection, omgang_id: str, dolj_resultat: bool = 
     }
 
 
+def bygg_drift(conn: sqlite3.Connection) -> dict:
+    """Driftstatus för om-sidan: hur senaste körningens steg gick (sparas av __main__._satt_status)."""
+    ut = {}
+    for r in conn.execute("SELECT nyckel, varde, uppdaterad FROM installningar WHERE nyckel LIKE 'status:%'"):
+        ut[r["nyckel"].split(":", 1)[1]] = {**json.loads(r["varde"]), "tid": r["uppdaterad"]}
+    senast = conn.execute("SELECT id, datum, bana FROM omgangar WHERE spelform = 'V85' AND avgjord = 1 "
+                          "ORDER BY spelstopp DESC LIMIT 1").fetchone()
+    ut["senast_avgjord"] = {"datum": senast["datum"], "bana": senast["bana"]} if senast else None
+    # Omgångar vars sista lopp borde vara klart (spelstopp för mer än 12 h sedan) men som saknar resultat
+    gransen = (datetime.now(timezone.utc) - timedelta(hours=12)).strftime("%Y-%m-%dT%H:%M:%SZ")
+    ut["vantar_resultat"] = [r[0] for r in conn.execute(
+        "SELECT id FROM omgangar WHERE spelform = 'V85' AND avgjord = 0 AND spelstopp < ?", (gransen,))]
+    return ut
+
+
 def historik(conn: sqlite3.Connection) -> dict:
     ut = []
     for o in conn.execute("SELECT * FROM omgangar WHERE spelform = 'V85' AND avgjord = 1 ORDER BY spelstopp"):
@@ -143,6 +159,7 @@ def exportera_allt(conn: sqlite3.Connection) -> None:
     if rad:
         d = omgang_data(conn, rad[0])
         d["statistik"] = _installning(conn, "statistik")
+        d["drift"] = bygg_drift(conn)
         _skriv(config.DOCS_DIR / "omgang.json", d)
     senaste = conn.execute("SELECT id FROM omgangar WHERE spelform = 'V85' AND avgjord = 1 "
                            "ORDER BY spelstopp DESC LIMIT 1").fetchone()

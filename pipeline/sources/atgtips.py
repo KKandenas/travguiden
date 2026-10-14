@@ -32,7 +32,7 @@ _SPEL = re.compile(r"\b(V85_\d{4}-\d{2}-\d{2}_\d+_\d+)\b")
 _ALLMAN_TITEL = re.compile(r"^(kupong\b|https?:|stora systemet|lilla systemet|system\b|v85\b)", re.I)
 
 _KUPONGER = """{ couponCollection(limit: 60, order: sys_publishedAt_DESC) { items { sys { id } title url
-  linkedFrom { entryCollection(limit: 3) { items { __typename ... on Article { sys { id } title slug } } } } } } }"""
+  linkedFrom { entryCollection(limit: 5) { items { __typename ... on Article { sys { id } title slug gameTagId lead } } } } } } }"""
 _ARTIKEL = """query($id: String!) { article(id: $id) { body { json } } }"""
 
 
@@ -107,13 +107,22 @@ def tolka_kupongposter(poster: List[dict], spel_ids: set) -> List[dict]:
             continue
         artiklar = [a for a in ((p.get("linkedFrom") or {}).get("entryCollection") or {}).get("items") or []
                     if a and a.get("__typename") == "Article"]
-        a = artiklar[0] if artiklar else {}
+        # ATG återanvänder kupongposter mellan veckor, så en post kan sitta i flera artiklar. Ta den som gäller
+        # omgången (gameTagId), annars den första.
+        a = next((x for x in artiklar if spel.group(1) in (x.get("gameTagId") or [])), artiklar[0] if artiklar else {})
         ut.append({
             "post_id": (p.get("sys") or {}).get("id"), "kupong_id": uuid.group(1), "spel_id": spel.group(1),
             "titel": titel, "artikel_id": (a.get("sys") or {}).get("id"), "artikel": a.get("title"),
+            "avsandare": _avsandare(a.get("lead")),
             "kalla": KALLA_FEM if (a.get("slug") or "").startswith("fem-tippar") else KALLA_OVRIGA,
         })
     return ut
+
+
+def _avsandare(ingress: Optional[str]) -> Optional[str]:
+    """"TR Medias tips till lördagens V85®…" -> "TR Media"."""
+    m = re.match(r"\s*([A-ZÅÄÖ][\w .&-]{1,30}?)s tips\b", ingress or "")
+    return m.group(1).strip() if m else None
 
 
 def _text(nod: dict) -> str:
@@ -153,6 +162,11 @@ def tolka_kupong(data: dict, post: dict, namn: Optional[str]) -> Expertsystem:
     if len(val) != 8:
         raise ValideringsFel(f"kupongen {post['kupong_id']} har val i {len(val)} avdelningar, väntade 8")
     if not namn:
-        namn = post["titel"] if post["titel"] and not _ALLMAN_TITEL.search(post["titel"]) else (post["artikel"] or "ATG")
+        if post["titel"] and not _ALLMAN_TITEL.search(post["titel"]):
+            namn = post["titel"]
+        elif post.get("avsandare"):
+            namn = post["avsandare"] + (f" ({post['titel'].strip().lower()})" if post["titel"] and not post["titel"].startswith("http") else "")
+        else:
+            namn = post["artikel"] or "ATG"
     return Expertsystem(id=post["kupong_id"], omgang_id=spel, kalla=post["kalla"], namn=namn,
                         artikel=post["artikel"], rader=data.get("rows"), val=val)

@@ -273,6 +273,18 @@ h1 { font-family: var(--rubrikfont); font-size: 36px; font-weight: 800; line-hei
 .om .kallista { list-style: none; padding-left: 0; }
 .om .kallista li { padding: 8px 0; border-top: 1px solid var(--linje); margin: 0; }
 
+/* driftstatus */
+.liten { font-size: 13px; }
+.om .driftlista { list-style: none; padding: 0; margin: 10px 0 0; display: grid; gap: 10px; }
+.driftlista li { display: flex; gap: 10px; align-items: flex-start; margin: 0; }
+.driftlista b { font-size: 14px; }
+.om .driftlista p { margin: 1px 0 0; font-size: 13px; color: var(--dampad); line-height: 1.4; }
+.drift-ikon { flex: none; width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; font-size: 12px; font-weight: 800; color: #fff; background: var(--dampad); margin-top: 1px; }
+.drift-ok .drift-ikon { background: var(--ratt); }
+.drift-varning .drift-ikon { background: var(--orange); }
+.drift-fel .drift-ikon { background: var(--fel); }
+.drift-info .drift-ikon { background: var(--ruta-kant); color: var(--dampad); }
+
 .fot { padding: 8px 16px 24px; text-align: center; color: var(--dampad); font-size: 12px; }
 .fot p + p { margin-top: 4px; }
 

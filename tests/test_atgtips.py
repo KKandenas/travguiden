@@ -67,3 +67,17 @@ def test_lagring_och_expertandel(conn):
     modeller.berakna_prognoser(conn)
     n = conn.execute("SELECT COUNT(*) FROM prognoser WHERE modellversion = ?", (modeller.EXPERTMODELL,)).fetchone()[0]
     assert n > 0
+
+
+def test_ateranvand_post_far_veckans_artikel_och_avsandare():
+    post = {"sys": {"id": "p1"}, "title": "Stora systemet",
+            "url": f"https://www.atg.se/spel/{SPEL}?couponId=1956601d-126e-4258-be6e-fdef45f1cfe0",
+            "linkedFrom": {"entryCollection": {"items": [
+                {"__typename": "Article", "sys": {"id": "gammal"}, "title": "Lördag 18/10: Tips till V75® på Bjerke",
+                 "slug": "x", "gameTagId": ["V75_2025-10-18_78_5"], "lead": "TR Medias tips till lördagens V75®"},
+                {"__typename": "Article", "sys": {"id": "ny"}, "title": "Lördag 17/10: Tips till V85® på Gävle",
+                 "slug": "y", "gameTagId": [SPEL], "lead": "TR Medias tips till lördagens V85® och Dagens Dubbel"}]}}}
+    [k] = atgtips.tolka_kupongposter([post], {SPEL})
+    assert k["artikel_id"] == "ny" and k["avsandare"] == "TR Media" and k["kalla"] == atgtips.KALLA_OVRIGA
+    e = atgtips.tolka_kupong(las_fixture("atgtips_kupong.json"), k, None)
+    assert e.namn == "TR Media (stora systemet)" and e.artikel == "Lördag 17/10: Tips till V85® på Gävle"

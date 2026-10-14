@@ -18,6 +18,7 @@ Avslutningskoden är 1 om ett kritiskt steg (ATG, resultat eller export) misslyc
 from __future__ import annotations
 
 import argparse
+import json
 import logging
 import sys
 import time
@@ -39,6 +40,24 @@ def _utc_om(timmar: float) -> str:
     return (datetime.now(timezone.utc) + timedelta(hours=timmar)).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
+def _satt_status(conn, nyckel: str, varde: dict) -> None:
+    """Driftstatus för om-sidan (installningar, se export.bygg_drift)."""
+    with conn:
+        conn.execute("""INSERT INTO installningar (nyckel, varde, uppdaterad) VALUES (?, ?, ?)
+                        ON CONFLICT(nyckel) DO UPDATE SET varde = excluded.varde, uppdaterad = excluded.uppdaterad""",
+                     (nyckel, json.dumps(varde, ensure_ascii=False), nu_utc()))
+
+
+def spara_ai_status(conn) -> None:
+    """Hur AI-anropen gick i den här körningen. Sparas bara om AI användes eller saknas."""
+    k = ai_klient.KORNING
+    ok, orsak = ai_klient.tillganglig()
+    if not ok:
+        _satt_status(conn, "status:ai", {"konfigurerad": False, "orsak": orsak})
+    elif k["lyckade"] or k["misslyckade"] or k["stoppad"]:
+        _satt_status(conn, "status:ai", {"konfigurerad": True, **k})
+
+
 def _spara_spel(conn, spel_id: str) -> bool:
     try:
         o = atg.tolka_spel(atg.hamta_spel(spel_id), hamtad=nu_utc())
@@ -56,11 +75,13 @@ def steg_atg(conn) -> bool:
         produkt = atg.hamta_produkt()
     except HamtningsFel as e:
         log.error("ATG: kunde inte hämta kommande omgångar: %s", e)
+        _satt_status(conn, "status:atg", {"ok": False, "fel": str(e)[:200]})
         return False
     kommande = [g["id"] for g in produkt.get("upcoming") or [] if g.get("id")]
     if not kommande:
         log.info("ATG: ingen kommande %s just nu", config.SPELFORM)
     ok = all([_spara_spel(conn, sid) for sid in kommande])
+    _satt_status(conn, "status:atg", {"ok": ok, "fel": None if ok else "minst en omgång gick inte att spara"})
     # Nyss stängda omgångar: hämta igen inom 48 h så att slutstrecken kommer med.
     for (sid,) in conn.execute("SELECT id FROM omgangar WHERE spelstopp BETWEEN ? AND ? AND avgjord = 0",
                                (_utc_om(-48), nu_utc())).fetchall():
@@ -79,10 +100,12 @@ def steg_experter(conn) -> None:
         system, varningar = atgtips.hamta_expertsystem(kommande)
     except Exception as e:  # en valfri källa får aldrig stoppa pipelinen
         log.error("Experter: kunde inte hämta systemen: %s", e)
+        _satt_status(conn, "status:experter", {"ok": False, "fel": str(e)[:200]})
         return
     for v in varningar:
         log.warning("Experter: %s", v)
     n = lagring.spara_expertsystem(conn, system, nu_utc())
+    _satt_status(conn, "status:experter", {"ok": True, "fel": None, "hittade": n})
     log.info("Experter: %d system sparade (%s)", n, ", ".join(sorted({f"{s.namn}" for s in system})) or "inga")
 
 
@@ -91,6 +114,7 @@ def steg_kommentarer(conn) -> None:
     ok, orsak = ai_klient.tillganglig()
     if not ok:
         log.info("Kommentarer: hoppar över – %s", orsak)
+        spara_ai_status(conn)
         return
     for (sid,) in conn.execute("SELECT id FROM omgangar WHERE spelform = 'V85' AND avgjord = 0 AND spelstopp > ?",
                                (nu_utc(),)).fetchall():
@@ -99,6 +123,7 @@ def steg_kommentarer(conn) -> None:
             log.info("Kommentarer: %s – %d nya", sid, n)
         except ai_klient.AiFel as e:
             log.warning("Kommentarer: %s – %s", sid, e)
+    spara_ai_status(conn)
 
 
 def steg_resultat(conn) -> bool:

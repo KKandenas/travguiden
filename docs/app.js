@@ -1,8 +1,8 @@
 import {
   ANTAL_AVD, BUDGETAR, RADPRIS, VARDE_GRANS, deltagare, kronor, optimera, ratta, sammanfattning, skrallchanser,
   skrallKrav, vinst,
-} from "./optimizer.js?v=20261014d";
-import { KALLOR, PERIODER, backtesta, iPeriod, sammanstall } from "./backtest.js?v=20261014d";
+} from "./optimizer.js?v=20261014e";
+import { KALLOR, PERIODER, backtesta, iPeriod, sammanstall } from "./backtest.js?v=20261014e";
 
 const $ = (id) => document.getElementById(id);
 const LAGRING = "travguiden";
@@ -171,6 +171,7 @@ async function start() {
   fallText = fallKnapp($("fall-alla"), state.utfallda, uppdatera);
   $("rensa").addEventListener("click", () => { state.lasningar = {}; uppdatera(); });
   renderaOmStatistik();
+  renderaDrift(state.data);
   uppdatera();
   setInterval(renderaTopp, 60_000);
 }
@@ -585,6 +586,68 @@ function diagram(serier) {
 }
 
 // ---------- om ----------
+
+const driftFmt = new Intl.DateTimeFormat("sv-SE", { timeZone: TZ, weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+const timmarSedan = (iso) => (Date.now() - new Date(iso).getTime()) / 3_600_000;
+
+/** Driftstatus på om-sidan: en rad per del, grön/orange/röd. */
+function renderaDrift(d) {
+  const rader = [];
+  const rad = (niva, rubrik, text) => rader.push(el("li", { class: `drift-${niva}` },
+    el("span", { class: "drift-ikon", "aria-hidden": "true", text: { ok: "✓", varning: "!", fel: "✕", info: "–" }[niva] }),
+    el("div", {}, el("b", { text: rubrik }),
+      el("span", { class: "sr-only", text: { ok: " (fungerar)", varning: " (varning)", fel: " (fel)", info: "" }[niva] }),
+      el("p", { text }))));
+  const nar = (iso) => driftFmt.format(new Date(iso));
+  const drift = d.drift || {};
+
+  // Schemat kör minst tre gånger om dagen, så mer än 14 timmar betyder att något stannat.
+  const h = timmarSedan(d.uppdaterad);
+  rad(h > 14 ? "fel" : "ok", "Senaste uppdatering",
+    `${nar(d.uppdaterad)}${h > 14 ? " – längre sedan än schemat säger. Pipelinen kan ha stannat." : ""}`);
+
+  const atg = drift.atg;
+  rad(!atg ? "info" : atg.ok ? "ok" : "fel", "ATG: startlista och streck",
+    !atg ? "Ingen körning registrerad än." : atg.ok ? `Hämtades ${nar(atg.tid)}.` : `Misslyckades ${nar(atg.tid)}: ${atg.fel}`);
+
+  const medOdds = d.avdelningar.filter((a) => a.hastar.some((x) => x.odds)).length;
+  const timmarKvar = (new Date(d.omgang.spelstopp).getTime() - Date.now()) / 3_600_000;
+  rad(medOdds ? "ok" : "info", "Vinnarodds", medOdds ? `Finns för ${medOdds} av 8 avdelningar och vägs in i chansen.`
+    : timmarKvar > 0 ? "Kommer på tävlingsdagen, när vinnarpoolen har pengar. Tills dess bygger chansen på strecken."
+      : "Inga vinnarodds sparades före spelstopp.");
+
+  const exp = drift.experter;
+  const system = d.experter || [];
+  rad(exp && !exp.ok ? "fel" : system.length ? "ok" : "info", "Experternas system",
+    exp && !exp.ok ? `Hämtningen misslyckades ${nar(exp.tid)}: ${exp.fel}`
+      : system.length ? `${system.length} system: ${system.map((e) => e.namn).join(", ")}.`
+        : "Inga än – Fem tippar V85 publiceras oftast måndag eller tisdag.");
+
+  const ai = drift.ai;
+  if (!ai) {
+    rad("info", "AI", "Ingen körning med AI registrerad än.");
+  } else if (!ai.konfigurerad) {
+    rad("fel", "AI", `Inte igång: ${ai.orsak}.`);
+  } else {
+    const tot = ai.lyckade + ai.misslyckade;
+    const modeller = Object.entries(ai.modeller || {}).map(([m, n]) => `${m} ${n}`).join(", ");
+    rad(ai.lyckade === 0 ? "fel" : ai.misslyckade || ai.stoppad ? "varning" : "ok", "AI",
+      `${ai.lyckade} av ${tot} anrop lyckades ${nar(ai.tid)}${modeller ? ` (${modeller})` : ""}.` +
+      (ai.stoppad ? ` Avbröts: ${ai.stoppad} – resten tas vid nästa körning.` : "") +
+      (ai.lyckade === 0 ? " Googles AI svarade inte – försöker igen vid nästa körning." : ""));
+  }
+
+  const komm = d.avdelningar.filter((a) => a.kommentar).length;
+  rad(komm === 8 ? "ok" : komm ? "varning" : "info", "AI-kommentarer", `${komm} av 8 avdelningar har en kommentar.`);
+
+  const vantar = drift.vantar_resultat || [];
+  const senast = drift.senast_avgjord;
+  rad(vantar.length ? "varning" : senast ? "ok" : "info", "Resultat och utdelning",
+    (senast ? `Senast avgjord: ${senast.bana} ${senast.datum}.` : "Ingen avgjord omgång än.") +
+    (vantar.length ? ` ${vantar.length} omgång väntar fortfarande på resultat.` : ""));
+
+  $("drift").replaceChildren(...rader);
+}
 
 function renderaOmStatistik() {
   const s = state.data?.statistik;
