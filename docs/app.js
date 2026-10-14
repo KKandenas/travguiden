@@ -1,7 +1,7 @@
 import {
   ANTAL_AVD, BUDGETAR, RADPRIS, VARDE_GRANS, deltagare, kronor, optimera, ratta, sammanfattning, vinst,
-} from "./optimizer.js?v=20261014a";
-import { KALLOR, backtesta, sammanstall } from "./backtest.js?v=20261014a";
+} from "./optimizer.js?v=20261014b";
+import { KALLOR, backtesta, sammanstall } from "./backtest.js?v=20261014b";
 
 const $ = (id) => document.getElementById(id);
 const LAGRING = "travguiden";

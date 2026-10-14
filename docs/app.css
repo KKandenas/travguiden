@@ -243,6 +243,10 @@ h1 { font-family: var(--rubrikfont); font-size: 36px; font-weight: 800; line-hei
   .ordmarke { font-size: 28px; }
 }
 @media (min-width: 900px) and (max-height: 640px) { .sidopanel { position: static; } }
+@media (max-width: 480px) {
+  .budgetknappar button { font-size: 15px; white-space: nowrap; }
+  .budgetknappar button small { font-size: 9px; letter-spacing: -.01em; }
+}
 @media (max-width: 380px) {
   .valruta { grid-template-columns: 40px 40px; }
   .budgetknappar { gap: 4px; }

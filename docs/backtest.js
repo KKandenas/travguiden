@@ -5,7 +5,7 @@
 //   h = [[nr, chans, streck], ...] för hästarna som startade.
 // Chanserna är walk-forward: räknade med vikter som bara sett lopp före omgångens månad.
 
-import { LAMBDA, optimera, ratta, vinst } from "./optimizer.js?v=20261014a";
+import { LAMBDA, optimera, ratta, vinst } from "./optimizer.js?v=20261014b";
 
 // Förslag att jämföra: Travguiden (modellens chans) och Strecken (folkets bedömning som chans).
 export const KALLOR = {
