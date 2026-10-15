@@ -12,8 +12,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@600;700;800&display=swap">
-<link rel="stylesheet" href="app.css?v=20261014f">
-<script type="module" src="app.js?v=20261014f"></script>
+<link rel="stylesheet" href="app.css?v=20261015a">
+<script type="module" src="app.js?v=20261015a"></script>
 </head>
 <body data-vy="kupong">
 <header class="topp">
@@ -58,7 +58,7 @@
 <div class="forslag" role="radiogroup" aria-label="Vilket förslag">
             <button type="button" role="radio" data-kalla="modell" aria-checked="true"><b>Oddsen</b><span>Streck + vinnarodds</span></button>
             <button type="button" role="radio" data-kalla="experter" aria-checked="false"><b>Experterna</b><span>Oddsen + expertsystem</span></button>
-            <button type="button" role="radio" data-kalla="skrall" aria-checked="false"><b>Skrällchansen</b><span>Oddsen + 1–2 skrällar</span></button>
+            <button type="button" role="radio" data-kalla="skrall" aria-checked="false"><b>Skrällchansen</b><span>Experterna + 1–2 skrällar</span></button>
           </div>
           <h2 id="budget-rubrik" class="kort-rubrik">Hur mycket vill du spela för?</h2>
           <div id="budgetknappar" class="budgetknappar" role="radiogroup" aria-label="Insats"></div>
@@ -93,7 +93,7 @@
 <div class="forslag" role="radiogroup" aria-label="Vilket förslag i rättningen">
             <button type="button" role="radio" data-kalla="modell" aria-checked="true"><b>Oddsen</b><span>Streck + vinnarodds</span></button>
             <button type="button" role="radio" data-kalla="experter" aria-checked="false"><b>Experterna</b><span>Oddsen + expertsystem</span></button>
-            <button type="button" role="radio" data-kalla="skrall" aria-checked="false"><b>Skrällchansen</b><span>Oddsen + 1–2 skrällar</span></button>
+            <button type="button" role="radio" data-kalla="skrall" aria-checked="false"><b>Skrällchansen</b><span>Experterna + 1–2 skrällar</span></button>
           </div>
           <h2 id="r-budget-rubrik" class="kort-rubrik">Så gick systemet</h2>
           <div id="r-budgetknappar" class="budgetknappar" role="radiogroup" aria-label="Insats i rättningen"></div>
@@ -149,9 +149,10 @@
           <i>Fem tippar V85</i> där fem kuskar, tränare och gäster lägger var sitt system. En häst som många experter
           tar med, särskilt som spik, får högre chans. Hur mycket experterna väger skattas när tillräckligt många
           omgångar med expertsystem är avgjorda; tills dess väger de försiktigt.</li>
-        <li><b>Skrällchansen</b> – Oddsens chans, men systemet måste ha med omgångens bästa skrällar: en häst som
-          inte är favorit, har högst 15 % av strecken och tydligt högre chans än streck. En skräll upp till 200 kr,
-          två över det.</li>
+        <li><b>Skrällchansen</b> – Experternas chans (Oddsens om expertsystemen inte kommit än), men systemet måste ha
+          med omgångens bästa skrällar: en häst som inte är favorit, har högst 15 % av strecken, minst 5 % chans och
+          tydligt högre chans än streck. En häst som experterna tar med trots lågt streck rankas därför högre. En
+          skräll upp till 200 kr, två över det.</li>
       </ul>
     </section>
     <section class="kort">

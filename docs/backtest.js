@@ -6,14 +6,14 @@
 //   h = [[nr, chans, streck], ...] för hästarna som startade.
 // Chanserna är walk-forward: räknade med vikter som bara sett lopp före omgångens månad.
 
-import { LAMBDA, RADPRIS, SKRALL, optimera, ratta, skrallKrav, vinst } from "./optimizer.js?v=20261014f";
+import { LAMBDA, RADPRIS, SKRALL, optimera, ratta, skrallKrav, vinst } from "./optimizer.js?v=20261015a";
 
 // Förslagen i appen plus Strecken (folkets bedömning som chans) som jämförelse. Experterna finns bara för
 // omgångar där experternas system sparades (h har då ett fjärde värde).
 export const KALLOR = {
   modell: { namn: "Oddsen", chans: (h) => h[1] },
   experter: { namn: "Experterna", chans: (h) => h[3], kraver: (omg) => omg.avd.every((a) => a.h.every((h) => h.length > 3)) },
-  skrall: { namn: "Skrällchansen", chans: (h) => h[1], skrall: true },
+  skrall: { namn: "Skrällchansen", chans: (h) => h[3] ?? h[1], skrall: true },   // Experternas chans där den finns
   streck: { namn: "Strecken", chans: (h) => h[2] },
 };
 

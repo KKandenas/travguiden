@@ -1,8 +1,8 @@
 import {
   BUDGETAR, RADPRIS, VARDE_GRANS, deltagare, kronor, optimera, ratta, sammanfattning, skrallchanser,
   skrallKrav, vinst,
-} from "./optimizer.js?v=20261014f";
-import { KALLOR, PERIODER, backtesta, iPeriod, sammanstall } from "./backtest.js?v=20261014f";
+} from "./optimizer.js?v=20261015a";
+import { KALLOR, PERIODER, backtesta, iPeriod, sammanstall } from "./backtest.js?v=20261015a";
 
 const $ = (id) => document.getElementById(id);
 const LAGRING = "travguiden";
@@ -80,14 +80,15 @@ async function hamta(fil) {
 }
 
 // Förslagen. Experterna = Oddsen plus experternas system (chans_exp, där systemen finns). Skrällchansen =
-// Oddsens chans, men systemet måste ha med omgångens bästa skrällar (1 upp till 200 kr, annars 2).
+// Experternas chans (Oddsens om expertsystem saknas), men systemet måste ha med omgångens bästa skrällar
+// (1 upp till 200 kr, annars 2).
 const FORSLAG = {
   modell: { namn: "Oddsen", under: "Streck + vinnarodds" },
   experter: { namn: "Experterna", under: "Oddsen + expertsystem" },
-  skrall: { namn: "Skrällchansen", under: "Oddsen + 1–2 skrällar" },
+  skrall: { namn: "Skrällchansen", under: "Experterna + 1–2 skrällar" },
 };
 const harExperter = (data) => Boolean(data?.experter?.length);
-const chansFor = (h, kalla) => (kalla === "experter" && h.chans_exp != null ? h.chans_exp : h.chans);
+const chansFor = (h, kalla) => ((kalla === "experter" || kalla === "skrall") && h.chans_exp != null ? h.chans_exp : h.chans);
 
 /** Avdelningarna i optimerarens format, med chansen enligt valt förslag. */
 const avdelningarFor = (data, kalla = state.kalla) => data.avdelningar.map((a) => ({
@@ -122,7 +123,8 @@ function forslagInfo(data, kalla, res) {
     const s = res.val.filter((v) => v.skrall != null);
     if (!s.length) return "Inga skrällchanser i omgången just nu – förslaget är samma som Oddsen.";
     const namn = (v) => data.avdelningar[v.avd - 1].hastar.find((h) => h.nr === v.skrall)?.namn;
-    return `Skrällar i systemet: ${s.map((v) => `${v.skrall} ${namn(v)} (avd ${v.avd})`).join(" och ")}.`;
+    return `Skrällar i systemet: ${s.map((v) => `${v.skrall} ${namn(v)} (avd ${v.avd})`).join(" och ")}.` +
+      (harExperter(data) ? " Chansen bygger på oddsen och experternas system." : "");
   }
   return "";
 }
@@ -263,7 +265,7 @@ const versal = (s) => s.charAt(0).toUpperCase() + s.slice(1);
 function ritaAvdelningar(lista, data, val, lasningar, oppna, interaktiv, kalla, utfallda) {
   const valPer = Object.fromEntries(val.map((v) => [v.avd, new Set(v.nr)]));
   const optAvd = avdelningarFor(data, kalla);
-  const skrallar = kalla === "skrall" ? skrallchanser(avdelningarFor(data, "modell")) : {};
+  const skrallar = kalla === "skrall" ? skrallchanser(optAvd) : {};
   const experter = expertInfo(data);
   lista.replaceChildren(...data.avdelningar.map((a, i) => {
     const valda = valPer[a.avd] || new Set();

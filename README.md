@@ -146,7 +146,8 @@ startvikten.
 
 ## Skrällchansen
 
-Samma chans som Oddsen, men systemet måste innehålla omgångens bästa skrällar (`SKRALL` i `docs/optimizer.js`):
+Experternas chans (Oddsens när expertsystemen inte kommit än), men systemet måste innehålla omgångens bästa
+skrällar (`SKRALL` i `docs/optimizer.js`). En häst som experterna tar med trots lågt streck rankas alltså högre:
 en häst som inte är favorit, har högst 15 % av strecken, minst 5 % chans och chans/streck minst 1,15. Bästa kandidaten
 per avdelning, högst tre per omgång. En skräll upp till 200 kr, två över det.
 
@@ -158,7 +159,25 @@ Backtest, återbetalning vid 25/50/100/120/150/200/300/500 kr:
 | Skrällchansen | 84/62/52/46/43/43/41/38 % | 47/37/34/34/31/34/36/28 % |
 | Strecken | 87/67/59/47/45/54/59/43 % | 34/34/24/27/24/23/27/37 % |
 
-På bara V85 såg Skrällchansen bättre ut, men över hela perioden är den sämre än Oddsen. Trösklarna är valda i förväg och inte efter backtestet: närliggande trösklar gav allt från 21 till
+På bara V85 såg Skrällchansen bättre ut, men över hela perioden är den sämre än Oddsen.
+
+**Analys av skrällarna (oktober 2026).** Hur ofta hästar som inte är favorit vinner, delat med vad strecken säger:
+
+| Streck | V75 2023–2025 | V85 |
+|---|---|---|
+| under 3 % | 1,29 | 1,53 |
+| 3–6 % | 1,19 | 1,33 |
+| 6–10 % | 0,92 | 1,28 |
+| 10–15 % | 0,86 | 0,86 |
+| 15–25 % | 1,02 | 0,94 |
+
+Regelns kandidater vann 6,0 % mot strecken 5,0 % över alla 262 omgångar (V85: 7,5 % mot 5,0 %), alltså något
+oftare än strecken säger. Ett smalare intervall (3–10 % streck) prövades: kandidaterna vann 3,7–3,9 % mot strecken
+3,8 % (ingen fördel), trots att återbetalningen råkade bli högre på vissa insatser. Regeln behölls. Att
+Skrällchansen ändå ger lägre återbetalning än Oddsen beror på att skrällarna tar rader från resten av systemet,
+och på slumpen i storvinsterna. Vinnaroddsen i avdelning 1 (slutodds vid stängning) pekade åt samma håll som
+strecken redan gör för lågt streckade hästar och tillförde lite. Experternas skrällar går inte att utvärdera
+förrän omgångar med sparade expertsystem är avgjorda. Trösklarna är valda i förväg och inte efter backtestet: närliggande trösklar gav allt från 21 till
 83 %, eftersom ett fåtal storvinster avgör. I historiken finns bara kalibrerade streck (inga vinnarodds före
 spelstopp), så kandidaterna blir få (0,45 per omgång). Skrällchansen blir meningsfull på tävlingsdagen, när
 vinnaroddsen säger emot strecken.

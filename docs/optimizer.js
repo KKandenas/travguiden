@@ -20,7 +20,8 @@ export const VARDE_GRANS = 0.02;                // orange prick från 2 procente
 
 // Skrällchans: en häst som inte är favorit, har högst SKRALL_MAX_STRECK av strecken, minst SKRALL_MIN_CHANS
 // chans och tydligt högre chans än streck (kvot minst SKRALL_MIN_KVOT). Bästa kandidaten per avdelning,
-// högst SKRALL_MAX per omgång. Förslaget Skrällchansen kräver 1–2 av dem i systemet. Se README (backtest).
+// högst SKRALL_MAX per omgång. Förslaget Skrällchansen kräver 1–2 av dem i systemet. Chansen är Experternas
+// när expertsystemen finns, annars Oddsens. Se README (backtest och analys av skrällarna).
 export const SKRALL = { maxStreck: 0.15, minChans: 0.05, minKvot: 1.15, max: 3 };
 export const skrallarForBudget = (kr) => (kr <= 200 ? 1 : 2);
 

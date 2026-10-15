@@ -48,3 +48,9 @@ test("V75 i backtestet: 60 öre per rad och alla rätt = 7", () => {
   assert.ok(s.rader <= 200 && s.insats === Math.round(s.rader * 0.6 * 100) / 100);
   assert.equal(sammanstall([s]).fordelning[0], 1);    // 0 fel
 });
+
+test("Skrällchansen använder Experternas chans där den finns", async () => {
+  const { KALLOR } = await import("../../docs/backtest.js");
+  assert.equal(KALLOR.skrall.chans([1, 0.1, 0.1, 0.3]), 0.3);
+  assert.equal(KALLOR.skrall.chans([1, 0.1, 0.1]), 0.1);
+});
