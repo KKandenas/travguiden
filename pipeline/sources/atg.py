@@ -162,9 +162,14 @@ def tolka_spel(spel: dict, hamtad: str) -> Omgang:
 def hamta_produkt(spelform: str = config.SPELFORM) -> dict:
     """{'upcoming': [...], 'results': [...]} – kommande och nyss avgjorda omgångar."""
     data, _ = hamta_json(f"{config.ATG_BASE}/products/{spelform}")
-    if not isinstance(data, dict) or "upcoming" not in data:
+    return tolka_produkt(data, spelform)
+
+
+def tolka_produkt(data, spelform: str) -> dict:
+    """Utan kommande omgångar svarar ATG bara {"betType": "V75"} – det betyder tomma listor, inte fel."""
+    if not isinstance(data, dict) or data.get("betType") != spelform:
         raise HamtningsFel(f"Oväntat svar från /products/{spelform}")
-    return data
+    return {"upcoming": data.get("upcoming") or [], "results": data.get("results") or []}
 
 
 def hamta_spel(spel_id: str) -> dict:

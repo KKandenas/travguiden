@@ -72,19 +72,19 @@ def _spara_spel(conn, spel_id: str) -> bool:
 
 
 def steg_atg(conn) -> bool:
-    kommande = []
+    kommande, fel = [], []
     for spelform in config.SPELFORMER:
         try:
             produkt = atg.hamta_produkt(spelform)
-        except HamtningsFel as e:
+        except HamtningsFel as e:      # en spelform som strular får inte stoppa de andra
             log.error("ATG: kunde inte hämta kommande %s: %s", spelform, e)
-            _satt_status(conn, "status:atg", {"ok": False, "fel": str(e)[:200]})
-            return False
+            fel.append(str(e)[:200])
+            continue
         kommande += [g["id"] for g in produkt.get("upcoming") or [] if g.get("id")]
     if not kommande:
         log.info("ATG: ingen kommande %s just nu", " eller ".join(config.SPELFORMER))
-    ok = all([_spara_spel(conn, sid) for sid in kommande])
-    _satt_status(conn, "status:atg", {"ok": ok, "fel": None if ok else "minst en omgång gick inte att spara"})
+    ok = all([_spara_spel(conn, sid) for sid in kommande]) and not fel
+    _satt_status(conn, "status:atg", {"ok": ok, "fel": None if ok else ("; ".join(fel) or "minst en omgång gick inte att spara")})
     # Nyss stängda omgångar: hämta igen inom 48 h så att slutstrecken kommer med.
     for (sid,) in conn.execute("SELECT id FROM omgangar WHERE spelstopp BETWEEN ? AND ? AND avgjord = 0",
                                (_utc_om(-48), nu_utc())).fetchall():

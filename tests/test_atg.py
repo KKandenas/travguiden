@@ -83,3 +83,13 @@ def test_radpris_och_vinstgrupper():
     assert config.radpris("V75", "2025-10-11") == 0.5           # gamla V75
     assert config.radpris("V75", "2026-11-28") == 0.6           # nya V75
     assert config.vinstgrupper(8) == [8, 7, 6, 5] and config.vinstgrupper(7) == [7, 6, 5]
+
+
+
+def test_produkt_utan_kommande_omgangar():
+    from pipeline.http import HamtningsFel
+    assert atg.tolka_produkt({"betType": "V75"}, "V75") == {"upcoming": [], "results": []}
+    d = atg.tolka_produkt({"betType": "V85", "upcoming": [{"id": "V85_x"}], "results": []}, "V85")
+    assert d["upcoming"] == [{"id": "V85_x"}]
+    with pytest.raises(HamtningsFel):
+        atg.tolka_produkt({"fel": "x"}, "V75")
