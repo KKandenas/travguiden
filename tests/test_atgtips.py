@@ -89,3 +89,16 @@ def test_v75_kuponger_kanns_igen():
             "linkedFrom": {"entryCollection": {"items": []}}}
     [k] = atgtips.tolka_kupongposter([post], {"V75_2026-11-28_5_5"})
     assert k["spel_id"] == "V75_2026-11-28_5_5"
+
+
+
+def test_kupongens_titel_gar_fore_stycket_och_siffror_ar_inga_namn():
+    e = atgtips.tolka_kupong(las_fixture("atgtips_kupong.json"), _post(titel="Patrik Fernlund stora systemförslag"),
+                             "Ranking A")
+    assert e.namn == "Patrik Fernlund stora systemförslag"
+    dok = {"content": [
+        {"nodeType": "paragraph", "content": [{"nodeType": "text", "value": "Ranking A: 10,4 B: 7,12,2,9,11"}]},
+        {"nodeType": "embedded-entry-block", "data": {"target": {"sys": {"id": "k1"}}}},
+        {"nodeType": "paragraph", "content": [{"nodeType": "text", "value": "Mats E Djuse\nGävle"}]},
+        {"nodeType": "embedded-entry-block", "data": {"target": {"sys": {"id": "k2"}}}}]}
+    assert atgtips.namn_ur_artikel(dok) == {"k2": "Mats E Djuse"}

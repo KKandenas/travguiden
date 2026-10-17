@@ -1,5 +1,6 @@
 """Kommandorad för pipelinen.
 
+    python -m pipeline planerad                          # det som schemat startar: kör auto bara om en planerad tid passerats
     python -m pipeline auto                              # det som schemat kör: allt som är aktuellt just nu
     python -m pipeline atg                               # kommande omgångar: hästar, streck, vinnarodds
     python -m pipeline experter                          # experternas system ur ATG:s tipsartiklar
@@ -24,7 +25,7 @@ import sys
 import time
 from datetime import date, datetime, timedelta, timezone
 
-from . import config, db, export, lagring
+from . import config, db, export, lagring, schema
 from .ai import klient as ai_klient
 from .ai import kommentarer as ai_kommentarer
 from .http import HamtningsFel
@@ -161,7 +162,7 @@ def main(argv=None) -> int:
     p = argparse.ArgumentParser(prog="pipeline", description="Travguidens datapipeline")
     p.add_argument("-v", "--verbose", action="store_true")
     sub = p.add_subparsers(dest="kommando", required=True)
-    for k in ("auto", "atg", "experter", "kommentarer", "resultat", "statistik", "migrera"):
+    for k in ("auto", "planerad", "atg", "experter", "kommentarer", "resultat", "statistik", "migrera"):
         sub.add_parser(k)
     b = sub.add_parser("backfill")
     b.add_argument("fran")
@@ -183,6 +184,16 @@ def main(argv=None) -> int:
     ok = True
     if a.kommando == "migrera":
         return 0
+    planerad = None
+    if a.kommando == "planerad":
+        r = conn.execute("SELECT varde FROM installningar WHERE nyckel = 'senaste_planerade'").fetchone()
+        planerad = schema.forfallen(r[0] if r else None, datetime.now(timezone.utc))
+        if planerad is None:
+            log.info("Planerad: inget att göra – den senaste planerade uppdateringen är redan körd")
+            return 0
+        log.info("Planerad: kör uppdateringen för %s (svensk tid)",
+                 planerad.astimezone(schema.SVENSK_TID).strftime("%a %d %b %H:%M"))
+        a.kommando = "auto"
     if a.kommando == "backfill":
         ok = steg_backfill(conn, a.fran, a.till, a.spelform)
     if a.kommando in ("auto", "atg"):
@@ -209,6 +220,12 @@ def main(argv=None) -> int:
         except Exception as e:
             log.exception("Export misslyckades: %s", e)
             ok = False
+    if planerad is not None:
+        # Markeras som körd även om något steg misslyckades, så att nästa start inte gör om samma sak
+        with conn:
+            conn.execute("""INSERT INTO installningar (nyckel, varde, uppdaterad) VALUES ('senaste_planerade', ?, ?)
+                            ON CONFLICT(nyckel) DO UPDATE SET varde = excluded.varde, uppdaterad = excluded.uppdaterad""",
+                         (planerad.strftime("%Y-%m-%dT%H:%M:%SZ"), nu_utc()))
     return 0 if ok else 1
 
 

@@ -32,7 +32,7 @@ _SPEL = re.compile(r"\b((?:V85|V75)_\d{4}-\d{2}-\d{2}_\d+_\d+)\b")
 # Titlar som inte säger vem som tippat ("Kupong 1 Fem tippar", "Stora systemet", en ren länk …)
 _ALLMAN_TITEL = re.compile(r"^(kupong\b|https?:|stora systemet|lilla systemet|system\b|v85\b)", re.I)
 
-_KUPONGER = """{ couponCollection(limit: 60, order: sys_publishedAt_DESC) { items { sys { id } title url
+_KUPONGER = """{ couponCollection(limit: 100, order: sys_publishedAt_DESC) { items { sys { id } title url
   linkedFrom { entryCollection(limit: 5) { items { __typename ... on Article { sys { id } title slug gameTagId lead } } } } } } }"""
 _ARTIKEL = """query($id: String!) { article(id: $id) { body { json } } }"""
 
@@ -140,7 +140,9 @@ def namn_ur_artikel(dokument: dict) -> Dict[str, str]:
             text = _text(nod).strip()
             if text:
                 forsta = text.split("\n")[0].strip()
-                ar_namn = len(forsta) <= 40 and len(text) <= 120 and not forsta.isupper()   # inte rubriker
+                # Inte rubriker i versaler, och inte rader med siffror eller kolon ("Ranking A: 10,4 B: 7,12")
+                ar_namn = (len(forsta) <= 40 and len(text) <= 120 and not forsta.isupper()
+                           and not re.search(r"[\d:]", forsta))
                 senaste = forsta if ar_namn else None
         elif typ == "embedded-entry-block":
             post = ((nod.get("data") or {}).get("target") or {}).get("sys", {}).get("id")
@@ -163,10 +165,12 @@ def tolka_kupong(data: dict, post: dict, namn: Optional[str]) -> Expertsystem:
     antal = ANTAL_AVD.get(spel.split("_")[0])
     if len(val) != antal:
         raise ValideringsFel(f"kupongen {post['kupong_id']} har val i {len(val)} avdelningar, väntade {antal}")
-    if not namn:
-        if post["titel"] and not _ALLMAN_TITEL.search(post["titel"]):
-            namn = post["titel"]
-        elif post.get("avsandare"):
+    # Kupongens egen titel går först ("Patrik Fernlund stora systemförslag"), sedan namnet ur artikeln (Fem tippar,
+    # där kupongerna bara heter "Kupong 3 Fem tippar"), avsändaren ur ingressen och sist artikelns titel.
+    if post["titel"] and not _ALLMAN_TITEL.search(post["titel"]):
+        namn = post["titel"]
+    elif not namn:
+        if post.get("avsandare"):
             namn = post["avsandare"] + (f" ({post['titel'].strip().lower()})" if post["titel"] and not post["titel"].startswith("http") else "")
         else:
             namn = post["artikel"] or "ATG"

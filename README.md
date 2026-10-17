@@ -52,7 +52,8 @@ python3 -m http.server 8766 -d docs     # öppna http://localhost:8766
 
 | Kommando | Gör |
 |---|---|
-| `python -m pipeline auto` | Det schemat kör: kommande omgång, resultat, träning när en ny omgång avgjorts, export |
+| `python -m pipeline planerad` | Det schemat startar: kör `auto` bara när en planerad tid har passerats |
+| `python -m pipeline auto` | En uppdatering nu: kommande omgång, resultat, träning när en ny omgång avgjorts, export |
 | `python -m pipeline atg` | Kommande V85/V75: hästar, streck och vinnarodds |
 | `python -m pipeline experter` | Experternas system ur ATG:s tipsartiklar för kommande V85 |
 | `python -m pipeline resultat` | Resultat och utdelning för omgångar efter spelstopp |
@@ -73,8 +74,11 @@ Lägg till `-v` för mer loggning. Miljövariabeln `TRAV_DB` styr vilken databas
 2. **Settings → Pages**: Deploy from branch, `main` och `/docs`.
 3. Om workflowet får "permission denied" vid push: **Settings → Actions → General → Workflow permissions → Read and write**.
 
-`.github/workflows/pipeline.yml` kör `python -m pipeline auto` varje dag 08, 18:30 och 22:30 (svensk sommartid)
-och extra på lördagar fram till spelstopp, eftersom vinnaroddsen bara sparas när vinnarpoolen har pengar.
+`.github/workflows/pipeline.yml` startar pipelinen varje timme (var 20:e minut på lördagar 10–17) med
+`python -m pipeline planerad`. GitHubs schemaläggning kan bli flera timmar sen, så schemat i `pipeline/schema.py`
+(svensk tid) avgör när något körs: varje dag 08:00, 18:30 och 22:30, och på lördagar dessutom 11:00, 13:00, 14:00,
+14:30, 14:50, 15:40 och 16:10. En start kör bara när en planerad tid har passerats och inte körts än; en missad tid
+tas igen vid nästa start. Övriga starter avslutas direkt utan API-anrop. Samma upplägg som i Stryktipsguiden.
 Alla steg är idempotenta. Under **Actions → Pipeline → Run workflow** går det att köra manuellt, även backfill.
 
 ## Databasen

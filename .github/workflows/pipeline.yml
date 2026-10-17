@@ -1,26 +1,21 @@
 name: Pipeline
 
-# Cron körs i UTC. V85 går oftast på lördagar med första start 15:00–16:20 (svensk tid), men ibland även
-# andra dagar på kvällen. Varje körning gör det som är aktuellt (python -m pipeline auto), så en extra
-# eller försenad körning är ofarlig. Vinnaroddsen sparas först när vinnarpoolen har pengar, alltså på
-# tävlingsdagen – därför flera körningar på lördagen fram till spelstopp.
+# GitHubs schemalagda körningar kan bli flera timmar sena eller utebli. Därför startas pipelinen
+# varje timme (och var 20:e minut på lördagar) med kommandot `planerad`. Den gör en riktig uppdatering
+# bara när en tid i pipeline/schema.py (svensk tid) har passerats och inte körts än – annars avslutas den
+# direkt utan att anropa några API:er eller ändra någon data. Udda minuter, eftersom GitHub är mest
+# belastat på hela timmar. Samma upplägg som i Stryktipsguiden.
 on:
   schedule:
-    - cron: "0 6 * * *"      # varje dag 08:00 / 07:00 – ny omgång, resultat från igår
-    - cron: "30 16 * * *"    # varje dag 18:30 / 17:30 – uppdaterade streck, kvällsomgångar
-    - cron: "30 20 * * *"    # varje dag 22:30 / 21:30 – resultat och utdelning
-    - cron: "0 9 * * 6"      # lör 11:00 / 10:00
-    - cron: "0 11 * * 6"     # lör 13:00 / 12:00
-    - cron: "15 12 * * 6"    # lör 14:15 / 13:15 – vinnarpoolen har pengar
-    - cron: "40 12 * * 6"    # lör 14:40 / 13:40 – sista före spelstopp sommartid
-    - cron: "40 13 * * 6"    # lör 15:40 / 14:40 – sista före spelstopp vintertid
+    - cron: "23 * * * *"          # varje timme
+    - cron: "3,43 8-15 * * 6"     # lördagar 10–17 / 09–16 svensk tid: tätare inför spelstopp
   workflow_dispatch:
     inputs:
       kommando:
         description: "Vad ska köras?"
         type: choice
         default: auto
-        options: [auto, atg, experter, kommentarer, resultat, statistik, backfill]
+        options: [auto, planerad, atg, experter, kommentarer, resultat, statistik, backfill]
       fran:
         description: "backfill: första datum (YYYY-MM-DD)"
         required: false
@@ -57,7 +52,7 @@ jobs:
           GEMINI_MODELL: ${{ vars.GEMINI_MODELL }}
           GEMINI_RESERVMODELLER: ${{ vars.GEMINI_RESERVMODELLER }}
           GEMINI_RPM: ${{ vars.GEMINI_RPM }}
-          KOMMANDO: ${{ inputs.kommando || 'auto' }}
+          KOMMANDO: ${{ inputs.kommando || 'planerad' }}
           FRAN: ${{ inputs.fran }}
           TILL: ${{ inputs.till }}
         run: |
