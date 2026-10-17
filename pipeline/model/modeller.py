@@ -5,6 +5,8 @@
 - streck:          chansen är V85-strecken (folkets bedömning). Referens.
 - kalibrerad-v1:   villkorad logit på log(streck) och, när de finns, vinnaroddsen
                    (chans ∝ streck^a · (oddschans/streck)^b). Exponenten a skattas separat för V85 och V75. Vikterna skattas i statistik.py. "Oddsen" i appen.
+- hastkoll-v1:     kalibrerad-v1 plus Hästkoll, AI:ns bedömning av de senaste loppen (chans ∝ … · e^(d·bedömning),
+                   bedömning +1/0/−1). Räknas bara för lopp där bedömningar finns. "Hästkoll · test" i appen.
 - experter-v1:     kalibrerad-v1 plus experternas system (chans ∝ … · (expertandel + 0,05)^c). Räknas bara
                    för lopp där expertsystem finns. "Experterna" i appen.
 """
@@ -22,6 +24,10 @@ log = logging.getLogger(__name__)
 
 AKTIV = "kalibrerad-v1"
 EXPERTMODELL = "experter-v1"
+HASTKOLLMODELL = "hastkoll-v1"
+# Hästkollens vikt tills statistiken kan skatta den (kandidaten "hastkoll" i statistik.py). e^0,25 ≈ 1,3: en häst
+# som bedömts "bättre än resultaten" får knappt en tredjedel högre odds på seger före normering.
+STANDARD_HASTKOLLVIKT = 0.25
 EGENSKAPER = ["log_streck", "log_streck_v85", "odds_mot_streck"]
 EXPERTEGENSKAPER = EGENSKAPER + ["experter"]
 # Experternas vikt innan det finns tillräckligt många avgjorda lopp att skatta den på (statistik.MIN_EXPERTLOPP).
@@ -35,6 +41,7 @@ MODELLER = {
     "streck": "Strecken",
     "kalibrerad-v1": "Oddsen",
     "experter-v1": "Experterna",
+    "hastkoll-v1": "Hästkoll",
 }
 
 
@@ -64,6 +71,13 @@ def expertvikter(conn: sqlite3.Connection, oddsvikter: Dict[str, float], manad: 
     return sparat["per_manad"][max(tidigare)] if tidigare else standard
 
 
+def hastkollvikt(conn: sqlite3.Connection) -> float:
+    """Skattad vikt från kandidatutvärderingen (när den finns), annars standardvikten."""
+    r = conn.execute("SELECT varde FROM installningar WHERE nyckel = 'statistik'").fetchone()
+    k = ((json.loads(r[0]).get("kandidater") or {}).get("hastkoll") or {}) if r else {}
+    return k.get("vikt", STANDARD_HASTKOLLVIKT)
+
+
 def _odds_fore_spelstopp(conn, lopp: List[dict]) -> None:
     """Ersätt vinnaroddsen med den senaste ögonblicksbilden före spelstopp (inga odds efter stängning)."""
     for l in lopp:
@@ -81,6 +95,7 @@ def berakna_prognoser(conn: sqlite3.Connection, alla: bool = False) -> int:
     lopp = data.lopp(conn, "1" if alla else "o.avgjord = 0")
     _odds_fore_spelstopp(conn, lopp)
     nu = nu_utc()
+    hk = hastkollvikt(conn)
     n = 0
     with conn:
         for l in lopp:
@@ -92,6 +107,8 @@ def berakna_prognoser(conn: sqlite3.Connection, alla: bool = False) -> int:
             if any(h.get("expertandel") is not None for h in l["hastar"]):
                 ew = expertvikter(conn, w, l["datum"][:7] if alla else None)
                 modeller.append((EXPERTMODELL, sannolikhet.chanser(l, ew)))
+            if any(h.get("hastkoll") is not None for h in l["hastar"]):
+                modeller.append((HASTKOLLMODELL, sannolikhet.chanser(l, {**w, "hastkoll": hk})))
             for modell, p in modeller:
                 for h, c in zip(l["hastar"], p):
                     conn.execute("""INSERT INTO prognoser (start_id, modellversion, chans, skapad) VALUES (?, ?, ?, ?)

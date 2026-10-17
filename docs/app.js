@@ -1,8 +1,8 @@
 import {
   BUDGETAR, RADPRIS, VARDE_GRANS, deltagare, kronor, optimera, ratta, sammanfattning, skrallchanser,
   skrallKrav, vinst,
-} from "./optimizer.js?v=20261017b";
-import { KALLOR, PERIODER, backtesta, iPeriod, sammanstall } from "./backtest.js?v=20261017b";
+} from "./optimizer.js?v=20261017c";
+import { KALLOR, PERIODER, backtesta, iPeriod, sammanstall } from "./backtest.js?v=20261017c";
 
 const $ = (id) => document.getElementById(id);
 const LAGRING = "travguiden";
@@ -86,9 +86,11 @@ const FORSLAG = {
   modell: { namn: "Oddsen", under: "Streck + vinnarodds" },
   experter: { namn: "Experterna", under: "Oddsen + expertsystem" },
   skrall: { namn: "Skrällchansen", under: "Experterna + 1–2 skrällar" },
+  hastkoll: { namn: "Hästkoll", under: "Oddsen + AI-formkoll · test" },
 };
 const harExperter = (data) => Boolean(data?.experter?.length);
-const chansFor = (h, kalla) => ((kalla === "experter" || kalla === "skrall") && h.chans_exp != null ? h.chans_exp : h.chans);
+const chansFor = (h, kalla) => (kalla === "hastkoll" ? h.chans_hk ?? h.chans
+  : (kalla === "experter" || kalla === "skrall") && h.chans_exp != null ? h.chans_exp : h.chans);
 
 /** Avdelningarna i optimerarens format, med chansen enligt valt förslag. */
 const avdelningarFor = (data, kalla = state.kalla) => data.avdelningar.map((a) => ({
@@ -118,6 +120,17 @@ function forslagInfo(data, kalla, res) {
     }
     const namn = data.experter.map((e) => e.namn);
     return `Bygger på ${namn.length} expertsystem: ${namn.join(", ")}.`;
+  }
+  if (kalla === "hastkoll") {
+    const alla = data.avdelningar.flatMap((a) => a.hastar.filter((h) => !h.struken));
+    const b = alla.filter((h) => h.hastkoll);
+    if (!b.length) {
+      return data.omgang.avgjord ? "Hästkoll gjordes inte för den här omgången – förslaget är samma som Oddsen."
+        : "Hästkoll har inte bedömt omgången än (görs när ATG lagt ut loppkommentarerna) – förslaget är samma som Oddsen.";
+    }
+    const upp = b.filter((h) => h.hastkoll.bedomning === 1).length, ned = b.filter((h) => h.hastkoll.bedomning === -1).length;
+    return `Hästkoll har bedömt ${b.length} av ${alla.length} hästar: ${upp} bättre och ${ned} sämre än resultaten. ` +
+      "Under test – vägs in i Oddsen först om statistiken visar att den träffar bättre.";
   }
   if (kalla === "skrall" && res?.ok) {
     const s = res.val.filter((v) => v.skrall != null);
@@ -578,7 +591,7 @@ function renderaBacktest() {
       el("span", { text: s.spel.length
         ? `${kr(s.sum.insats)} in · ${kr(s.sum.tillbaka)} tillbaka · ${Math.round(s.sum.aterbetalning * 100)} % återbetalning`
           + (s.spel.length < m.spel.length ? ` · ${s.spel.length} omgångar` : "")
-        : "Inga avgjorda omgångar med expertsystem än" })))),
+        : s.k === "hastkoll" ? "Inga avgjorda omgångar med Hästkoll än" : "Inga avgjorda omgångar med expertsystem än" })))),
     diagram(serier.filter((s) => s.spel.length)),
     el("div", { class: "tabell-scroll" }, el("table", { class: "stat-tabell", style: "margin-top:12px" },
       el("thead", {}, el("tr", {}, el("th", { text: "" }),
@@ -595,9 +608,9 @@ function renderaBacktest() {
         el("td", { text: s.datum }), el("td", { text: s.bana }), el("td", { class: "tal", text: s.ratt }),
         el("td", { class: "tal", text: s.vinst ? kr(s.vinst) : "–" }),
         el("td", { class: "tal", text: plusKr(s.saldo) })))))),
-    exp.spel.length < m.spel.length ? el("p", { class: "bt-not", text: "Experterna räknas bara för omgångar där experternas " +
-      "system sparades, alltså sedan 14 oktober 2026 (ATG raderar kupongerna efter loppet). Jämför därför Experterna med de " +
-      "andra under \"Sedan premiären\"." }) : null,
+    exp.spel.length < m.spel.length ? el("p", { class: "bt-not", text: "Experterna och Hästkoll räknas bara för omgångar där " +
+      "experternas system respektive loppkommentarerna sparades, alltså sedan oktober 2026 (ATG tar bort båda efter loppet). " +
+      "Jämför dem därför med de andra under \"Sedan premiären\"." }) : null,
     el("p", { class: "bt-not", text: `${m.sum.omgangar} omgångar sedan ${forsta}. Chanserna i backtestet är räknade med vikter som bara sett ` +
       "lopp före omgångens månad, och utan vinnarodds (de finns inte sparade från före spelstopp i historiken). " +
       "Utdelningen per rad är ordinarie (utan Boost). Ett fåtal stora vinster avgör mycket, så läs resultatet som en riktning, inte en garanti." }),

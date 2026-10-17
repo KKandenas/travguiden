@@ -3,17 +3,19 @@
 // historik.json: {omgangar: [{id, datum, bana, spelform, radpris, utdelning: {antal rätt: kr}, avd: [{v, f, s, h}]}]}
 //   V75 har 7 avdelningar och utdelning för 7–5 rätt, V85 8 avdelningar och 8–5 rätt.
 //   v = vinnare (startnummer), f = mest streckade häst (ersätter strukna), s = strukna,
-//   h = [[nr, chans, streck], ...] för hästarna som startade.
+//   h = [[nr, chans, streck, Experternas chans?, Hästkollens chans?], ...] för hästarna som startade
+//   (de två sista finns bara för omgångar där experternas system respektive Hästkoll fanns; null = saknas).
 // Chanserna är walk-forward: räknade med vikter som bara sett lopp före omgångens månad.
 
-import { LAMBDA, RADPRIS, SKRALL, optimera, ratta, skrallKrav, vinst } from "./optimizer.js?v=20261017b";
+import { LAMBDA, RADPRIS, SKRALL, optimera, ratta, skrallKrav, vinst } from "./optimizer.js?v=20261017c";
 
 // Förslagen i appen plus Strecken (folkets bedömning som chans) som jämförelse. Experterna finns bara för
 // omgångar där experternas system sparades (h har då ett fjärde värde).
 export const KALLOR = {
   modell: { namn: "Oddsen", chans: (h) => h[1] },
-  experter: { namn: "Experterna", chans: (h) => h[3], kraver: (omg) => omg.avd.every((a) => a.h.every((h) => h.length > 3)) },
+  experter: { namn: "Experterna", chans: (h) => h[3], kraver: (omg) => omg.avd.every((a) => a.h.every((h) => h[3] != null)) },
   skrall: { namn: "Skrällchansen", chans: (h) => h[3] ?? h[1], skrall: true },   // Experternas chans där den finns
+  hastkoll: { namn: "Hästkoll · test", chans: (h) => h[4] ?? h[1], kraver: (omg) => omg.avd.some((a) => a.h.some((h) => h[4] != null)) },
   streck: { namn: "Strecken", chans: (h) => h[2] },
 };
 

@@ -1,8 +1,9 @@
 # Travguiden
 
 Föreslår ett system till lördagens V-spel (V85, och V75 från 28 november 2026) utifrån hur mycket du vill spela för, med streck, chans och värde för varje häst.
-Tre förslag: **Oddsen** (streck och vinnarodds), **Experterna** (Oddsen plus experternas system från ATG) och
-**Skrällchansen** (Oddsen med 1–2 understreckade hästar).
+Fyra förslag: **Oddsen** (streck och vinnarodds), **Experterna** (Oddsen plus experternas system från ATG),
+**Skrällchansen** (Experterna med 1–2 understreckade hästar) och **Hästkoll · test** (Oddsen justerad med AI:ns
+bedömning av hästarnas senaste lopp).
 Bakom appen samlar en automatisk pipeline på GitHub historik från ATG, så att bedömningen kan förbättras över tid.
 Systerprojekt till [Stryktipsguiden](../Stryktipsguiden), med samma upplägg.
 
@@ -208,6 +209,9 @@ forward per spelform: V75 +0,0004 ± 0,0019, V85 +0,0035 ± 0,0026. Barfota runt
 bedömer om hästen var bättre (+1), som (0) eller sämre (−1) än placeringarna, med en kort motivering. Tabellen
 `hastkoll`. ATG tar bort kommentarerna inom en vecka, så bedömningen görs för kommande och nyss avgjorda omgångar
 (högst två per körning, två anrop per omgång) och kan inte göras för äldre historik.
+
+**Förslaget Hästkoll · test** (modellen `hastkoll-v1`, som Lagkoll i Stryktipsguiden): Oddsens chans gånger
+e^(d·bedömning), d = 0,25 tills kandidatutvärderingen har skattat en vikt. Hästar utan bedömning följer Oddsen.
 
 **Kandidater (`statistik.KANDIDATER`).** Barfota runt och Hästkoll utvärderas walk-forward efter varje avgjord
 omgång och visas under "Under test" på om-sidan. En kandidat vägs in först när den slår nuvarande modell med mer

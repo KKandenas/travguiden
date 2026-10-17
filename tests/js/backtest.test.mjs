@@ -54,3 +54,12 @@ test("Skrällchansen använder Experternas chans där den finns", async () => {
   assert.equal(KALLOR.skrall.chans([1, 0.1, 0.1, 0.3]), 0.3);
   assert.equal(KALLOR.skrall.chans([1, 0.1, 0.1]), 0.1);
 });
+
+test("Hästkoll: egen chans där bedömningar finns, annars Oddsens; Experterna kräver expertchans", async () => {
+  const { KALLOR } = await import("../../docs/backtest.js");
+  assert.equal(KALLOR.hastkoll.chans([1, 0.1, 0.1, null, 0.2]), 0.2);
+  assert.equal(KALLOR.hastkoll.chans([1, 0.1, 0.1]), 0.1);
+  const omg = (h) => ({ avd: [{ h: [h] }] });
+  assert.ok(!KALLOR.experter.kraver(omg([1, 0.1, 0.1, null, 0.2])) && KALLOR.experter.kraver(omg([1, 0.1, 0.1, 0.3])));
+  assert.ok(KALLOR.hastkoll.kraver(omg([1, 0.1, 0.1, null, 0.2])) && !KALLOR.hastkoll.kraver(omg([1, 0.1, 0.1, 0.3])));
+});

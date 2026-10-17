@@ -27,6 +27,17 @@ _SENASTE = "(SELECT {f} FROM {t} WHERE start_id = s.id ORDER BY tidpunkt DESC LI
 _SPELFORMER = ", ".join(f"'{s}'" for s in config.SPELFORMER)
 
 
+def _avr(x):
+    return round(x, 4) if x is not None else None
+
+
+def _kort(rad: list) -> list:
+    """Ta bort avslutande None, så att historik.json blir kort för omgångar utan experter och Hästkoll."""
+    while rad and rad[-1] is None:
+        rad.pop()
+    return rad
+
+
 def _b(v):
     return None if v is None else bool(v)
 
@@ -67,9 +78,10 @@ def omgang_data(conn: sqlite3.Connection, omgang_id: str, dolj_resultat: bool = 
                 SELECT s.*, {_SENASTE.format(f='andel', t='streck')} AS streck,
                        {_SENASTE.format(f='odds', t='vinnarodds')} AS odds,
                        (SELECT chans FROM prognoser WHERE start_id = s.id AND modellversion = ?) AS chans,
-                       (SELECT chans FROM prognoser WHERE start_id = s.id AND modellversion = ?) AS chans_exp
+                       (SELECT chans FROM prognoser WHERE start_id = s.id AND modellversion = ?) AS chans_exp,
+                       (SELECT chans FROM prognoser WHERE start_id = s.id AND modellversion = ?) AS chans_hk
                 FROM starter s WHERE s.avdelning_id = ? ORDER BY s.nr""",
-                (modeller.AKTIV, modeller.EXPERTMODELL, a["id"])):
+                (modeller.AKTIV, modeller.EXPERTMODELL, modeller.HASTKOLLMODELL, a["id"])):
             h = {
                 "nr": s["nr"], "namn": s["hast"], "kusk": s["kusk"], "tranare": s["tranare"],
                 "spar": s["spar"], "distans": s["distans"], "alder": s["alder"], "kon": KON.get(s["kon"], s["kon"]),
@@ -95,6 +107,8 @@ def omgang_data(conn: sqlite3.Connection, omgang_id: str, dolj_resultat: bool = 
                 h["hastkoll"] = {"bedomning": k["bedomning"], "motivering": k["motivering"]}
             if s["chans_exp"] is not None and not s["struken"]:
                 h["chans_exp"] = round(s["chans_exp"], 4)
+            if s["chans_hk"] is not None and not s["struken"]:
+                h["chans_hk"] = round(s["chans_hk"], 4)
             if system:
                 h["experter"] = valda.get((a["avd"], s["nr"]), [])     # index i "experter" nedan
             if s["struken"]:
@@ -155,9 +169,10 @@ def historik(conn: sqlite3.Connection) -> dict:
             rader = conn.execute(f"""
                 SELECT s.nr, s.struken, {_SENASTE.format(f='andel', t='streck')} AS streck,
                        (SELECT chans FROM prognoser WHERE start_id = s.id AND modellversion = ?) AS chans,
-                       (SELECT chans FROM prognoser WHERE start_id = s.id AND modellversion = ?) AS chans_exp
+                       (SELECT chans FROM prognoser WHERE start_id = s.id AND modellversion = ?) AS chans_exp,
+                       (SELECT chans FROM prognoser WHERE start_id = s.id AND modellversion = ?) AS chans_hk
                 FROM starter s WHERE s.avdelning_id = ? ORDER BY s.nr""",
-                (modeller.AKTIV, modeller.EXPERTMODELL, a["id"])).fetchall()
+                (modeller.AKTIV, modeller.EXPERTMODELL, modeller.HASTKOLLMODELL, a["id"])).fetchall()
             kvar = [r for r in rader if not r["struken"] and r["streck"] is not None and r["chans"] is not None]
             if not kvar:
                 break
@@ -165,9 +180,9 @@ def historik(conn: sqlite3.Connection) -> dict:
                 "v": [int(x) for x in a["vinnare"].split(",")],
                 "f": max(kvar, key=lambda r: r["streck"])["nr"],
                 "s": [r["nr"] for r in rader if r["struken"]],
-                # [nr, chans, streck] och, om experternas system fanns, Experternas chans som fjärde värde
-                "h": [[r["nr"], round(r["chans"], 4), round(r["streck"], 4)]
-                      + ([round(r["chans_exp"], 4)] if r["chans_exp"] is not None else []) for r in kvar],
+                # [nr, chans, streck, Experternas chans, Hästkollens chans]; de två sista bara om de finns
+                "h": [_kort([r["nr"], round(r["chans"], 4), round(r["streck"], 4),
+                             _avr(r["chans_exp"]), _avr(r["chans_hk"])]) for r in kvar],
             })
         antal = conn.execute("SELECT COUNT(*) FROM avdelningar WHERE omgang_id = ?", (o["id"],)).fetchone()[0]
         if len(avd) != antal:
