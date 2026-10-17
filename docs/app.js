@@ -1,8 +1,8 @@
 import {
   BUDGETAR, RADPRIS, VARDE_GRANS, deltagare, kronor, optimera, ratta, sammanfattning, skrallchanser,
   skrallKrav, vinst,
-} from "./optimizer.js?v=20261017a";
-import { KALLOR, PERIODER, backtesta, iPeriod, sammanstall } from "./backtest.js?v=20261017a";
+} from "./optimizer.js?v=20261017b";
+import { KALLOR, PERIODER, backtesta, iPeriod, sammanstall } from "./backtest.js?v=20261017b";
 
 const $ = (id) => document.getElementById(id);
 const LAGRING = "travguiden";
@@ -352,6 +352,8 @@ function andringar(h) {
   if (u.skor_andrad) ut.push(skorText(u)?.startsWith("barfota") ? `${skorText(u)} ny` : "skobyte");
   if (u.vagn_andrad) ut.push("vagnbyte");
   if (kuskbyte(h)) ut.push("ny kusk");
+  if (h.hastkoll?.bedomning === 1) ut.push("AI ↑");
+  if (h.hastkoll?.bedomning === -1) ut.push("AI ↓");
   return ut;
 }
 
@@ -388,6 +390,7 @@ function hastRad(a, h, andel, vald, last, vann, oppen, interaktiv, extra = {}) {
 }
 
 const kortDag = new Intl.DateTimeFormat("sv-SE", { day: "numeric", month: "short" });
+const HASTKOLL = { 1: "Bättre än resultaten", 0: "Som resultaten", "-1": "Sämre än resultaten" };
 
 function detaljer(h, andel, id, exp, a) {
   const u = h.utrustning;
@@ -409,6 +412,7 @@ function detaljer(h, andel, id, exp, a) {
     ["Skor", u && skorText(u) ? skorText(u) + (u.skor_andrad ? " – ändrat sedan förra starten" : "") : null],
     ["Vagn", u?.vagn ? u.vagn + (u.vagn_andrad ? " – ny sedan förra starten" : "") : null],
     ["Senaste starter", h.tidigare?.length ? `${formText(h.tidigare)} (senaste först)` : null],
+    ["Hästkoll (AI, test)", h.hastkoll ? `${HASTKOLL[h.hastkoll.bedomning]}${h.hastkoll.motivering ? ` – ${h.hastkoll.motivering}` : ""}` : null],
     ["Senast", dagar != null ? `${dagar} dagar sedan${kuskbyte(h) ? ` · kördes då av ${h.tidigare[0].kusk}` : ""}` : null],
     ["Experter", exp ? (exp.namn.length ? `${exp.antal} av ${exp.totalt}: ${exp.namn.join(", ")}` : `ingen av ${exp.totalt}`) : null],
   ].filter(([, v]) => v);
@@ -699,6 +703,19 @@ function renderaDrift(d) {
   $("drift").replaceChildren(...rader);
 }
 
+/** Kandidater som följs men inte vägs in än (statistik.KANDIDATER). */
+function kandidatrader(kandidater) {
+  if (!kandidater) return [];
+  const rader = Object.values(kandidater).map((k) => {
+    const delar = Object.entries(k.per_spelform || {}).map(([f, u]) =>
+      `${f}: ${u.forbattring >= 0 ? "+" : "−"}${decimal(Math.abs(u.forbattring), 4)} ± ${decimal(u.standardfel, 4)} (${u.lopp} lopp)`);
+    const lage = k.uppfyllt ? "uppfyller kravet och kan vägas in" : !k.lopp ? "samlar data" : "inte säkerställd än";
+    return el("li", {}, el("b", { text: k.namn }), ` – ${lage}${delar.length ? `. ${delar.join(", ")}` : ""}.`);
+  });
+  return [el("p", { text: "Under test (vägs in först när de slår nuvarande modell med mer än två standardfel i både V75 och V85, " +
+    "walk-forward):" }), el("ul", {}, ...rader)];
+}
+
 function renderaOmStatistik() {
   const s = state.data?.statistik;
   if (!s || !s.lopp) return;
@@ -711,6 +728,7 @@ function renderaOmStatistik() {
       (u.forbattring > 2 * u.standardfel ? `Oddsen är tydligt bättre än strecken (${decimal(u.logloss_modell, 3)} mot ${decimal(u.logloss_streck, 3)}).`
         : `ingen säker skillnad mot strecken (${decimal(u.logloss_modell, 3)} mot ${decimal(u.logloss_streck, 3)}).`) })),
     !s.per_spelform ? el("p", { text: bra ? "Skillnaden är tydlig." : "Skillnaden är liten och inte säkerställd än." }) : null,
+    ...kandidatrader(s.kandidater),
     s.vikter ? el("p", { class: "dampad", text: `Aktuella vikter: a = ${decimal(s.vikter.log_streck + (s.vikter.log_streck_v85 || 0), 2)} i V85` +
       ` och ${decimal(s.vikter.log_streck, 2)} i V75` +
       (s.vikter.odds_mot_streck ? `, vinnarodds ${decimal(s.vikter.odds_mot_streck, 2)}` : "") +

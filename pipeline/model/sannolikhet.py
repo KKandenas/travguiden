@@ -81,6 +81,16 @@ def _experter(h, lopp) -> float:
     return math.log(andel + EXPERT_EPS) if andel is not None else 0.0
 
 
+def _barfota_runt_ny(h, lopp) -> float:
+    """Barfota runt för första gången (skorna av fram och bak sedan förra starten). Kandidat, se statistik.py."""
+    return 1.0 if h.get("skor_andrad") and h.get("skor_fram") == 0 and h.get("skor_bak") == 0 else 0.0
+
+
+def _hastkoll(h, lopp) -> float:
+    """AI:ns bedömning av de senaste loppen ur TR Medias kommentarer: +1 bättre än resultaten, −1 sämre."""
+    return float(h.get("hastkoll") or 0)
+
+
 EGENSKAPER = {
     "log_streck": _log_streck,
     "log_streck_v85": _log_streck_v85,
@@ -90,6 +100,8 @@ EGENSKAPER = {
     "kusk": _kusk,
     "form": _form,
     "experter": _experter,
+    "barfota_runt_ny": _barfota_runt_ny,
+    "hastkoll": _hastkoll,
 }
 
 

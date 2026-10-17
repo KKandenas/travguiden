@@ -6,6 +6,7 @@
     python -m pipeline experter                          # experternas system ur ATG:s tipsartiklar
     python -m pipeline kommentarer                       # AI-kommentarer per avdelning (kräver GEMINI_API_KEY)
     python -m pipeline hastinfo [--max 600]              # utrustning och senaste starter (kommande + historik)
+    python -m pipeline hastkoll                          # Hästkoll: AI bedömer senaste loppen (kräver GEMINI_API_KEY)
     python -m pipeline resultat                          # resultat och utdelning för omgångar efter spelstopp
     python -m pipeline backfill 2025-10-25 2026-10-10    # hämta historiska omgångar (1 s paus mellan anrop)
     python -m pipeline backfill 2023-01-01 2025-10-18 --spelform V75   # äldre V75 som träningsdata
@@ -28,6 +29,7 @@ from datetime import date, datetime, timedelta, timezone
 
 from . import config, db, export, lagring, schema
 from .ai import klient as ai_klient
+from .ai import hastkoll as ai_hastkoll
 from .ai import kommentarer as ai_kommentarer
 from .http import HamtningsFel
 from .model import modeller, statistik
@@ -156,6 +158,26 @@ def steg_hastinfo(conn, max_historik: int = 16) -> None:
     log.info("Hästinfo: %d lopp hämtade (%d kommande), %d fel, %d historiska lopp kvar", hamtade, len(kommande), fel, kvar)
 
 
+def steg_hastkoll(conn) -> None:
+    """Hästkoll för omgångar där loppkommentarer finns och hästar saknar bedömning: kommande först, sedan
+    nyss avgjorda (kommentarerna försvinner inom en vecka). Högst två omgångar per körning."""
+    ok, orsak = ai_klient.tillganglig()
+    if not ok:
+        log.info("Hästkoll: hoppar över – %s", orsak)
+        return
+    omgangar = [r[0] for r in conn.execute(
+        f"""SELECT DISTINCT o.id FROM omgangar o JOIN avdelningar a ON a.omgang_id = o.id
+            JOIN starter s ON s.avdelning_id = a.id JOIN tidigare_starter t ON t.start_id = s.id
+            WHERE o.spelform IN ({_SPELFORMER}) AND t.kommentar IS NOT NULL AND s.struken = 0
+              AND NOT EXISTS (SELECT 1 FROM hastkoll k WHERE k.start_id = s.id)
+            ORDER BY o.avgjord, o.spelstopp DESC LIMIT 2""")]
+    for sid in omgangar:
+        try:
+            log.info("Hästkoll: %s – %d bedömningar", sid, ai_hastkoll.uppdatera(conn, ai_klient.anropa_json, sid))
+        except ai_klient.AiFel as e:
+            log.warning("Hästkoll: %s – %s", sid, e)
+
+
 def steg_resultat(conn) -> bool:
     ok = True
     for sid in lagring.ej_avgjorda(conn, nu_utc()):
@@ -188,7 +210,7 @@ def main(argv=None) -> int:
     p = argparse.ArgumentParser(prog="pipeline", description="Travguidens datapipeline")
     p.add_argument("-v", "--verbose", action="store_true")
     sub = p.add_subparsers(dest="kommando", required=True)
-    for k in ("auto", "planerad", "atg", "experter", "kommentarer", "resultat", "statistik", "migrera"):
+    for k in ("auto", "planerad", "atg", "experter", "kommentarer", "hastkoll", "resultat", "statistik", "migrera"):
         sub.add_parser(k)
     hi = sub.add_parser("hastinfo")
     hi.add_argument("--max", type=int, default=600, help="högst så många historiska lopp")
@@ -243,7 +265,10 @@ def main(argv=None) -> int:
         modeller.berakna_prognoser(conn, alla=tranad or getattr(a, "alla", False))
     if a.kommando in ("auto", "kommentarer"):
         steg_kommentarer(conn)
-    if a.kommando in ("auto", "atg", "experter", "kommentarer", "hastinfo", "resultat", "export", "statistik"):
+    if a.kommando in ("auto", "hastkoll"):
+        steg_hastkoll(conn)
+        spara_ai_status(conn)
+    if a.kommando in ("auto", "atg", "experter", "kommentarer", "hastkoll", "hastinfo", "resultat", "export", "statistik"):
         try:
             if getattr(a, "till", None):
                 export.exportera_omgang(conn, a.omgang, a.till, dolj_resultat=a.dolj_resultat)

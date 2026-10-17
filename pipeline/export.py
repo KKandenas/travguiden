@@ -90,6 +90,9 @@ def omgang_data(conn: sqlite3.Connection, omgang_id: str, dolj_resultat: bool = 
                 h["tidigare"] = [{"datum": t["datum"], "bana": t["bana"], "plac": t["placering"],
                                   "galopp": bool(t["galopp"]), "diskad": bool(t["diskad"]), "odds": t["odds"],
                                   "kusk": t["kusk"]} for t in tidigare]
+            k = conn.execute("SELECT bedomning, motivering FROM hastkoll WHERE start_id = ?", (s["id"],)).fetchone()
+            if k:
+                h["hastkoll"] = {"bedomning": k["bedomning"], "motivering": k["motivering"]}
             if s["chans_exp"] is not None and not s["struken"]:
                 h["chans_exp"] = round(s["chans_exp"], 4)
             if system:

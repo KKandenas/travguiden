@@ -196,7 +196,22 @@ historiken kan testas utan läckage. Sparas i `starter` (skor, vagn) och `tidiga
 Appen visar formen (t.ex. `1-1-2-1g-1`, senaste först, g = galopp, d = diskad), markeringar för barfota/skobyte,
 vagnbyte och kuskbyte, och de senaste starterna i hästens detaljer. AI-kommentarerna får samma uppgifter.
 Kommande omgångar hämtas vid varje körning; historiken fylls på med 16 lopp per körning eller
-`python -m pipeline hastinfo --max 600`. Steg 2 (AI som tolkar loppkommentarerna) väntar på analysen av steg 1.
+`python -m pipeline hastinfo --max 600`. 
+
+**Analys av steg 1 (oktober 2026, 2 099 lopp).** Varje signal lades till den nuvarande modellen (träning på de
+första 60 %, test på de sista 40 %). Bara *barfota för första gången* gav något (+0,0029 ± 0,0013; barfota runt
+vann 1,19 ± 0,08 gånger så ofta som strecken sa, barfota fram 0,84). Kuskbyte, vagnbyte, vila, tät start, vann
+senast, galopp senast, form och odds senast gav inget eller blev sämre – strecken har redan tagit in dem. Walk-
+forward per spelform: V75 +0,0004 ± 0,0019, V85 +0,0035 ± 0,0026. Barfota runt följs därför som kandidat.
+
+**Steg 2: AI (`pipeline/ai/hastkoll.py`).** Gemini läser TR Medias loppkommentarer från hästens senaste starter och
+bedömer om hästen var bättre (+1), som (0) eller sämre (−1) än placeringarna, med en kort motivering. Tabellen
+`hastkoll`. ATG tar bort kommentarerna inom en vecka, så bedömningen görs för kommande och nyss avgjorda omgångar
+(högst två per körning, två anrop per omgång) och kan inte göras för äldre historik.
+
+**Kandidater (`statistik.KANDIDATER`).** Barfota runt och Hästkoll utvärderas walk-forward efter varje avgjord
+omgång och visas under "Under test" på om-sidan. En kandidat vägs in först när den slår nuvarande modell med mer
+än två standardfel i både V75 och V85 (minst 200 testlopp vardera) – och då som en ny modellversion.
 
 ## AI-kommentarer
 

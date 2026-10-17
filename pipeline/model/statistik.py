@@ -25,6 +25,18 @@ log = logging.getLogger(__name__)
 MIN_LOPP = 150          # färre lopp än så före en månad: använd standardvikterna
 MIN_EXPERTLOPP = 150    # avgjorda lopp med expertsystem innan experternas vikt skattas (ungefär 19 omgångar)
 
+# Kandidater: egenskaper som följs men inte vägs in förrän de klarat kravet (KRAV_SE standardfel bättre än
+# nuvarande modell, walk-forward, i både V75 och V85 med minst MIN_TESTLOPP testlopp vardera). Klarar en kandidat
+# kravet läggs den in som en ny modellversion – den nuvarande ändras aldrig.
+KANDIDATER = {
+    "barfota_runt_ny": {"namn": "Barfota runt för första gången", "har": lambda l: l.get("har_hastinfo")},
+    "hastkoll": {"namn": "Hästkoll: AI:ns bedömning av de senaste loppen",
+                 "har": lambda l: any(h.get("hastkoll") is not None for h in l["hastar"])},
+}
+MIN_KANDIDATLOPP = 300  # lopp före en månad innan kandidaten kan skattas för den
+MIN_TESTLOPP = 200
+KRAV_SE = 2.0
+
 
 def traningslopp(conn: sqlite3.Connection) -> List[dict]:
     ut = []
@@ -71,6 +83,34 @@ def utvardera(lopp: List[dict], per_manad: Dict[str, Dict[str, float]]) -> dict:
             "per_spelform": {k: _sammanfatta(b, m, sum(t)) for k, (b, m, t) in sorted(per.items())}}
 
 
+def utvardera_kandidat(lopp: List[dict], egenskap: str) -> dict:
+    """Walk-forward: för varje månad skattas vikter med och utan kandidaten på tidigare lopp, och logloss för
+    vinnaren jämförs på månadens lopp (utan odds, som i backtestet)."""
+    bas = modeller.EGENSKAPER
+    per: Dict[str, List[float]] = {}
+    vikter = []
+    for m in sorted({l["datum"][:7] for l in lopp}):
+        fore = [l for l in lopp if l["datum"][:7] < m]
+        if len(fore) < MIN_KANDIDATLOPP:
+            continue
+        utan, med = sannolikhet.skatta(fore, bas, l2=2.0), sannolikhet.skatta(fore, bas + [egenskap], l2=2.0)
+        vikter.append(med[egenskap])
+        test = [{**l, "hastar": [{**h, "vinnarodds": None} for h in l["hastar"]]} for l in lopp if l["datum"][:7] == m]
+        for l, a, b in zip(test, sannolikhet.logloss(test, utan), sannolikhet.logloss(test, med)):
+            per.setdefault(l["spelform"], []).append(a - b)
+    ut = {"lopp": len(lopp), "per_spelform": {}}
+    for form, d in sorted(per.items()):
+        if len(d) >= 2:
+            ut["per_spelform"][form] = {"lopp": len(d), "forbattring": round(st.mean(d), 4),
+                                        "standardfel": round(st.stdev(d) / math.sqrt(len(d)), 4)}
+    ok = [u for u in ut["per_spelform"].values() if u["lopp"] >= MIN_TESTLOPP]
+    ut["uppfyllt"] = (set(ut["per_spelform"]) >= {"V75", "V85"} and len(ok) == len(ut["per_spelform"])
+                      and all(u["forbattring"] > KRAV_SE * u["standardfel"] for u in ok))
+    if vikter:
+        ut["vikt"] = round(vikter[-1], 3)
+    return ut
+
+
 def kor(conn: sqlite3.Connection) -> dict:
     lopp = traningslopp(conn)
     if len(lopp) < MIN_LOPP:
@@ -95,6 +135,12 @@ def kor(conn: sqlite3.Connection) -> dict:
         log.info("Statistik: expertvikter %s (%d lopp)", {k: round(v, 3) for k, v in ev.items()}, len(expertlopp))
         _spara(conn, f"vikter:{modeller.EXPERTMODELL}", {"senaste": ev, "per_manad": ev_manad})
     utv["expertlopp"] = len(expertlopp)
+    kandidater = {}
+    for namn, k in KANDIDATER.items():
+        kl = [l for l in lopp if k["har"](l)]
+        kandidater[namn] = {"namn": k["namn"], **(utvardera_kandidat(kl, namn) if kl else {"lopp": 0})}
+        log.info("Statistik: kandidat %s: %s", namn, kandidater[namn])
+    utv["kandidater"] = kandidater
     log.info("Statistik: vikter %s, utvärdering %s", {k: round(v, 3) for k, v in senaste.items()}, utv)
     _spara(conn, f"vikter:{modeller.AKTIV}", {"senaste": senaste, "per_manad": per_manad})
     _spara(conn, "statistik", {**utv, "vikter": senaste, "traningslopp": len(lopp),

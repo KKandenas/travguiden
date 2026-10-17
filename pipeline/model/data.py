@@ -16,6 +16,7 @@ def lopp(conn: sqlite3.Connection, villkor: str = "1", params=(), bara_avgjorda:
         SELECT a.id AS avd_id, a.omgang_id, a.avd, a.distans AS lopp_distans, a.startmetod, a.vinnare,
                o.datum, o.spelform,
                s.id AS start_id, s.nr, s.spar, s.distans, s.kusk_segerproc, s.livs_starter, s.livs_segrar, s.slutodds,
+               s.skor_fram, s.skor_bak, s.skor_andrad, a.hastinfo_hamtad,
                {_SENASTE_STRECK} AS streck, {_SENASTE_ODDS} AS vinnarodds
         FROM avdelningar a JOIN omgangar o ON o.id = a.omgang_id JOIN starter s ON s.avdelning_id = a.id
         WHERE s.struken = 0 AND ({villkor})
@@ -23,6 +24,7 @@ def lopp(conn: sqlite3.Connection, villkor: str = "1", params=(), bara_avgjorda:
           {"AND o.spelform = ?" if spelform else ""}
         ORDER BY o.spelstopp, a.avd, s.nr"""
     rader = conn.execute(sql, (*params, *([spelform] if spelform else []))).fetchall()
+    bedomning: dict = {}
     ut: dict = {}
     for r in rader:
         l = ut.get(r["avd_id"])
@@ -31,13 +33,21 @@ def lopp(conn: sqlite3.Connection, villkor: str = "1", params=(), bara_avgjorda:
                 "avd_id": r["avd_id"], "omgang_id": r["omgang_id"], "avd": r["avd"], "datum": r["datum"],
                 "spelform": r["spelform"], "distans": r["lopp_distans"], "startmetod": r["startmetod"],
                 "vinnare": [int(x) for x in (r["vinnare"] or "").split(",") if x], "hastar": [],
+                "har_hastinfo": r["hastinfo_hamtad"] is not None,
             }
         l["hastar"].append({
             "start_id": r["start_id"], "nr": r["nr"], "spar": r["spar"], "distans": r["distans"],
             "kusk_segerproc": r["kusk_segerproc"], "livs_starter": r["livs_starter"], "livs_segrar": r["livs_segrar"],
             "streck": r["streck"], "vinnarodds": r["vinnarodds"], "slutodds": r["slutodds"],
+            "skor_fram": r["skor_fram"], "skor_bak": r["skor_bak"], "skor_andrad": r["skor_andrad"],
         })
     _expertandelar(conn, ut)
+    for r in conn.execute("SELECT start_id, bedomning FROM hastkoll"):
+        bedomning[r[0]] = r[1]
+    for l in ut.values():
+        for h in l["hastar"]:
+            if h["start_id"] in bedomning:
+                h["hastkoll"] = bedomning[h["start_id"]]
     # Lopp där strecken saknas helt (t.ex. trasig ögonblicksbild) går inte att modellera
     return [l for l in ut.values() if len(l["hastar"]) >= 2 and all(h["streck"] is not None for h in l["hastar"])]
 

@@ -12,8 +12,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@600;700;800&display=swap">
-<link rel="stylesheet" href="app.css?v=20261017a">
-<script type="module" src="app.js?v=20261017a"></script>
+<link rel="stylesheet" href="app.css?v=20261017b">
+<script type="module" src="app.js?v=20261017b"></script>
 </head>
 <body data-vy="kupong">
 <header class="topp">
@@ -156,6 +156,13 @@
       </ul>
     </section>
     <section class="kort">
+      <h2>Hästkoll</h2>
+      <p>För varje häst visas utrustningen (skor och vagn, med markering när något ändrats sedan förra starten),
+        kuskbyte och formen i de senaste starterna. AI:n läser dessutom TR Medias loppkommentarer och bedömer om
+        hästen var bättre eller sämre än placeringarna visar – "AI ↑" och "AI ↓" i hästraden. Det är under test och
+        påverkar inte förslagen än; se "Under test" nedan.</p>
+    </section>
+    <section class="kort">
       <h2>Hur chansen räknas fram</h2>
       <p>Grunden är strecken: miljontals kronor fördelade över hästarna. De är en bra bedömning men inte perfekt.
         Historiken visar att folket är för säkert på favoriterna, så Travguiden plattar ut strecken något
@@ -187,8 +194,9 @@
           experternas system, bland annat <i>Fem tippar V85</i>. Systemen är ATG-kuponger, så vilka hästar experterna
           valt läses direkt utan tolkning.</li>
         <li><b>Historik:</b> alla V75-omgångar sedan 2023 och alla V85-omgångar sedan premiären 25 oktober 2025.</li>
-        <li><b>Google Gemini</b> skriver den korta AI-kommentaren till varje lopp, utifrån uppgifterna ovan. Inget
-          annat material skickas till AI:n.</li>
+        <li><b>Google Gemini</b> skriver den korta AI-kommentaren till varje lopp utifrån uppgifterna ovan, och gör
+          Hästkoll: läser TR Medias korta loppkommentarer från hästarnas senaste starter (från ATG) och bedömer om
+          hästen var bättre eller sämre än placeringarna visar. Inget annat material skickas till AI:n.</li>
       </ul>
       <p>Data hämtas automatiskt flera gånger om dagen och extra ofta på lördagar fram till spelstopp.
         Koden finns på <a href="https://github.com/KKandenas/travguiden" target="_blank" rel="noopener noreferrer">GitHub</a>.</p>
