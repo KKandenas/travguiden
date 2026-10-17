@@ -186,6 +186,18 @@ förrän omgångar med sparade expertsystem är avgjorda. Trösklarna är valda 
 spelstopp), så kandidaterna blir få (0,45 per omgång). Skrällchansen blir meningsfull på tävlingsdagen, när
 vinnaroddsen säger emot strecken.
 
+## Hästkoll (steg 1: utrustning och form)
+
+`atg.hamta_hastinfo` läser `/races/{id}/extended` per lopp: skor fram/bak och vagn (med ATG:s markering om något
+ändrats sedan förra starten) och de fem senaste starterna (datum, bana, placering, galopp, diskvalificering, odds,
+km-tid, spår, kusk, utrustning och TR Medias loppkommentar). För gamla lopp visar ATG starterna före loppet, så
+historiken kan testas utan läckage. Sparas i `starter` (skor, vagn) och `tidigare_starter`.
+
+Appen visar formen (t.ex. `1-1-2-1g-1`, senaste först, g = galopp, d = diskad), markeringar för barfota/skobyte,
+vagnbyte och kuskbyte, och de senaste starterna i hästens detaljer. AI-kommentarerna får samma uppgifter.
+Kommande omgångar hämtas vid varje körning; historiken fylls på med 16 lopp per körning eller
+`python -m pipeline hastinfo --max 600`. Steg 2 (AI som tolkar loppkommentarerna) väntar på analysen av steg 1.
+
 ## AI-kommentarer
 
 `pipeline/ai/klient.py` är samma klient som i Stryktipsguiden: Gemini med reservkedjan gemini-3.8-flash →

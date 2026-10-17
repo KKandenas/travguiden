@@ -28,7 +28,8 @@ För varje avdelning: 1–2 meningar på svenska, högst cirka 250 tecken. Lyft 
 - vem som är favorit och hur tydligt (chansen),
 - om spelarna streckar annorlunda än chansen: nämn understreckade hästar (värde) eller överspelade favoriter,
 - vad experterna valt, särskilt spikar och om de går emot strecken,
-- något som sticker ut i uppgifterna, t.ex. tillägg, spår i andra ledet eller stark form i år.
+- något som sticker ut i uppgifterna, t.ex. tillägg, spår i andra ledet, barfota eller ny vagn för första gången,
+  kuskbyte eller formen i de senaste starterna (g = galopp, d = diskad, 0 = oplacerad).
 
 Regler:
 - Använd bara uppgifterna du får. Hitta inte på skador, utrustning, tidigare lopp, citat eller annat som inte står där.
@@ -76,6 +77,20 @@ def underlag(avd: Dict[str, Any], experter: List[dict]) -> Dict[str, Any]:
             rad["karriar"] = f"{livs[0]} starter, {livs[1] or 0} segrar"
         if h.get("odds"):
             rad["vinnarodds"] = h["odds"]
+        u = h.get("utrustning") or {}
+        if u.get("skor_fram") is not None:
+            skor = {(False, False): "barfota runt", (False, True): "barfota fram", (True, False): "barfota bak",
+                    (True, True): "skor runt"}[(bool(u["skor_fram"]), bool(u["skor_bak"]))]
+            rad["skor"] = skor + (" (ändrat sedan förra starten)" if u.get("skor_andrad") else "")
+        if u.get("vagn_andrad"):
+            rad["vagn"] = f"{u.get('vagn')} (ny)"
+        tid = h.get("tidigare") or []
+        if tid:
+            rad["form_senaste_forst"] = "-".join(
+                ("d" if t.get("diskad") else str(t["plac"] if t.get("plac") is not None else "?")) + ("g" if t.get("galopp") else "")
+                for t in tid)
+            if tid[0].get("kusk") and h.get("kusk") and tid[0]["kusk"] != h["kusk"]:
+                rad["kuskbyte"] = f"körde senast: {tid[0]['kusk']}"
         if experter:
             valt = h.get("experter") or []
             rad["experter"] = f"{len(valt)} av {len(experter)}"

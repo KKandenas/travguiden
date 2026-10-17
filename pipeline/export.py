@@ -27,6 +27,10 @@ _SENASTE = "(SELECT {f} FROM {t} WHERE start_id = s.id ORDER BY tidpunkt DESC LI
 _SPELFORMER = ", ".join(f"'{s}'" for s in config.SPELFORMER)
 
 
+def _b(v):
+    return None if v is None else bool(v)
+
+
 def spel(spelform: str, datum: str, antal_avd: int) -> dict:
     return {"spelform": spelform, "antal_avd": antal_avd, "radpris": config.radpris(spelform, datum),
             "vinstgrupper": config.vinstgrupper(antal_avd)}
@@ -76,6 +80,16 @@ def omgang_data(conn: sqlite3.Connection, omgang_id: str, dolj_resultat: bool = 
                 "ar": [s["ar_starter"], s["ar_segrar"]], "intjant": s["intjant"],
                 "snittodds": s["snittodds_5"], "kusk_proc": s["kusk_segerproc"],
             }
+            if s["skor_fram"] is not None or s["vagn"]:
+                h["utrustning"] = {"skor_fram": _b(s["skor_fram"]), "skor_bak": _b(s["skor_bak"]),
+                                   "skor_andrad": bool(s["skor_andrad"]), "vagn": s["vagn"],
+                                   "vagn_andrad": bool(s["vagn_andrad"])}
+            tidigare = conn.execute("""SELECT datum, bana, placering, galopp, diskad, odds, kusk FROM tidigare_starter
+                                       WHERE start_id = ? ORDER BY nr""", (s["id"],)).fetchall()
+            if tidigare:
+                h["tidigare"] = [{"datum": t["datum"], "bana": t["bana"], "plac": t["placering"],
+                                  "galopp": bool(t["galopp"]), "diskad": bool(t["diskad"]), "odds": t["odds"],
+                                  "kusk": t["kusk"]} for t in tidigare]
             if s["chans_exp"] is not None and not s["struken"]:
                 h["chans_exp"] = round(s["chans_exp"], 4)
             if system:

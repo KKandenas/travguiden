@@ -1,8 +1,8 @@
 import {
   BUDGETAR, RADPRIS, VARDE_GRANS, deltagare, kronor, optimera, ratta, sammanfattning, skrallchanser,
   skrallKrav, vinst,
-} from "./optimizer.js?v=20261015a";
-import { KALLOR, PERIODER, backtesta, iPeriod, sammanstall } from "./backtest.js?v=20261015a";
+} from "./optimizer.js?v=20261017a";
+import { KALLOR, PERIODER, backtesta, iPeriod, sammanstall } from "./backtest.js?v=20261017a";
 
 const $ = (id) => document.getElementById(id);
 const LAGRING = "travguiden";
@@ -335,6 +335,26 @@ function kortLoppnamn(namn) {
   return namn.split(" - ").filter((d) => !/^\(.*\)$/.test(d)).slice(-2).join(" – ").replace(/\s*\(.*\)\s*$/, "");
 }
 
+// ---------- utrustning och form (Hästkoll) ----------
+
+const SKOR = { "false,false": "barfota runt", "false,true": "barfota fram", "true,false": "barfota bak", "true,true": "skor runt" };
+const skorText = (u) => (u && u.skor_fram != null ? SKOR[`${Boolean(u.skor_fram)},${Boolean(u.skor_bak)}`] : null);
+/** "1-1-2-1g-1": senaste starten först, g = galopp, d = diskad, 0 = oplacerad. */
+const formText = (tid) => (tid || []).map((t) => (t.diskad ? "d" : t.plac ?? "?") + (t.galopp ? "g" : "")).join("-");
+const kuskbyte = (h) => Boolean(h.tidigare?.[0]?.kusk && h.kusk && h.tidigare[0].kusk !== h.kusk);
+const dagarSedan = (h, a) => (h.tidigare?.[0] && a.starttid
+  ? Math.round((new Date(a.starttid) - new Date(h.tidigare[0].datum)) / 86_400_000) : null);
+
+/** Korta markeringar i hästraden för det som ändrats sedan förra starten. */
+function andringar(h) {
+  const u = h.utrustning || {};
+  const ut = [];
+  if (u.skor_andrad) ut.push(skorText(u)?.startsWith("barfota") ? `${skorText(u)} ny` : "skobyte");
+  if (u.vagn_andrad) ut.push("vagnbyte");
+  if (kuskbyte(h)) ut.push("ny kusk");
+  return ut;
+}
+
 function hastRad(a, h, andel, vald, last, vann, oppen, interaktiv, extra = {}) {
   const exp = extra.experter;
   const struken = Boolean(h.struken);
@@ -344,6 +364,7 @@ function hastRad(a, h, andel, vald, last, vann, oppen, interaktiv, extra = {}) {
   const undertext = [h.kusk, a.startmetod === "auto" && h.spar ? `spår ${h.spar}` : null,
     h.distans && a.distans && h.distans > a.distans ? `+${h.distans - a.distans} m` : null,
     exp && exp.antal ? `${exp.antal}/${exp.totalt} experter` : null,
+    h.tidigare?.length ? `form ${formText(h.tidigare)}` : null,
     h.placering != null && !struken ? (h.placering ? `${h.placering}:a` : "oplac.") : null].filter(Boolean).join(" · ");
   return el("li", { class: klass, "data-nr": h.nr },
     el("div", { class: "hast-rad" },
@@ -352,7 +373,8 @@ function hastRad(a, h, andel, vald, last, vann, oppen, interaktiv, extra = {}) {
         el("span", { class: "namnblock" },
           el("span", { class: "hastnamn" }, h.namn, extra.skrall && !struken ? el("span", { class: "skrall-mark", text: " SKRÄLL" }) : null,
             vann ? el("span", { class: "vinnar-mark", text: " ✓ vann" }) : null),
-          el("span", { class: "kusk", text: struken ? "Struken" : undertext }))),
+          el("span", { class: "kusk" }, struken ? "Struken" : undertext,
+            ...(struken ? [] : andringar(h).map((t) => el("span", { class: "andring", text: t })))))),
       el("button", {
         type: "button", class: "valruta", "data-las": interaktiv ? "1" : null, disabled: struken || !interaktiv || null,
         "aria-pressed": interaktiv ? String(last) : null,
@@ -362,10 +384,14 @@ function hastRad(a, h, andel, vald, last, vann, oppen, interaktiv, extra = {}) {
         varde ? el("span", { class: "prick", "aria-hidden": "true" }) : null,
         el("span", { class: "del" }, el("b", { text: procent(h.streck) }), el("small", { text: "streck" })),
         el("span", { class: "del" }, el("b", { text: struken ? "–" : procent(andel?.chans) }), el("small", { text: "chans" })))),
-    oppen ? detaljer(h, andel, id, exp) : null);
+    oppen ? detaljer(h, andel, id, exp, a) : null);
 }
 
-function detaljer(h, andel, id, exp) {
+const kortDag = new Intl.DateTimeFormat("sv-SE", { day: "numeric", month: "short" });
+
+function detaljer(h, andel, id, exp, a) {
+  const u = h.utrustning;
+  const dagar = dagarSedan(h, a);
   const [ls, lv, lp] = h.livs || [];
   const [as, av] = h.ar || [];
   const rader = [
@@ -380,11 +406,19 @@ function detaljer(h, andel, id, exp) {
     ["Vinnarodds nu", h.odds ? decimal(h.odds) : null],
     ["Slutodds", h.slutodds ? decimal(h.slutodds) : null],
     ["Km-tid", h.km_tid],
+    ["Skor", u && skorText(u) ? skorText(u) + (u.skor_andrad ? " – ändrat sedan förra starten" : "") : null],
+    ["Vagn", u?.vagn ? u.vagn + (u.vagn_andrad ? " – ny sedan förra starten" : "") : null],
+    ["Senaste starter", h.tidigare?.length ? `${formText(h.tidigare)} (senaste först)` : null],
+    ["Senast", dagar != null ? `${dagar} dagar sedan${kuskbyte(h) ? ` · kördes då av ${h.tidigare[0].kusk}` : ""}` : null],
     ["Experter", exp ? (exp.namn.length ? `${exp.antal} av ${exp.totalt}: ${exp.namn.join(", ")}` : `ingen av ${exp.totalt}`) : null],
   ].filter(([, v]) => v);
   const v = andel ? andel.chans - andel.streck : null;
   return el("div", { class: "detaljer", id },
     el("dl", {}, ...rader.flatMap(([k, val]) => [el("dt", { text: k }), el("dd", { text: val })])),
+    h.tidigare?.length ? el("ul", { class: "tidigare" }, ...h.tidigare.map((t) => el("li", {},
+      el("b", { text: t.diskad ? "d" : t.plac ? `${t.plac}:a` : t.plac === 0 ? "0" : "–" }),
+      ` ${kortDag.format(new Date(t.datum))} ${t.bana ?? ""}` + (t.galopp ? " · galopp" : "") +
+        (t.odds ? ` · odds ${decimal(t.odds)}` : "") + (t.kusk ? ` · ${t.kusk}` : "")))) : null,
     v != null && !h.struken ? el("p", {
       text: v >= VARDE_GRANS ? `Understreckad: chansen är ${Math.round(v * 100)} procentenheter högre än strecken.`
         : v <= -VARDE_GRANS ? `Överstreckad: strecken är ${Math.round(-v * 100)} procentenheter högre än chansen.`

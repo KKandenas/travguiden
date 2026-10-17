@@ -109,3 +109,32 @@ def spara_expertsystem(conn: sqlite3.Connection, system: List[Expertsystem], ham
                              [(e.id, avd[lopp], nr) for lopp, nrs in e.val.items() for nr in nrs])
             n += 1
     return n
+
+
+_TIDIGARE = ("datum", "bana", "placering", "galopp", "diskad", "odds", "km_tid", "distans", "spar", "startmetod",
+             "kusk", "skor_fram", "skor_bak", "vagn", "kommentar")
+
+
+def spara_hastinfo(conn: sqlite3.Connection, avd_id: int, info: dict, hamtad: str) -> int:
+    """Utrustning och tidigare starter för en avdelning (från atg.tolka_hastinfo). Ersätter tidigare uppgifter."""
+    n = 0
+    with conn:
+        for r in conn.execute("SELECT id, nr FROM starter WHERE avdelning_id = ?", (avd_id,)).fetchall():
+            i = info.get(r["nr"])
+            if i is None:
+                continue
+            b = lambda v: None if v is None else int(bool(v))  # noqa: E731
+            conn.execute("UPDATE starter SET skor_fram = ?, skor_bak = ?, skor_andrad = ?, vagn = ?, vagn_andrad = ? "
+                         "WHERE id = ?", (b(i["skor_fram"]), b(i["skor_bak"]), b(i["skor_andrad"]), i["vagn"],
+                                          b(i["vagn_andrad"]), r["id"]))
+            conn.execute("DELETE FROM tidigare_starter WHERE start_id = ?", (r["id"],))
+            for nr, t in enumerate(i["tidigare"], start=1):
+                varden = [t[f] for f in _TIDIGARE]
+                for f in ("galopp", "diskad", "skor_fram", "skor_bak"):
+                    j = _TIDIGARE.index(f)
+                    varden[j] = None if varden[j] is None else int(bool(varden[j]))
+                conn.execute(f"INSERT INTO tidigare_starter (start_id, nr, {', '.join(_TIDIGARE)}) "
+                             f"VALUES (?, ?, {', '.join('?' * len(_TIDIGARE))})", [r["id"], nr, *varden])
+            n += 1
+        conn.execute("UPDATE avdelningar SET hastinfo_hamtad = ? WHERE id = ?", (hamtad, avd_id))
+    return n

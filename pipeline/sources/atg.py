@@ -183,3 +183,64 @@ def spel_for_dag(datum: str, spelform: str = config.SPELFORM) -> List[str]:
     """Spel-id:n för en viss dag, t.ex. ['V85_2026-10-17_16_5']."""
     data, _ = hamta_json(f"{config.ATG_BASE}/calendar/day/{datum}")
     return [g["id"] for g in ((data or {}).get("games") or {}).get(spelform, []) if g.get("id")]
+
+
+
+# ---------- utrustning och tidigare starter (Hästkoll) ----------
+
+def _km(t: Optional[dict]) -> Optional[str]:
+    if not t or "seconds" not in t:
+        return None
+    return f"{t.get('minutes', 1)}.{t.get('seconds', 0):02d},{t.get('tenths', 0)}"
+
+
+def tolka_hastinfo(lopp: dict, max_tidigare: int = 5) -> dict:
+    """Ur /races/{id}/extended: {startnummer: {skor_fram, skor_bak, skor_andrad, vagn, vagn_andrad, tidigare: [...]}}.
+
+    ATG visar de starter som fanns före loppet (även för gamla lopp), men för säkerhets skull tas bara
+    starter före loppets datum med.
+    """
+    datum = lopp.get("date") or ""
+    ut = {}
+    for s in lopp.get("starts") or []:
+        h = s.get("horse") or {}
+        skor = h.get("shoes") or {}
+        vagn = (h.get("sulky") or {}).get("type") or {}
+        rapporterad = skor.get("reported")
+        fram, bak = skor.get("front") or {}, skor.get("back") or {}
+        tidigare = []
+        for r in ((h.get("results") or {}).get("records") or []):
+            if not r.get("date") or r["date"] >= datum:
+                continue
+            st = r.get("start") or {}
+            utr = st.get("horse") or {}
+            forare = st.get("driver") or {}
+            plac = r.get("place")
+            tidigare.append({
+                "datum": r["date"], "bana": (r.get("track") or {}).get("name"),
+                "placering": int(plac) if str(plac or "").isdigit() else None,
+                "galopp": bool(r.get("galloped")), "diskad": bool(r.get("disqualified")),
+                "odds": r["odds"] / 100 if isinstance(r.get("odds"), (int, float)) and r["odds"] > 0 else None,
+                "km_tid": _km(r.get("kmTime")), "distans": st.get("distance"), "spar": st.get("postPosition"),
+                "startmetod": (r.get("race") or {}).get("startMethod"),
+                "kusk": f"{forare.get('firstName', '')} {forare.get('lastName', '')}".strip() or None,
+                "skor_fram": (utr.get("shoes") or {}).get("front"), "skor_bak": (utr.get("shoes") or {}).get("back"),
+                "vagn": ((utr.get("sulky") or {}).get("type") or {}).get("text"),
+                "kommentar": (r.get("trMediaInfo") or {}).get("comment"),
+            })
+        tidigare.sort(key=lambda t: t["datum"], reverse=True)
+        ut[s["number"]] = {
+            "skor_fram": fram.get("hasShoe") if rapporterad else None,
+            "skor_bak": bak.get("hasShoe") if rapporterad else None,
+            "skor_andrad": bool(fram.get("changed") or bak.get("changed")) if rapporterad else None,
+            "vagn": vagn.get("text"), "vagn_andrad": vagn.get("changed"),
+            "tidigare": tidigare[:max_tidigare],
+        }
+    return ut
+
+
+def hamta_hastinfo(lopp_id: str) -> dict:
+    data, _ = hamta_json(f"{config.ATG_BASE}/races/{lopp_id}/extended")
+    if not isinstance(data, dict) or not data.get("starts"):
+        raise HamtningsFel(f"Loppet {lopp_id} saknar starter")
+    return tolka_hastinfo(data)

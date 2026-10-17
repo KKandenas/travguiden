@@ -5,6 +5,7 @@
     python -m pipeline atg                               # kommande omgångar: hästar, streck, vinnarodds
     python -m pipeline experter                          # experternas system ur ATG:s tipsartiklar
     python -m pipeline kommentarer                       # AI-kommentarer per avdelning (kräver GEMINI_API_KEY)
+    python -m pipeline hastinfo [--max 600]              # utrustning och senaste starter (kommande + historik)
     python -m pipeline resultat                          # resultat och utdelning för omgångar efter spelstopp
     python -m pipeline backfill 2025-10-25 2026-10-10    # hämta historiska omgångar (1 s paus mellan anrop)
     python -m pipeline backfill 2023-01-01 2025-10-18 --spelform V75   # äldre V75 som träningsdata
@@ -130,6 +131,31 @@ def steg_kommentarer(conn) -> None:
     spara_ai_status(conn)
 
 
+def steg_hastinfo(conn, max_historik: int = 16) -> None:
+    """Utrustning och de senaste starterna per häst (Hästkoll). Kommande omgångar uppdateras alltid; historiken
+    fylls på med högst max_historik lopp per körning, nyast först. Valfritt: fel loggas men stoppar inget."""
+    kommande = conn.execute(
+        f"""SELECT a.id, a.lopp_id FROM avdelningar a JOIN omgangar o ON o.id = a.omgang_id
+            WHERE o.spelform IN ({_SPELFORMER}) AND o.avgjord = 0 AND o.spelstopp > ?""", (nu_utc(),)).fetchall()
+    historik = conn.execute(
+        f"""SELECT a.id, a.lopp_id FROM avdelningar a JOIN omgangar o ON o.id = a.omgang_id
+            WHERE o.spelform IN ({_SPELFORMER}) AND o.avgjord = 1 AND a.hastinfo_hamtad IS NULL
+            ORDER BY o.spelstopp DESC, a.avd LIMIT ?""", (max_historik,)).fetchall()
+    hamtade = fel = 0
+    for i, (avd_id, lopp_id) in enumerate(list(kommande) + list(historik)):
+        if i:
+            time.sleep(0.3)
+        try:
+            lagring.spara_hastinfo(conn, avd_id, atg.hamta_hastinfo(lopp_id), nu_utc())
+            hamtade += 1
+        except (HamtningsFel, ValideringsFel, KeyError, ValueError, TypeError) as e:
+            log.warning("Hästinfo: %s – %s", lopp_id, e)
+            fel += 1
+    kvar = conn.execute("SELECT COUNT(*) FROM avdelningar a JOIN omgangar o ON o.id = a.omgang_id "
+                        f"WHERE o.spelform IN ({_SPELFORMER}) AND o.avgjord = 1 AND a.hastinfo_hamtad IS NULL").fetchone()[0]
+    log.info("Hästinfo: %d lopp hämtade (%d kommande), %d fel, %d historiska lopp kvar", hamtade, len(kommande), fel, kvar)
+
+
 def steg_resultat(conn) -> bool:
     ok = True
     for sid in lagring.ej_avgjorda(conn, nu_utc()):
@@ -164,6 +190,8 @@ def main(argv=None) -> int:
     sub = p.add_subparsers(dest="kommando", required=True)
     for k in ("auto", "planerad", "atg", "experter", "kommentarer", "resultat", "statistik", "migrera"):
         sub.add_parser(k)
+    hi = sub.add_parser("hastinfo")
+    hi.add_argument("--max", type=int, default=600, help="högst så många historiska lopp")
     b = sub.add_parser("backfill")
     b.add_argument("fran")
     b.add_argument("till")
@@ -200,6 +228,10 @@ def main(argv=None) -> int:
         ok &= steg_atg(conn)
     if a.kommando in ("auto", "experter"):
         steg_experter(conn)
+    if a.kommando == "auto":
+        steg_hastinfo(conn)
+    if a.kommando == "hastinfo":
+        steg_hastinfo(conn, a.max)
     if a.kommando in ("auto", "resultat"):
         ok &= steg_resultat(conn)
     tranad = False
@@ -211,7 +243,7 @@ def main(argv=None) -> int:
         modeller.berakna_prognoser(conn, alla=tranad or getattr(a, "alla", False))
     if a.kommando in ("auto", "kommentarer"):
         steg_kommentarer(conn)
-    if a.kommando in ("auto", "atg", "experter", "kommentarer", "resultat", "export", "statistik"):
+    if a.kommando in ("auto", "atg", "experter", "kommentarer", "hastinfo", "resultat", "export", "statistik"):
         try:
             if getattr(a, "till", None):
                 export.exportera_omgang(conn, a.omgang, a.till, dolj_resultat=a.dolj_resultat)
