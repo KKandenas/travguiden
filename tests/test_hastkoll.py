@@ -56,3 +56,27 @@ def test_kandidat_som_hittar_vinnaren_uppfyller_kravet(monkeypatch):
                      "hastar": [{"nr": j + 1, "streck": s, "hastkoll": 1 if j == markerad else 0} for j, s in enumerate(streck)]})
     u = statistik.utvardera_kandidat(lopp, "hastkoll")
     assert u["uppfyllt"] and u["vikt"] > 0.5
+
+
+
+def test_ny_kommentar_ger_ny_bedomning_men_inte_en_som_forsvinner(conn):
+    _omgang_med_kommentarer(conn)
+    ai = FejkAI()
+    assert hastkoll.uppdatera(conn, ai, SPEL) == 3 and ai.anrop == 1
+    # En kommentar till en äldre start tillkommer för häst 1
+    sid = conn.execute("SELECT s.id FROM starter s JOIN avdelningar a ON a.id = s.avdelning_id "
+                       "WHERE a.avd = 1 AND s.nr = 1").fetchone()[0]
+    conn.execute("UPDATE tidigare_starter SET kommentar = 'Gal i första sväng, mkt bra avsl.' WHERE start_id = ? AND nr = 2", (sid,))
+    assert hastkoll.uppdatera(conn, ai, SPEL) == 1 and ai.anrop == 2
+    # Kommentaren försvinner igen: ingen ny bedömning
+    conn.execute("UPDATE tidigare_starter SET kommentar = NULL WHERE start_id = ? AND nr = 2", (sid,))
+    assert hastkoll.uppdatera(conn, ai, SPEL) == 0 and ai.anrop == 2
+
+
+def test_bedomningar_fran_fore_migreringen_far_avtryck_utan_ny_bedomning(conn):
+    _omgang_med_kommentarer(conn)
+    ai = FejkAI()
+    hastkoll.uppdatera(conn, ai, SPEL)
+    conn.execute("UPDATE hastkoll SET kommentarer = NULL")
+    assert hastkoll.uppdatera(conn, ai, SPEL) == 0 and ai.anrop == 1
+    assert conn.execute("SELECT COUNT(*) FROM hastkoll WHERE kommentarer IS NULL").fetchone()[0] == 0

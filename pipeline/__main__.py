@@ -165,12 +165,16 @@ def steg_hastkoll(conn) -> None:
     if not ok:
         log.info("Hästkoll: hoppar över – %s", orsak)
         return
-    omgangar = [r[0] for r in conn.execute(
+    # Kommande omgångar varje gång (nya kommentarer ger nya bedömningar), och nyss avgjorda med obedömda hästar
+    kommande = [r[0] for r in conn.execute(
+        f"""SELECT id FROM omgangar WHERE spelform IN ({_SPELFORMER}) AND avgjord = 0 AND spelstopp > ?""", (nu_utc(),))]
+    obedomda = [r[0] for r in conn.execute(
         f"""SELECT DISTINCT o.id FROM omgangar o JOIN avdelningar a ON a.omgang_id = o.id
             JOIN starter s ON s.avdelning_id = a.id JOIN tidigare_starter t ON t.start_id = s.id
             WHERE o.spelform IN ({_SPELFORMER}) AND t.kommentar IS NOT NULL AND s.struken = 0
               AND NOT EXISTS (SELECT 1 FROM hastkoll k WHERE k.start_id = s.id)
             ORDER BY o.avgjord, o.spelstopp DESC LIMIT 2""")]
+    omgangar = list(dict.fromkeys(kommande + obedomda))
     for sid in omgangar:
         try:
             log.info("Hästkoll: %s – %d bedömningar", sid, ai_hastkoll.uppdatera(conn, ai_klient.anropa_json, sid))

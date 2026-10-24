@@ -7,10 +7,12 @@ tempogynnad och fick en drömresa sämre. Bedömningen sparas per häst och föl
 (statistik.KANDIDATER) – den vägs inte in i förslagen förrän den visat sig träffa bättre än strecken.
 
 ATG tar bort kommentarerna inom en vecka, så bedömningen görs medan omgången är aktuell (eller strax efter).
+En häst bedöms om när en ny kommentar tillkommit sedan bedömningen (kolumnen hastkoll.kommentarer).
 Avdelningarna delas på två anrop för att hålla svaren korta.
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import logging
 import sqlite3
@@ -65,20 +67,36 @@ SCHEMA = {
 }
 
 
+def _avtryck(kommentarer: List[str]) -> List[str]:
+    """Korta hashar av kommentarerna (sorterade), för att se om en ny kommentar tillkommit."""
+    return sorted({hashlib.sha256(k.encode()).hexdigest()[:10] for k in kommentarer})
+
+
 def att_bedoma(conn: sqlite3.Connection, omgang_id: str) -> List[Dict[str, Any]]:
-    """Hästar i omgången som har minst en loppkommentar men ingen bedömning än."""
+    """Hästar i omgången som har loppkommentarer och antingen saknar bedömning eller har fått en ny kommentar
+    sedan bedömningen. En kommentar som bara försvunnit ger ingen ny bedömning (ATG:s data kan fladdra)."""
     hastar = []
-    for r in conn.execute("""SELECT s.id, s.nr, s.hast, a.avd FROM starter s JOIN avdelningar a ON a.id = s.avdelning_id
+    for r in conn.execute("""SELECT s.id, s.nr, s.hast, a.avd, k.start_id AS bedomd, k.kommentarer
+                             FROM starter s JOIN avdelningar a ON a.id = s.avdelning_id
+                             LEFT JOIN hastkoll k ON k.start_id = s.id
                              WHERE a.omgang_id = ? AND s.struken = 0
-                               AND NOT EXISTS (SELECT 1 FROM hastkoll k WHERE k.start_id = s.id)
                                AND EXISTS (SELECT 1 FROM tidigare_starter t WHERE t.start_id = s.id AND t.kommentar IS NOT NULL)
-                             ORDER BY a.avd, s.nr""", (omgang_id,)):
+                             ORDER BY a.avd, s.nr""", (omgang_id,)).fetchall():
+        tidigare = conn.execute("SELECT * FROM tidigare_starter WHERE start_id = ? ORDER BY nr", (r["id"],)).fetchall()
+        avtryck = _avtryck([f"{t['datum']} {t['kommentar']}" for t in tidigare if t["kommentar"]])
+        if r["bedomd"] is not None:
+            if r["kommentarer"] is None:          # bedömd före migrering 006: spara avtrycket, ingen ny bedömning
+                with conn:
+                    conn.execute("UPDATE hastkoll SET kommentarer = ? WHERE start_id = ?", (json.dumps(avtryck), r["id"]))
+                continue
+            if not set(avtryck) - set(json.loads(r["kommentarer"])):
+                continue
         starter = [{"datum": t["datum"], "bana": t["bana"],
                     "resultat": ("d" if t["diskad"] else str(t["placering"]) if t["placering"] is not None else "?")
                                 + ("g" if t["galopp"] else ""),
-                    "odds": t["odds"], "kommentar": t["kommentar"]}
-                   for t in conn.execute("SELECT * FROM tidigare_starter WHERE start_id = ? ORDER BY nr", (r["id"],))]
-        hastar.append({"start_id": r["id"], "avd": r["avd"], "nr": r["nr"], "namn": r["hast"], "senaste_starter": starter})
+                    "odds": t["odds"], "kommentar": t["kommentar"]} for t in tidigare]
+        hastar.append({"start_id": r["id"], "avd": r["avd"], "nr": r["nr"], "namn": r["hast"],
+                       "senaste_starter": starter, "avtryck": avtryck})
     return hastar
 
 
@@ -93,7 +111,8 @@ def uppdatera(conn: sqlite3.Connection, anropa: Anropare, omgang_id: str) -> int
     for i in range(0, len(avdelningar), AVD_PER_ANROP):
         grupp = set(avdelningar[i:i + AVD_PER_ANROP])
         fraga = "Bedöm hästarna:\n" + json.dumps(
-            [{k: v for k, v in h.items() if k != "start_id"} for h in hastar if h["avd"] in grupp], ensure_ascii=False, indent=1)
+            [{k: v for k, v in h.items() if k not in ("start_id", "avtryck")} for h in hastar if h["avd"] in grupp],
+            ensure_ascii=False, indent=1)
         svar = anropa(SYSTEM, fraga, SCHEMA, 8000)
         if not isinstance(svar, dict) or not isinstance(svar.get("hastar"), list):
             raise AiFel("Oväntat svar på Hästkoll-frågan")
@@ -107,9 +126,11 @@ def uppdatera(conn: sqlite3.Connection, anropa: Anropare, omgang_id: str) -> int
                 text = (b.get("motivering") or "").strip()
                 if len(text) > MAX_MOTIVERING:
                     text = text[:MAX_MOTIVERING - 2].rsplit(" ", 1)[0] + " …"
-                conn.execute("""INSERT INTO hastkoll (start_id, bedomning, motivering, modell, skapad) VALUES (?, ?, ?, ?, ?)
+                conn.execute("""INSERT INTO hastkoll (start_id, bedomning, motivering, modell, skapad, kommentarer)
+                                VALUES (?, ?, ?, ?, ?, ?)
                                 ON CONFLICT(start_id) DO UPDATE SET bedomning = excluded.bedomning,
-                                    motivering = excluded.motivering, modell = excluded.modell, skapad = excluded.skapad""",
-                             (h["start_id"], b["bedomning"], text, modellnamn(), nu))
+                                    motivering = excluded.motivering, modell = excluded.modell, skapad = excluded.skapad,
+                                    kommentarer = excluded.kommentarer""",
+                             (h["start_id"], b["bedomning"], text, modellnamn(), nu, json.dumps(h["avtryck"])))
                 sparade += 1
     return sparade
