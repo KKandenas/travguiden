@@ -80,6 +80,20 @@ Lägg till `-v` för mer loggning. Miljövariabeln `TRAV_DB` styr vilken databas
 (svensk tid) avgör när något körs: varje dag 08:00, 18:30 och 22:30, och på lördagar dessutom 11:00, 13:00, 14:00,
 14:30, 14:50, 15:40 och 16:10. En start kör bara när en planerad tid har passerats och inte körts än; en missad tid
 tas igen vid nästa start. Övriga starter avslutas direkt utan API-anrop. Samma upplägg som i Stryktipsguiden.
+**Extern start:** GitHub hoppar över många schemalagda starter utan förvarning. Därför startar cron-job.org
+(gratis) pipelinen var 15:e minut med ett anrop till GitHubs API, som i Stryktipsguiden:
+
+- URL: `https://api.github.com/repos/KKandenas/travguiden/actions/workflows/pipeline.yml/dispatches`
+- Metod: `POST`, body: `{"ref":"main"}` (utan parametrar blir kommandot `planerad`)
+- Headers: `Accept: application/vnd.github+json`, `X-GitHub-Api-Version: 2022-11-28`,
+  `Content-Type: application/json` och `Authorization: Bearer <nyckel>`
+- Nyckeln är en fine-grained personal access token med behörigheten **Actions: Read and write** och inget annat,
+  för det här repot (samma nyckel kan gälla både stryktipsguiden och travguiden). Den ligger bara i cron-job.org.
+  Svar 204 betyder att det fungerade.
+
+Starter som inte behövs avslutas efter cirka 20 sekunder utan API-anrop. När nyckeln går ut slutar de externa
+starterna, och då gäller GitHubs egen cron igen.
+
 Alla steg är idempotenta. Under **Actions → Pipeline → Run workflow** går det att köra manuellt, även backfill.
 
 ## Databasen
