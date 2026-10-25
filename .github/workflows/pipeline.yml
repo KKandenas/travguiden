@@ -20,6 +20,9 @@ on:
         type: choice
         default: planerad       # externa starter utan parametrar får aldrig bli en full körning
         options: [planerad, auto, atg, experter, kommentarer, hastkoll, hastinfo, resultat, statistik, backfill]
+      omgang:
+        description: "hastkoll: omgång att bedöma om (t.ex. V85_2026-10-24_7_5)"
+        required: false
       fran:
         description: "backfill: första datum (YYYY-MM-DD)"
         required: false
@@ -59,9 +62,12 @@ jobs:
           KOMMANDO: ${{ inputs.kommando || 'planerad' }}
           FRAN: ${{ inputs.fran }}
           TILL: ${{ inputs.till }}
+          OMGANG: ${{ inputs.omgang }}
         run: |
           if [ "$KOMMANDO" = "backfill" ]; then
             python -m pipeline backfill "$FRAN" "$TILL"
+          elif [ "$KOMMANDO" = "hastkoll" ] && [ -n "$OMGANG" ]; then
+            python -m pipeline hastkoll --omgang "$OMGANG"
           else
             python -m pipeline "$KOMMANDO"
           fi

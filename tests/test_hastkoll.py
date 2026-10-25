@@ -19,7 +19,12 @@ class FejkAI:
         self.anrop += 1
         hastar = json.loads(fraga.split("\n", 1)[1])
         return {"hastar": [{"avd": h["avd"], "nr": h["nr"], "bedomning": 1 if h["nr"] == 1 else 0,
-                            "motivering": "Instängd senast."} for h in hastar]}
+                            "motivering": "Instängd senast.",
+                            "starter": [{"datum": t["datum"], "lage": "rygg", "storning": "instangd", "avslutning": "stark",
+                                         "tempo": "neutral", "bedomning": 1}
+                                        for t in h["senaste_starter"] if t["kommentar"]]
+                                       + [{"datum": "1999-01-01", "lage": "rygg", "storning": "ingen",
+                                           "avslutning": "normal", "tempo": "neutral", "bedomning": 0}]} for h in hastar]}
 
 
 def _omgang_med_kommentarer(conn):
@@ -80,3 +85,27 @@ def test_bedomningar_fran_fore_migreringen_far_avtryck_utan_ny_bedomning(conn):
     conn.execute("UPDATE hastkoll SET kommentarer = NULL")
     assert hastkoll.uppdatera(conn, ai, SPEL) == 0 and ai.anrop == 1
     assert conn.execute("SELECT COUNT(*) FROM hastkoll WHERE kommentarer IS NULL").fetchone()[0] == 0
+
+
+
+def test_historik_och_faktorer_sparas(conn):
+    _omgang_med_kommentarer(conn)
+    ai = FejkAI()
+    hastkoll.uppdatera(conn, ai, SPEL)
+    assert conn.execute("SELECT COUNT(*) FROM hastkoll_historik WHERE version = ?", (hastkoll.VERSION,)).fetchone()[0] == 3
+    f = conn.execute("SELECT * FROM hastkoll_faktorer").fetchall()
+    assert len(f) == 3                                     # en per start med kommentar; påhittat datum hoppas över
+    assert (f[0]["lage"], f[0]["storning"], f[0]["avslutning"], f[0]["bedomning"]) == ("rygg", "instangd", "stark", 1)
+    # Om-bedömning av hela omgången: ny historikrad, den gamla finns kvar
+    assert hastkoll.uppdatera(conn, ai, SPEL, alla=True) == 3
+    assert conn.execute("SELECT COUNT(*) FROM hastkoll_historik").fetchone()[0] == 6
+    assert conn.execute("SELECT COUNT(*) FROM hastkoll").fetchone()[0] == 3
+
+
+def test_aldre_version_bedoms_om_bara_nar_det_begars(conn):
+    _omgang_med_kommentarer(conn)
+    ai = FejkAI()
+    hastkoll.uppdatera(conn, ai, SPEL)
+    conn.execute("UPDATE hastkoll SET version = 'hastkoll-1'")
+    assert hastkoll.uppdatera(conn, ai, SPEL, ny_version=False) == 0
+    assert hastkoll.uppdatera(conn, ai, SPEL, ny_version=True) == 3

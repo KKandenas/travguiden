@@ -177,7 +177,8 @@ def steg_hastkoll(conn) -> None:
     omgangar = list(dict.fromkeys(kommande + obedomda))
     for sid in omgangar:
         try:
-            log.info("Hästkoll: %s – %d bedömningar", sid, ai_hastkoll.uppdatera(conn, ai_klient.anropa_json, sid))
+            n = ai_hastkoll.uppdatera(conn, ai_klient.anropa_json, sid, ny_version=sid in kommande)
+            log.info("Hästkoll: %s – %d bedömningar", sid, n)
         except ai_klient.AiFel as e:
             log.warning("Hästkoll: %s – %s", sid, e)
 
@@ -214,8 +215,10 @@ def main(argv=None) -> int:
     p = argparse.ArgumentParser(prog="pipeline", description="Travguidens datapipeline")
     p.add_argument("-v", "--verbose", action="store_true")
     sub = p.add_subparsers(dest="kommando", required=True)
-    for k in ("auto", "planerad", "atg", "experter", "kommentarer", "hastkoll", "resultat", "statistik", "migrera"):
+    for k in ("auto", "planerad", "atg", "experter", "kommentarer", "resultat", "statistik", "migrera"):
         sub.add_parser(k)
+    hk = sub.add_parser("hastkoll")
+    hk.add_argument("--omgang", help="bedöm om alla hästar i omgången med nuvarande instruktion (från sparade kommentarer)")
     hi = sub.add_parser("hastinfo")
     hi.add_argument("--max", type=int, default=600, help="högst så många historiska lopp")
     b = sub.add_parser("backfill")
@@ -269,7 +272,18 @@ def main(argv=None) -> int:
         modeller.berakna_prognoser(conn, alla=tranad or getattr(a, "alla", False))
     if a.kommando in ("auto", "kommentarer"):
         steg_kommentarer(conn)
-    if a.kommando in ("auto", "hastkoll"):
+    if a.kommando == "hastkoll" and a.omgang:
+        ok_ai, orsak = ai_klient.tillganglig()
+        if not ok_ai:
+            log.error("Hästkoll: %s", orsak)
+        else:
+            try:
+                n = ai_hastkoll.uppdatera(conn, ai_klient.anropa_json, a.omgang, alla=True)
+                log.info("Hästkoll: %s – %d bedömningar (om, med faktorer)", a.omgang, n)
+            except ai_klient.AiFel as e:
+                log.warning("Hästkoll: %s – %s", a.omgang, e)
+        spara_ai_status(conn)
+    elif a.kommando in ("auto", "hastkoll"):
         steg_hastkoll(conn)
         spara_ai_status(conn)
     if a.kommando in ("auto", "atg", "experter", "kommentarer", "hastkoll", "hastinfo", "resultat", "export", "statistik"):

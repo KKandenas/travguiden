@@ -226,6 +226,17 @@ bedömer om hästen var bättre (+1), som (0) eller sämre (−1) än placeringa
 kommentar tillkommit sedan bedömningen (`hastkoll.kommentarer`, migrering 006); en kommentar som bara försvinner
 tillfälligt hos ATG ger ingen ny bedömning.
 
+**Underlag för analys (migrering 007).** Varje bedömning sparas i `hastkoll_historik` (tidpunkt, instruktionsversion
+`hastkoll.VERSION`, modell, kommentarsavtryck samt strecken och Oddsens chans just då) i stället för att skrivas över;
+`hastkoll` har bara den senaste. I samma AI-anrop anges faktorer per tidigare start med kommentar
+(`hastkoll_faktorer`): läge (ledning, rygg ledaren, rygg, utvändigt, dödens, tredjespår, längre ut), störning
+(instängd, ingen lucka, galopp efter störning, egen galopp), avslutning (stark, normal, svag) och tempo (gynnad,
+neutral, missgynnad), plus bedömningen av just den starten. Då kan det senare räknas ut vilka faktorer som
+förutsäger nästa lopp och algoritmen viktas efter det. TR Medias kommentarer sparas permanent i
+`tidigare_starter.kommentar`, så en omgång kan bedömas om med en ny instruktion: `python -m pipeline hastkoll
+--omgang V85_2026-10-24_7_5` (eller Actions → Pipeline → kommando `hastkoll` och fältet omgång). Kommande omgångar
+bedöms om automatiskt när versionen höjs.
+
 **Förslaget Hästkoll · test** (modellen `hastkoll-v1`, som Lagkoll i Stryktipsguiden): Oddsens chans gånger
 e^(d·bedömning), d = 0,25 tills kandidatutvärderingen har skattat en vikt. Hästar utan bedömning följer Oddsen.
 
