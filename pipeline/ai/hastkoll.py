@@ -8,7 +8,7 @@ tempogynnad och fick en drömresa sämre. Bedömningen sparas per häst och föl
 
 ATG tar bort kommentarerna inom en vecka, så bedömningen görs medan omgången är aktuell (eller strax efter).
 En häst bedöms om när en ny kommentar tillkommit sedan bedömningen (kolumnen hastkoll.kommentarer).
-Avdelningarna delas på två anrop för att hålla svaren korta.
+Avdelningarna delas på fyra anrop (två avdelningar per anrop) för att hålla svaren korta.
 """
 from __future__ import annotations
 
@@ -24,7 +24,7 @@ from .klient import AiFel, Anropare, modellnamn
 log = logging.getLogger(__name__)
 
 MAX_MOTIVERING = 140
-AVD_PER_ANROP = 4
+AVD_PER_ANROP = 2          # faktorerna per start gör svaren långa; fyra avdelningar klipptes vid 16 000 tokens
 
 SYSTEM = """Du är travexpert och bedömer hästars senaste lopp för en svensk app.
 

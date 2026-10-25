@@ -222,7 +222,7 @@ forward per spelform: V75 +0,0004 ± 0,0019, V85 +0,0035 ± 0,0026. Barfota runt
 **Steg 2: AI (`pipeline/ai/hastkoll.py`).** Gemini läser TR Medias loppkommentarer från hästens senaste starter och
 bedömer om hästen var bättre (+1), som (0) eller sämre (−1) än placeringarna, med en kort motivering. Tabellen
 `hastkoll`. ATG tar bort kommentarerna inom en vecka, så bedömningen görs för kommande och nyss avgjorda omgångar
-(högst två per körning, två anrop per omgång) och kan inte göras för äldre historik. En häst bedöms om när en ny
+(högst två per körning, fyra anrop per omgång) och kan inte göras för äldre historik. En häst bedöms om när en ny
 kommentar tillkommit sedan bedömningen (`hastkoll.kommentarer`, migrering 006); en kommentar som bara försvinner
 tillfälligt hos ATG ger ingen ny bedömning.
 
