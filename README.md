@@ -309,14 +309,7 @@ Vald insats och låsningar sparas i webbläsarens localStorage. Lägg till `?exe
 node --test tests/js/*.test.mjs     # kräver Node 18+, körs annars i GitHub Actions
 ```
 
-## Idéer som väntar
+## Färdplan
 
-| Idé | När |
-|---|---|
-| Utvärdera vinnaroddsen (b) på riktiga ögonblicksbilder före spelstopp | När ett par månaders odds från lördagarna finns sparade |
-| Skatta experternas vikt (c) och backtesta Experterna | Efter cirka 19 omgångar med sparade expertsystem (februari 2027) |
-| Fler experter: ATG:s tipskommentarer per häst, tipssajter | Tipssajterna kräver AI-tolkning (Gemini) |
-| Ompröva λ med fler omgångar | Våren 2027 |
-| Inloggning och Mina spel som i Stryktipsguiden | Senare |
-| AI-kommentarer per avdelning (travtips från tidningar) | Senare, så att Geminis gratiskvot räcker till Stryktipsguiden |
-| Reservhästar i rättningen | Om det efterfrågas |
+Läget, tidslinjen med kontrollpunkter, beslutsreglerna, det som testats och idéer i reserven finns i
+[FARDPLAN.md](FARDPLAN.md).
