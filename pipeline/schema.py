@@ -15,7 +15,9 @@ SVENSK_TID = ZoneInfo("Europe/Stockholm")
 
 ALLA_DAGAR = ["08:00", "18:30", "22:30"]       # ny omgång, kvällsomgångar och streck, resultat och utdelning
 # Lördag fram till spelstopp (oftast 15:00, ibland senare): vinnarpoolen får pengar först på tävlingsdagen.
-LORDAG = ["11:00", "13:00", "14:00", "14:30", "14:50", "15:40", "16:10"]
+# Tiderna ligger på kvartar, eftersom cron-job.org startar var 15:e minut (:00, :15, :30, :45). En tid mellan två
+# starter tas först vid nästa start – 14:50 blev därför 15:00, efter spelstopp (24 oktober 2026).
+LORDAG = ["11:00", "13:00", "14:00", "14:30", "14:45", "15:45", "16:15"]
 
 # (veckodag, klockslag) i svensk tid; måndag = 0
 PLANERADE: List[Tuple[int, str]] = sorted(

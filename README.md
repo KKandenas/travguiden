@@ -78,7 +78,7 @@ Lägg till `-v` för mer loggning. Miljövariabeln `TRAV_DB` styr vilken databas
 `.github/workflows/pipeline.yml` startar pipelinen varje timme (var 20:e minut på lördagar 10–17) med
 `python -m pipeline planerad`. GitHubs schemaläggning kan bli flera timmar sen, så schemat i `pipeline/schema.py`
 (svensk tid) avgör när något körs: varje dag 08:00, 18:30 och 22:30, och på lördagar dessutom 11:00, 13:00, 14:00,
-14:30, 14:50, 15:40 och 16:10. En start kör bara när en planerad tid har passerats och inte körts än; en missad tid
+14:30, 14:45, 15:45 och 16:15 (kvartar, eftersom cron-job.org startar var 15:e minut). En start kör bara när en planerad tid har passerats och inte körts än; en missad tid
 tas igen vid nästa start. Övriga starter avslutas direkt utan API-anrop. Samma upplägg som i Stryktipsguiden.
 **Extern start:** GitHub hoppar över många schemalagda starter utan förvarning. Därför startar cron-job.org
 (gratis) pipelinen var 15:e minut med ett anrop till GitHubs API, som i Stryktipsguiden:
