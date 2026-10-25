@@ -46,6 +46,13 @@ modeller vägs in innan data visar att de är bättre än strecken (se Beslutsre
   hänger ihop med att hästen presterar bättre än strecken nästa gång?
 - [ ] Förslagen "Sedan premiären" i backtestet: rimligt jämfört med backtestet, eller avviker något?
 
+### Januari 2027: skrällanalys med experter och Hästkoll
+- [ ] `python -m pipeline skrallanalys --fran 2026-10-17`: vinner experternas skrällval, hästar med Hästkoll
+  "bättre" eller med faktorer som instängd/stark avslutning senast oftare än Oddsen säger? Mönster som ser starka ut
+  blir kandidater med startdatum (`statistik.KANDIDATER`, fältet `fran`) och avgörs bara på nya lopp.
+- [ ] Formfällan (kandidat sedan 25 oktober 2026): historiken 0,80 ± 0,05 i skrällanalysen och +0,0043 ± 0,0019
+  walk-forward – håller den på nya lopp? Kan den också användas för att sortera bort skrällar i Skrällchansen?
+
 ### Februari–mars 2027 (cirka 19 omgångar med expertsystem)
 - [ ] Experternas vikt skattas automatiskt när 150 avgjorda lopp med expertsystem finns (`statistik.MIN_EXPERTLOPP`).
   Kontrollera att vikten är rimlig och att Experterna klarar sig mot Oddsen i backtestet "Sedan premiären".
@@ -90,7 +97,8 @@ Detaljerna finns i README.
 |---|---|
 | Spår, tillägg, kuskens och hästens segerprocent som egenskaper | Ingen förbättring utöver strecken. |
 | Kuskbyte, vagnbyte, vila, tät start, vann/galopp senast, form, odds senast | Ingen förbättring eller sämre. |
-| Barfota för första gången | +0,0029 ± 0,0013, men försvann i omvänd delning. Följs som kandidat. |
+| Barfota för första gången | +0,0029 ± 0,0013, men försvann i omvänd delning. Följs som kandidat (från 17 okt 2026). |
+| Formfällan (skrällanalysen, okt 2026) | Lågt streckade hästar som vann senast eller vinner ofta i år vann 0,80 gånger så ofta som Oddsen räknade med. Hittad i historiken, så den avgörs på lopp från 25 okt 2026. |
 | Gemensam kalibrering för V75 och V85 | V75-strecken var redan välkalibrerade; separat exponent per spelform infördes. |
 | Skrällar bara i 3–10 % streck | Kandidaterna vann inte oftare än strecken sa; nuvarande regel behölls. |
 | Risknivå λ 0,7 | Jagar outsiders, 5–17 % återbetalning. λ 0,3 behölls. |

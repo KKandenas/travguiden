@@ -723,8 +723,9 @@ function kandidatrader(kandidater) {
     const fmt = (u) => `${u.forbattring >= 0 ? "+" : "−"}${decimal(Math.abs(u.forbattring), 4)} ± ${decimal(u.standardfel, 4)} (${u.lopp} lopp)`;
     const delar = [...(k.totalt ? [`totalt ${fmt(k.totalt)}`] : []),
       ...Object.entries(k.per_spelform || {}).map(([f, u]) => `${f} ${fmt(u)}`)];
-    const lage = k.uppfyllt ? "uppfyller kravet och kan vägas in" : !k.lopp ? "samlar data" : "inte säkerställd än";
-    return el("li", {}, el("b", { text: k.namn }), ` – ${lage}${delar.length ? `. ${delar.join(", ")}` : ""}.`);
+    const lage = k.uppfyllt ? "uppfyller kravet och kan vägas in" : !k.lopp || !k.totalt ? "samlar data" : "inte säkerställd än";
+    const fran = k.fran ? ` Avgörs på lopp från ${k.fran} (hittad i historiken${k.historik ? `, där ${fmt(k.historik)}` : ""}).` : "";
+    return el("li", {}, el("b", { text: k.namn }), ` – ${lage}${delar.length ? `. ${delar.join(", ")}` : ""}.${fran}`);
   });
   return [el("p", { text: "Under test (vägs in först när de slår nuvarande modell med mer än två standardfel på minst 200 lopp, " +
     "walk-forward, utan att vara tydligt sämre i V75 eller V85):" }), el("ul", {}, ...rader)];

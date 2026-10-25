@@ -86,6 +86,20 @@ def _barfota_runt_ny(h, lopp) -> float:
     return 1.0 if h.get("skor_andrad") and h.get("skor_fram") == 0 and h.get("skor_bak") == 0 else 0.0
 
 
+def _formfalla(h, lopp) -> float:
+    """En häst som inte är favorit, har högst 15 % streck och ser bra ut på pappret (vann senast eller har vunnit
+    minst 30 % av årets starter, minst fem). Sådana hästar vann bara 75–82 % så ofta som Oddsen räknade med
+    (skrällanalysen, oktober 2026). Kandidat, se statistik.py."""
+    if h.get("streck") is None:
+        return 0.0
+    streck = [x.get("streck") or 0 for x in lopp["hastar"]]
+    tot = sum(streck) or 1
+    if h["streck"] >= max(streck) or h["streck"] / tot > 0.15:
+        return 0.0
+    ar_s, ar_v = h.get("ar_starter") or 0, h.get("ar_segrar") or 0
+    return 1.0 if h.get("plac_senast") == 1 or (ar_s >= 5 and ar_v / ar_s >= 0.3) else 0.0
+
+
 def _hastkoll(h, lopp) -> float:
     """AI:ns bedömning av de senaste loppen ur TR Medias kommentarer: +1 bättre än resultaten, −1 sämre."""
     return float(h.get("hastkoll") or 0)
@@ -101,6 +115,7 @@ EGENSKAPER = {
     "form": _form,
     "experter": _experter,
     "barfota_runt_ny": _barfota_runt_ny,
+    "formfalla": _formfalla,
     "hastkoll": _hastkoll,
 }
 

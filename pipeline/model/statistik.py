@@ -30,8 +30,14 @@ MIN_EXPERTLOPP = 150    # avgjorda lopp med expertsystem innan experternas vikt 
 # tydligt sämre (mer än KRAV_SE standardfel) i någon spelform. Spelformerna skiljer sig bara i hur spelarna streckar,
 # och det har nuvarande modell redan kalibrerat per spelform (beslut 25 oktober 2026). Klarar en kandidat kravet läggs
 # den in som en ny modellversion – den nuvarande ändras aldrig.
+#
+# "fran": kandidater som hittats genom att leta i historiken avgörs bara på lopp efter det datumet. Walk-forward
+# skyddar vikten mot framtiden, men inte idén – den valdes efter att ha sett facit. Historiken visas som bakgrund.
 KANDIDATER = {
-    "barfota_runt_ny": {"namn": "Barfota runt för första gången", "har": lambda l: l.get("har_hastinfo")},
+    "barfota_runt_ny": {"namn": "Barfota runt för första gången", "har": lambda l: l.get("har_hastinfo"),
+                        "fran": "2026-10-17"},
+    "formfalla": {"namn": "Formfällan: lågt streckad häst som vann senast eller vinner ofta i år",
+                  "har": lambda l: l.get("har_hastinfo"), "fran": "2026-10-25"},
     "hastkoll": {"namn": "Hästkoll: AI:ns bedömning av de senaste loppen",
                  "har": lambda l: any(h.get("hastkoll") is not None for h in l["hastar"])},
 }
@@ -85,11 +91,13 @@ def utvardera(lopp: List[dict], per_manad: Dict[str, Dict[str, float]]) -> dict:
             "per_spelform": {k: _sammanfatta(b, m, sum(t)) for k, (b, m, t) in sorted(per.items())}}
 
 
-def utvardera_kandidat(lopp: List[dict], egenskap: str, per_manad: Dict[str, Dict[str, float]]) -> dict:
+def utvardera_kandidat(lopp: List[dict], egenskap: str, per_manad: Dict[str, Dict[str, float]],
+                       fran: str = "") -> dict:
     """Walk-forward: för varje månad jämförs Oddsens vikter för månaden (skattade på alla tidigare lopp) med samma
     vikter plus kandidaten, vars vikt skattas på kandidatens tidigare lopp. Logloss för vinnaren på månadens lopp
-    (utan odds, som i backtestet)."""
+    (utan odds, som i backtestet). Beslutet (uppfyllt) gäller bara lopp från och med `fran`."""
     per: Dict[str, List[float]] = {}
+    hist: Dict[str, List[float]] = {}
     vikter = []
     for m in sorted({l["datum"][:7] for l in lopp}):
         fore = [l for l in lopp if l["datum"][:7] < m]
@@ -100,7 +108,9 @@ def utvardera_kandidat(lopp: List[dict], egenskap: str, per_manad: Dict[str, Dic
         vikter.append(med[egenskap])
         test = [{**l, "hastar": [{**h, "vinnarodds": None} for h in l["hastar"]]} for l in lopp if l["datum"][:7] == m]
         for l, a, b in zip(test, sannolikhet.logloss(test, utan), sannolikhet.logloss(test, med)):
-            per.setdefault(l["spelform"], []).append(a - b)
+            hist.setdefault(l["spelform"], []).append(a - b)
+            if l["datum"] >= fran:
+                per.setdefault(l["spelform"], []).append(a - b)
     def summa(d):
         return {"lopp": len(d), "forbattring": round(st.mean(d), 4), "standardfel": round(st.stdev(d) / math.sqrt(len(d)), 4)}
 
@@ -108,6 +118,11 @@ def utvardera_kandidat(lopp: List[dict], egenskap: str, per_manad: Dict[str, Dic
     alla = [x for d in per.values() for x in d]
     if len(alla) >= 2:
         ut["totalt"] = summa(alla)
+    if fran:
+        ut["fran"] = fran
+        alla_hist = [x for d in hist.values() for x in d]
+        if len(alla_hist) >= 2:
+            ut["historik"] = summa(alla_hist)
     t = ut.get("totalt")
     ut["uppfyllt"] = bool(t and t["lopp"] >= MIN_TESTLOPP and t["forbattring"] > KRAV_SE * t["standardfel"]
                           and all(u["forbattring"] > -KRAV_SE * u["standardfel"] for u in ut["per_spelform"].values()))
@@ -143,7 +158,8 @@ def kor(conn: sqlite3.Connection) -> dict:
     kandidater = {}
     for namn, k in KANDIDATER.items():
         kl = [l for l in lopp if k["har"](l)]
-        kandidater[namn] = {"namn": k["namn"], **(utvardera_kandidat(kl, namn, per_manad) if kl else {"lopp": 0})}
+        kandidater[namn] = {"namn": k["namn"],
+                            **(utvardera_kandidat(kl, namn, per_manad, k.get("fran", "")) if kl else {"lopp": 0})}
         log.info("Statistik: kandidat %s: %s", namn, kandidater[namn])
     utv["kandidater"] = kandidater
     log.info("Statistik: vikter %s, utvärdering %s", {k: round(v, 3) for k, v in senaste.items()}, utv)

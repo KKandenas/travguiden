@@ -240,7 +240,12 @@ bedöms om automatiskt när versionen höjs.
 **Förslaget Hästkoll · test** (modellen `hastkoll-v1`, som Lagkoll i Stryktipsguiden): Oddsens chans gånger
 e^(d·bedömning), d = 0,25 tills kandidatutvärderingen har skattat en vikt. Hästar utan bedömning följer Oddsen.
 
-**Kandidater (`statistik.KANDIDATER`).** Barfota runt och Hästkoll utvärderas walk-forward efter varje avgjord
+**Skrällanalys (`python -m pipeline skrallanalys [--fran D]`).** Jämför alla skrällkandidater (inte favorit, högst
+15 % streck) med Oddsens chans per egenskap, inklusive experternas val och Hästkollens bedömningar och faktorer när
+de finns. Oktober 2026, 19 687 hästar sedan 2023: formfällan (vann senast eller ≥ 30 % segrar i år) 0,80 ± 0,05,
+autostart spår 1–3 0,82 ± 0,07, barfota runt ny 1,16 ± 0,12.
+
+**Kandidater (`statistik.KANDIDATER`).** Barfota runt, formfällan och Hästkoll utvärderas walk-forward efter varje avgjord
 omgång och visas under "Under test" på om-sidan. En kandidat vägs in först när den slår nuvarande modell med mer
 än två standardfel på alla lopp sammantaget (minst 200 testlopp), utan att vara mer än två standardfel sämre i V75
 eller V85 – och då som en ny modellversion.

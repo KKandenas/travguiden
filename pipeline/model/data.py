@@ -16,7 +16,8 @@ def lopp(conn: sqlite3.Connection, villkor: str = "1", params=(), bara_avgjorda:
         SELECT a.id AS avd_id, a.omgang_id, a.avd, a.distans AS lopp_distans, a.startmetod, a.vinnare,
                o.datum, o.spelform,
                s.id AS start_id, s.nr, s.spar, s.distans, s.kusk_segerproc, s.livs_starter, s.livs_segrar, s.slutodds,
-               s.skor_fram, s.skor_bak, s.skor_andrad, a.hastinfo_hamtad,
+               s.skor_fram, s.skor_bak, s.skor_andrad, a.hastinfo_hamtad, s.ar_starter, s.ar_segrar,
+               (SELECT placering FROM tidigare_starter WHERE start_id = s.id AND nr = 1) AS plac_senast,
                {_SENASTE_STRECK} AS streck, {_SENASTE_ODDS} AS vinnarodds
         FROM avdelningar a JOIN omgangar o ON o.id = a.omgang_id JOIN starter s ON s.avdelning_id = a.id
         WHERE s.struken = 0 AND ({villkor})
@@ -40,6 +41,7 @@ def lopp(conn: sqlite3.Connection, villkor: str = "1", params=(), bara_avgjorda:
             "kusk_segerproc": r["kusk_segerproc"], "livs_starter": r["livs_starter"], "livs_segrar": r["livs_segrar"],
             "streck": r["streck"], "vinnarodds": r["vinnarodds"], "slutodds": r["slutodds"],
             "skor_fram": r["skor_fram"], "skor_bak": r["skor_bak"], "skor_andrad": r["skor_andrad"],
+            "ar_starter": r["ar_starter"], "ar_segrar": r["ar_segrar"], "plac_senast": r["plac_senast"],
         })
     _expertandelar(conn, ut)
     for r in conn.execute("SELECT start_id, bedomning FROM hastkoll"):

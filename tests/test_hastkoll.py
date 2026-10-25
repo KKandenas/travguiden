@@ -149,3 +149,34 @@ def test_skatta_med_fasta_vikter():
                      "hastar": [{"nr": j + 1, "streck": s, "hastkoll": 1 if j == m else 0} for j, s in enumerate(streck)]})
     w = S.skatta(lopp, ["hastkoll"], l2=0.1, fast={"log_streck": 1.0})
     assert w["log_streck"] == 1.0 and abs(w["hastkoll"] - math.log(2)) < 0.15
+
+
+
+def test_kandidat_med_startdatum_avgors_bara_pa_nya_lopp(monkeypatch):
+    monkeypatch.setattr(statistik, "MIN_KANDIDATLOPP", 100)
+    monkeypatch.setattr(statistik, "MIN_TESTLOPP", 300)
+    rng = random.Random(3)
+    lopp = []
+    for i in range(1200):
+        streck = S.normalisera([rng.random() + .05 for _ in range(10)])
+        m = rng.randrange(10)
+        sann = S.normalisera([s * (3 if j == m else 1) for j, s in enumerate(streck)])
+        lopp.append({"datum": f"2025-{1 + i // 100:02d}-01", "spelform": "V75", "avd": 2, "startmetod": "auto",
+                     "distans": 2140, "vinnare": [rng.choices(range(1, 11), weights=sann)[0]],
+                     "hastar": [{"nr": j + 1, "streck": s, "hastkoll": 1 if j == m else 0} for j, s in enumerate(streck)]})
+    tidigt = statistik.utvardera_kandidat(lopp, "hastkoll", _bas(lopp), fran="2025-03-01")
+    sent = statistik.utvardera_kandidat(lopp, "hastkoll", _bas(lopp), fran="2025-12-01")
+    assert tidigt["uppfyllt"] and tidigt["totalt"]["lopp"] == 1000
+    assert sent["totalt"]["lopp"] == 100 and sent["historik"]["lopp"] == 1100 and not sent["uppfyllt"]
+
+
+def test_skrallanalys_kor_och_raknar_mot_oddsen(conn):
+    from pipeline import lagring
+    from pipeline.model import modeller, skrallanalys
+    from pipeline.sources import atg
+    lagring.spara_omgang(conn, atg.tolka_spel(las_fixture("atg_v85_avgjord.json"), "x"))
+    modeller.berakna_prognoser(conn, alla=True)
+    g = skrallanalys.analysera(conn)
+    v, c, n = g["Alla skrällkandidater"]
+    assert n > 0 and 0 < c < n and v <= 8
+    assert "Alla skrällkandidater" in skrallanalys.rapport(conn, minsta=1)
