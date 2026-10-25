@@ -35,9 +35,9 @@ modeller vägs in innan data visar att de är bättre än strecken (se Beslutsre
   avdelningar, 60 öre per rad och utdelning för 7–5 rätt.
 - [ ] Kontrollera att experternas V75-kuponger hittas (Fem tippar V75 m.fl.) och att namnen blir rätt.
 - [ ] Lördag 28 november: följ driftstatusen. Första V75 utan V85-historik i Hästkoll och Experterna.
-- [ ] **Beslut om kandidatregeln:** i dag krävs mer än 200 testlopp i *både* V75 och V85. V85 pausas, så Hästkoll
-  hinner bara få cirka 50 V85-lopp och kan då aldrig godkännas. Ändra kravet till att gälla spelformen som spelas
-  (V75), eller till alla lopp sammantaget med krav på att ingen spelform är tydligt sämre.
+- [x] **Beslut om kandidatregeln (25 oktober 2026):** kravet gäller alla lopp sammantaget (V75 och V85), med
+  spärren att kandidaten inte får vara tydligt sämre i någon spelform. Tidigare krävdes 200 testlopp i *båda*,
+  vilket Hästkoll aldrig hade kunnat nå när V85 pausas.
 
 ### December–januari (efter 8–12 omgångar): första avstämningen
 - [ ] Vinnaroddsen: sedan 24 oktober finns ögonblicksbilder före spelstopp i alla avdelningar (tidigare bara
@@ -50,22 +50,29 @@ modeller vägs in innan data visar att de är bättre än strecken (se Beslutsre
 - [ ] Experternas vikt skattas automatiskt när 150 avgjorda lopp med expertsystem finns (`statistik.MIN_EXPERTLOPP`).
   Kontrollera att vikten är rimlig och att Experterna klarar sig mot Oddsen i backtestet "Sedan premiären".
 
-### Våren 2027 (cirka 25 omgångar): beslut om Hästkoll
-- [ ] Hästkoll som kandidat: klarar den kravet → in som en ny version av Oddsen. Klarar den det inte → behåll som
-  förslag under test, ändra instruktionen (ny version) eller ta bort förslaget.
+### Januari 2027 (cirka 13 omgångar med Hästkoll): kandidatutvärderingen börjar
+- [ ] När 100 lopp med Hästkoll är avgjorda skattas dess vikt (ovanpå Oddsens) och walk-forward-jämförelsen börjar
+  synas på om-sidan. Förslaget Hästkoll använder då den skattade vikten i stället för 0,25.
+
+### Våren 2027 (cirka 25 omgångar): faktorerna
+- [ ] Hästkoll: titta på kandidatraden. Ett besked kräver 200 testlopp efter de första 100, alltså cirka 40 omgångar
+  (hösten 2027) – men en tydlig trend åt något håll syns tidigare.
 - [ ] Faktoranalysen (15–20 omgångar med faktorer): vikta Hästkoll per faktor i stället för en samlad bedömning, om
   vissa faktorer tydligt bär och andra inte.
 - [ ] Barfota runt: har kandidaten klarat kravet med de nya omgångarna?
 
-### Hösten 2027 (ett år med V75)
+### Hösten 2027 (ett år med V75): beslut om Hästkoll
+- [ ] Hästkoll som kandidat (cirka 40 omgångar): klarar den kravet → in som en ny version av Oddsen. Klarar den det
+  inte → behåll som förslag under test, ändra instruktionen (ny version) eller ta bort förslaget.
 - [ ] Ompröva risknivån λ och skrällreglerna med ett års riktiga utdelningar för nya V75 (60 öre, ny poolfördelning
   40/20/40 %).
 - [ ] Odds- och streckrörelser under lördagen: ögonblicksbilderna sparas sedan oktober 2026.
 
 ## Beslutsregler
 
-- **När något får vägas in i Oddsen:** walk-forward mot nuvarande modell, mer än två standardfel bättre, med minst
-  200 testlopp (se beslutet om kandidatregeln ovan). Läggs in som en ny modellversion – en befintlig ändras aldrig.
+- **När något får vägas in i Oddsen:** walk-forward mot nuvarande modell på alla lopp sammantaget, mer än två
+  standardfel bättre, med minst 200 testlopp, och inte mer än två standardfel sämre i V75 eller V85. Oddsens vikter
+  för varje månad skattas på alla tidigare lopp; bara kandidatens vikt skattas på kandidatens egna lopp (minst 100). Läggs in som en ny modellversion – en befintlig ändras aldrig.
 - **När en idé testas:** på hela historiken och med flera tidsdelningar (före/efter, och omvänt). Införs bara om den
   håller i alla, och i riktiga utdelningar – inte bara i träffprocent.
 - **Många samtidiga test:** testas tio signaler blir någon "signifikant" av en slump. Kräv att den håller i fler

@@ -1,8 +1,8 @@
 import {
   BUDGETAR, RADPRIS, VARDE_GRANS, deltagare, kronor, optimera, ratta, sammanfattning, skrallchanser,
   skrallKrav, vinst,
-} from "./optimizer.js?v=20261017c";
-import { KALLOR, PERIODER, backtesta, iPeriod, sammanstall } from "./backtest.js?v=20261017c";
+} from "./optimizer.js?v=20261025a";
+import { KALLOR, PERIODER, backtesta, iPeriod, sammanstall } from "./backtest.js?v=20261025a";
 
 const $ = (id) => document.getElementById(id);
 const LAGRING = "travguiden";
@@ -720,13 +720,14 @@ function renderaDrift(d) {
 function kandidatrader(kandidater) {
   if (!kandidater) return [];
   const rader = Object.values(kandidater).map((k) => {
-    const delar = Object.entries(k.per_spelform || {}).map(([f, u]) =>
-      `${f}: ${u.forbattring >= 0 ? "+" : "−"}${decimal(Math.abs(u.forbattring), 4)} ± ${decimal(u.standardfel, 4)} (${u.lopp} lopp)`);
+    const fmt = (u) => `${u.forbattring >= 0 ? "+" : "−"}${decimal(Math.abs(u.forbattring), 4)} ± ${decimal(u.standardfel, 4)} (${u.lopp} lopp)`;
+    const delar = [...(k.totalt ? [`totalt ${fmt(k.totalt)}`] : []),
+      ...Object.entries(k.per_spelform || {}).map(([f, u]) => `${f} ${fmt(u)}`)];
     const lage = k.uppfyllt ? "uppfyller kravet och kan vägas in" : !k.lopp ? "samlar data" : "inte säkerställd än";
     return el("li", {}, el("b", { text: k.namn }), ` – ${lage}${delar.length ? `. ${delar.join(", ")}` : ""}.`);
   });
-  return [el("p", { text: "Under test (vägs in först när de slår nuvarande modell med mer än två standardfel i både V75 och V85, " +
-    "walk-forward):" }), el("ul", {}, ...rader)];
+  return [el("p", { text: "Under test (vägs in först när de slår nuvarande modell med mer än två standardfel på minst 200 lopp, " +
+    "walk-forward, utan att vara tydligt sämre i V75 eller V85):" }), el("ul", {}, ...rader)];
 }
 
 function renderaOmStatistik() {

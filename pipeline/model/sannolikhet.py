@@ -148,26 +148,31 @@ def _los(A: List[List[float]], b: List[float]) -> List[float]:
 
 
 def skatta(lopp: List[dict], namn: Sequence[str], l2: float = 1.0, start: Optional[Dict[str, float]] = None,
-           iterationer: int = 25) -> Dict[str, float]:
+           iterationer: int = 25, fast: Optional[Dict[str, float]] = None) -> Dict[str, float]:
     """Maximum likelihood för den villkorade logiten (Newton). Varje lopp: {..., hastar, vinnare: [nr]}.
 
     L2-straffet drar vikterna mot startvärdet (log_streck = 1, övriga = 0), alltså mot "strecken har rätt".
+    fast: vikter som hålls fasta (t.ex. Oddsens, skattade på alla lopp) – bara `namn` skattas, ovanpå dem.
+    Returnerar de fasta och de skattade vikterna tillsammans.
     """
-    namn = list(namn)
+    fast = dict(fast or {})
+    namn = [n for n in namn if n not in fast]
+    fasta = list(fast)
     prior = [1.0 if n == "log_streck" else 0.0 for n in namn]
     w = [start.get(n, p) for n, p in zip(namn, prior)] if start else prior[:]
     data = []
     for l in lopp:
         x = egenskaper(l, namn)
+        bas = [sum(fast[n] * v for n, v in zip(fasta, rad)) for rad in egenskaper(l, fasta)] if fasta else [0.0] * len(x)
         vinn = [i for i, h in enumerate(l["hastar"]) if h["nr"] in l["vinnare"]]
         if vinn:
-            data.append((x, vinn))
+            data.append((x, vinn, bas))
     d = len(namn)
     for _ in range(iterationer):
         g = [-l2 * (wi - pi) for wi, pi in zip(w, prior)]
         H = [[(l2 if i == j else 0.0) for j in range(d)] for i in range(d)]
-        for x, vinn in data:
-            p = softmax([sum(wi * xi for wi, xi in zip(w, rad)) for rad in x])
+        for x, vinn, bas in data:
+            p = softmax([b + sum(wi * xi for wi, xi in zip(w, rad)) for rad, b in zip(x, bas)])
             snitt = [sum(p[k] * x[k][j] for k in range(len(x))) for j in range(d)]
             andel = 1 / len(vinn)           # dött lopp: vinsten delas
             for v in vinn:
@@ -183,7 +188,7 @@ def skatta(lopp: List[dict], namn: Sequence[str], l2: float = 1.0, start: Option
         w = [wi + si for wi, si in zip(w, steg)]
         if max(abs(s) for s in steg) < 1e-7:
             break
-    return dict(zip(namn, w))
+    return {**fast, **dict(zip(namn, w))}
 
 
 def logloss(lopp: List[dict], vikter: Dict[str, float]) -> List[float]:

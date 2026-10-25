@@ -242,7 +242,8 @@ e^(d·bedömning), d = 0,25 tills kandidatutvärderingen har skattat en vikt. H�
 
 **Kandidater (`statistik.KANDIDATER`).** Barfota runt och Hästkoll utvärderas walk-forward efter varje avgjord
 omgång och visas under "Under test" på om-sidan. En kandidat vägs in först när den slår nuvarande modell med mer
-än två standardfel i både V75 och V85 (minst 200 testlopp vardera) – och då som en ny modellversion.
+än två standardfel på alla lopp sammantaget (minst 200 testlopp), utan att vara mer än två standardfel sämre i V75
+eller V85 – och då som en ny modellversion.
 
 ## AI-kommentarer
 

@@ -1,5 +1,6 @@
 """Hästkoll steg 2 (AI med fejkat svar) och kandidatutvärderingen."""
 import json
+import math
 import random
 
 from pipeline import export, lagring
@@ -59,7 +60,7 @@ def test_kandidat_som_hittar_vinnaren_uppfyller_kravet(monkeypatch):
         lopp.append({"datum": f"2025-{1 + i // 100:02d}-01", "spelform": "V85" if i % 2 else "V75", "avd": 2,
                      "startmetod": "auto", "distans": 2140, "vinnare": [vinnare],
                      "hastar": [{"nr": j + 1, "streck": s, "hastkoll": 1 if j == markerad else 0} for j, s in enumerate(streck)]})
-    u = statistik.utvardera_kandidat(lopp, "hastkoll")
+    u = statistik.utvardera_kandidat(lopp, "hastkoll", _bas(lopp))
     assert u["uppfyllt"] and u["vikt"] > 0.5
 
 
@@ -109,3 +110,42 @@ def test_aldre_version_bedoms_om_bara_nar_det_begars(conn):
     conn.execute("UPDATE hastkoll SET version = 'hastkoll-1'")
     assert hastkoll.uppdatera(conn, ai, SPEL, ny_version=False) == 0
     assert hastkoll.uppdatera(conn, ai, SPEL, ny_version=True) == 3
+
+
+
+def test_kandidat_som_stjalper_en_spelform_godkanns_inte(monkeypatch):
+    monkeypatch.setattr(statistik, "MIN_KANDIDATLOPP", 100)
+    monkeypatch.setattr(statistik, "MIN_TESTLOPP", 50)
+    rng = random.Random(5)
+    lopp = []
+    for i in range(1600):
+        streck = S.normalisera([rng.random() + .05 for _ in range(10)])
+        markerad = rng.randrange(10)
+        v85 = i % 2 == 1
+        faktor = 3 if not v85 else 0.2          # hjälper i V75, stjälper i V85
+        sann = S.normalisera([s * (faktor if j == markerad else 1) for j, s in enumerate(streck)])
+        lopp.append({"datum": f"2025-{1 + i // 134:02d}-01", "spelform": "V85" if v85 else "V75", "avd": 2,
+                     "startmetod": "auto", "distans": 2140,
+                     "vinnare": [rng.choices(range(1, 11), weights=sann)[0]],
+                     "hastar": [{"nr": j + 1, "streck": s, "hastkoll": 1 if j == markerad else 0} for j, s in enumerate(streck)]})
+    u = statistik.utvardera_kandidat(lopp, "hastkoll", _bas(lopp))
+    assert u["per_spelform"]["V85"]["forbattring"] < 0 and not u["uppfyllt"]
+
+
+
+def _bas(lopp):
+    """Oddsens vikter per månad: här strecken som de är."""
+    return {l["datum"][:7]: {"log_streck": 1.0, "log_streck_v85": 0.0, "odds_mot_streck": 0.0} for l in lopp}
+
+
+def test_skatta_med_fasta_vikter():
+    rng = random.Random(9)
+    lopp = []
+    for _ in range(1500):
+        streck = S.normalisera([rng.random() + .05 for _ in range(10)])
+        m = rng.randrange(10)
+        sann = S.normalisera([s * (2 if j == m else 1) for j, s in enumerate(streck)])
+        lopp.append({"startmetod": "auto", "distans": 2140, "vinnare": [rng.choices(range(1, 11), weights=sann)[0]],
+                     "hastar": [{"nr": j + 1, "streck": s, "hastkoll": 1 if j == m else 0} for j, s in enumerate(streck)]})
+    w = S.skatta(lopp, ["hastkoll"], l2=0.1, fast={"log_streck": 1.0})
+    assert w["log_streck"] == 1.0 and abs(w["hastkoll"] - math.log(2)) < 0.15
