@@ -134,6 +134,11 @@ def steg_kommentarer(conn) -> None:
     spara_ai_status(conn)
 
 
+# Lopp hämtade före den här tidpunkten saknar förstapris och underlag (migrering 008) och hämtas om. Vissa lopp
+# saknar en prissträng som går att tolka; de ska inte hämtas om vid varje körning.
+HASTINFO_VERSION = "2026-10-30T16:50:00Z"   # när migrering 008 pushades
+
+
 def steg_hastinfo(conn, max_historik: int = 16) -> None:
     """Utrustning och de senaste starterna per häst (Hästkoll). Kommande omgångar uppdateras alltid; historiken
     fylls på med högst max_historik lopp per körning, nyast först. Valfritt: fel loggas men stoppar inget."""
@@ -143,8 +148,8 @@ def steg_hastinfo(conn, max_historik: int = 16) -> None:
     historik = conn.execute(
         f"""SELECT a.id, a.lopp_id FROM avdelningar a JOIN omgangar o ON o.id = a.omgang_id
             WHERE o.spelform IN ({_SPELFORMER}) AND o.avgjord = 1
-              AND (a.hastinfo_hamtad IS NULL OR a.forstapris IS NULL)       -- forstapris: hämtat före migrering 008
-            ORDER BY o.spelstopp DESC, a.avd LIMIT ?""", (max_historik,)).fetchall()
+              AND (a.hastinfo_hamtad IS NULL OR a.hastinfo_hamtad < ?)      -- hämtat före migrering 008
+            ORDER BY o.spelstopp DESC, a.avd LIMIT ?""", (HASTINFO_VERSION, max_historik)).fetchall()
     hamtade = fel = 0
     for i, (avd_id, lopp_id) in enumerate(list(kommande) + list(historik)):
         if i:
@@ -158,7 +163,7 @@ def steg_hastinfo(conn, max_historik: int = 16) -> None:
             fel += 1
     kvar = conn.execute("SELECT COUNT(*) FROM avdelningar a JOIN omgangar o ON o.id = a.omgang_id "
                         f"WHERE o.spelform IN ({_SPELFORMER}) AND o.avgjord = 1 "
-                        "AND (a.hastinfo_hamtad IS NULL OR a.forstapris IS NULL)").fetchone()[0]
+                        "AND (a.hastinfo_hamtad IS NULL OR a.hastinfo_hamtad < ?)", (HASTINFO_VERSION,)).fetchone()[0]
     log.info("Hästinfo: %d lopp hämtade (%d kommande), %d fel, %d historiska lopp kvar", hamtade, len(kommande), fel, kvar)
 
 

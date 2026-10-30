@@ -219,6 +219,12 @@ vann 1,19 ± 0,08 gånger så ofta som strecken sa, barfota fram 0,84). Kuskbyte
 senast, galopp senast, form och odds senast gav inget eller blev sämre – strecken har redan tagit in dem. Walk-
 forward per spelform: V75 +0,0004 ± 0,0019, V85 +0,0035 ± 0,0026. Barfota runt följs därför som kandidat.
 
+**Fartindex och klassbyte (oktober 2026).** Förstapris och banans underlag sparas för tidigare starter (migrering
+008). Fartindex (bästa av de tre senaste km-tiderna mot förväntad tid för bana, distans, startmetod och underlag,
+jämfört med fältet) och klassbyte (förstapriset i de tre senaste loppen mot dagens) gav ingenting mot Oddsen:
+walk-forward +0,0001 ± 0,0009 respektive +0,0005 ± 0,0006, och ingen trend över femtedelar. Strecken har redan tagit
+in dem. Uppgifterna sparas ändå, för skrällanalysen och senare idéer.
+
 **Steg 2: AI (`pipeline/ai/hastkoll.py`).** Gemini läser TR Medias loppkommentarer från hästens senaste starter och
 bedömer om hästen var bättre (+1), som (0) eller sämre (−1) än placeringarna, med en kort motivering. Tabellen
 `hastkoll`. ATG tar bort kommentarerna inom en vecka, så bedömningen görs för kommande och nyss avgjorda omgångar

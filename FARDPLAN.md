@@ -100,6 +100,8 @@ Detaljerna finns i README.
 | Barfota för första gången | +0,0029 ± 0,0013, men försvann i omvänd delning. Följs som kandidat (från 17 okt 2026). |
 | Formfällan (skrällanalysen, okt 2026) | Lågt streckade hästar som vann senast eller vinner ofta i år vann 0,80 gånger så ofta som Oddsen räknade med. Hittad i historiken, så den avgörs på lopp från 25 okt 2026. |
 | Gemensam kalibrering för V75 och V85 | V75-strecken var redan välkalibrerade; separat exponent per spelform infördes. |
+| Fartindex (km-tid mot bana, distans, startmetod, underlag) | Walk-forward +0,0001 ± 0,0009, ingen trend. Inprisat. |
+| Klassbyte (förstapris i senaste loppen mot dagens) | Walk-forward +0,0005 ± 0,0006, ingen trend. Inprisat. |
 | Skrällar bara i 3–10 % streck | Kandidaterna vann inte oftare än strecken sa; nuvarande regel behölls. |
 | Risknivå λ 0,7 | Jagar outsiders, 5–17 % återbetalning. λ 0,3 behölls. |
 | Vinnarodds i avdelning 1 (slutodds) | Pekar åt samma håll som strecken redan gör för lågt streckade hästar. Utvärderas om på förhandsodds. |
