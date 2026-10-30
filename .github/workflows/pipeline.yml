@@ -44,6 +44,17 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
+      # Databasen ligger på grenen `databas`, som bara har den senaste versionen (skrivs över vid varje körning).
+      # I main skulle varje version ligga kvar i historiken (ungefär 1 MB per körning, över 1 GB per år).
+      # Går den inte att hämta avbryts körningen – pipelinen får aldrig börja om med en tom databas.
+      - name: Hämta databasen
+        run: |
+          git fetch --depth=1 origin databas
+          mkdir -p data
+          git show FETCH_HEAD:trav.db > data/trav.db
+          test -s data/trav.db
+          git rev-parse FETCH_HEAD:trav.db > "$RUNNER_TEMP/databas-fore"
+
       - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
@@ -72,12 +83,40 @@ jobs:
             python -m pipeline "$KOMMANDO"
           fi
 
-      # Committa även om ett steg misslyckades: det som sparats är validerat.
-      - name: Committa ny data
+      # Spara även om ett steg misslyckades: det som sparats är validerat. Körningarna går en i taget
+      # (concurrency), så grenen kan skrivas över utan att något går förlorat.
+      - name: Spara databasen
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data/ docs/*.json
+          blob=$(git hash-object -w data/trav.db)
+          if [ "$blob" = "$(cat "$RUNNER_TEMP/databas-fore")" ]; then
+            echo "Databasen oförändrad."
+          else
+            tree=$(printf '100644 blob %s\ttrav.db\n' "$blob" | git mktree)
+            commit=$(git commit-tree "$tree" -m "Databas: $(date -u +'%Y-%m-%d %H:%M') UTC")
+            git push --force origin "$commit:refs/heads/databas"
+          fi
+
+      # En kopia per vecka som release-fil (komprimerad, cirka 10 MB); de 8 senaste behålls.
+      - name: Säkerhetskopia av databasen
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          namn="trav-$(date -u +%G-v%V).db.gz"
+          gh release view databas-kopior >/dev/null 2>&1 || \
+            gh release create databas-kopior --title "Databaskopior" --notes "Veckovisa kopior av data/trav.db (pipelinen)." --latest=false
+          if ! gh release view databas-kopior --json assets -q '.assets[].name' | grep -qx "$namn"; then
+            gzip -c data/trav.db > "$RUNNER_TEMP/$namn"
+            gh release upload databas-kopior "$RUNNER_TEMP/$namn"
+            gh release view databas-kopior --json assets -q '.assets[].name' | grep '^trav-' | sort | head -n -8 | \
+              while read -r gammal; do gh release delete-asset databas-kopior "$gammal" -y; done
+          fi
+
+      - name: Committa ny data
+        run: |
+          git add docs/*.json
           if git diff --cached --quiet; then
             echo "Ingen ny data."
           else

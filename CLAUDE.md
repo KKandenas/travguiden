@@ -66,8 +66,11 @@ tidslinje med kontrollpunkter, beslutsregler, testat och inte infört) och DATAK
   en ny `?t=` i adressen.
 - Cache-busting: varje ändring i `docs/*.js` eller `app.css` kräver ny `?v=`-version, samma överallt (ett test
   kontrollerar det).
-- Pipelinen committar data till main flera gånger om dagen. Kör `git pull --rebase` före push, och återställ lokala
-  `data/` och `docs/*.json` (`git checkout -- data docs/omgang.json docs/senaste.json docs/historik.json`) innan
-  commit – de skrivs av boten.
+- Databasen ligger på grenen `databas` (bara senaste versionen, skrivs över av pipelinen) och veckovis som
+  release-fil (`databas-kopior`); `data/` är inte med i main. Hämta den lokalt med
+  `git fetch origin databas && git show origin/databas:trav.db > data/trav.db`. Pusha aldrig till `databas` lokalt.
+- Pipelinen committar `docs/*.json` till main flera gånger om dagen. Kör `git pull --rebase` före push, och återställ
+  lokala `docs/*.json` (`git checkout -- docs/omgang.json docs/senaste.json docs/historik.json`) innan commit – de
+  skrivs av boten.
 - Analyser mot den riktiga databasen görs på en kopia (`TRAV_DB=<kopia>`), så att inget lokalt krockar med botens data.
 - Git-identiteten använder GitHubs noreply-adress.

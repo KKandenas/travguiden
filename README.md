@@ -11,13 +11,13 @@ Systerprojekt till [Stryktipsguiden](../Stryktipsguiden), med samma upplägg.
 GitHub Actions (schema)                          GitHub Pages
 ┌──────────────────────────────┐   committar    ┌──────────────────────────┐
 │ python -m pipeline auto      │ ─────────────▶ │ docs/  (statisk webbapp) │
-│  ATG: hästar, streck, odds,  │  data/trav.db  │  läser omgang.json m.fl. │
+│  ATG: hästar, streck, odds,  │  databasen     │  läser omgang.json m.fl. │
 │  resultat, utdelning         │  docs/*.json   └──────────────────────────┘
 └──────────────────────────────┘
 ```
 
-- **Pipeline** (`pipeline/`): Python. Hämtar data från ATG, sparar i SQLite (`data/trav.db`, committas
-  till repot), räknar chans per häst och exporterar JSON till appen.
+- **Pipeline** (`pipeline/`): Python. Hämtar data från ATG, sparar i SQLite (`data/trav.db`, på grenen
+  `databas`), räknar chans per häst och exporterar JSON till appen.
 - **App** (`docs/`): HTML, CSS och JS utan byggsteg. Ingen backend och inga nycklar.
 - **AI** (Gemini) skriver en kort kommentar per avdelning, bara från pipelinen. Experternas tips är strukturerade
   ATG-kuponger och behöver ingen AI. Ingen inloggning än.
@@ -98,7 +98,17 @@ Alla steg är idempotenta. Under **Actions → Pipeline → Run workflow** går 
 
 ## Databasen
 
-`data/trav.db` (SQLite). Alla tider i UTC. Migreringar i `pipeline/migrations/NNN_namn.sql` körs automatiskt
+`data/trav.db` (SQLite). Den ligger inte i main utan på grenen `databas`, som bara har den senaste versionen och
+skrivs över av pipelinen vid varje körning. I main skulle varje version ligga kvar i historiken, ungefär 1 MB per
+körning, och repot skulle växa med över 1 GB per år. Pipelinen hämtar databasen först och avbryts om det inte går, så
+den börjar aldrig om med en tom databas. En komprimerad kopia per vecka sparas som release-fil (`databas-kopior`,
+de 8 senaste). Hämta databasen lokalt:
+
+```
+git fetch origin databas && mkdir -p data && git show origin/databas:trav.db > data/trav.db
+```
+
+Alla tider i UTC. Migreringar i `pipeline/migrations/NNN_namn.sql` körs automatiskt
 i nummerordning. Ändra aldrig en fil som redan körts – lägg till en ny.
 
 | Tabell | Innehåll |
