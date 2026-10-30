@@ -2,5 +2,5 @@
   <rect width="64" height="64" rx="14" fill="#12301f"/>
   <path d="M8 46c10-6 22-9 48-8" fill="none" stroke="#e9b949" stroke-width="3" stroke-linecap="round"/>
   <path d="M8 53c12-6 26-8 48-7" fill="none" stroke="#e9b949" stroke-width="2" stroke-linecap="round" opacity=".5"/>
-  <text x="32" y="36" text-anchor="middle" font-family="Arial Narrow, Arial, sans-serif" font-weight="800" font-style="italic" font-size="24" fill="#ffffff">V85</text>
+  <text x="32" y="36" text-anchor="middle" font-family="Arial Narrow, Arial, sans-serif" font-weight="800" font-style="italic" font-size="26" fill="#ffffff">TG</text>
 </svg>
