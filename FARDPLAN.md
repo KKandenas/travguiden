@@ -106,6 +106,26 @@ Detaljerna finns i README.
 | Risknivå λ 0,7 | Jagar outsiders, 5–17 % återbetalning. λ 0,3 behölls. |
 | Vinnarodds i avdelning 1 (slutodds) | Pekar åt samma håll som strecken redan gör för lågt streckade hästar. Utvärderas om på förhandsodds. |
 
+## Större idéer att besluta om
+
+### Radval och filinlämning (utrett 30 oktober 2026, vilande)
+- **Tekniskt möjligt:** ATG tar emot system från externa program som XML-fil under *Spela reducerat →
+  Filinlämning* (kräver inloggning). Schemat `atg_filebetting.xsd` ver 1.8
+  (static-content.prod.c1.atg.cloud/filebet-schema/latest/) har `v85Coupon` och `v75Coupon`: åtta respektive sju
+  `leg` med `marks` (startnummer 1–20 som ettor och nollor), valfria reserver `r1`/`r2`, `trackcode` (ATG:s ban-id,
+  finns i spel-id:t) och upp till 9 999 kuponger per fil – vilken samling rader som helst kan alltså lämnas in. Filen
+  kan skapas i webbläsaren. Första riktiga uppladdningen bör vara en liten testfil.
+- **Nyttan inte visad:** de N bästa enskilda raderna (51–58 % återbetalning mot systemets 45–64 %) och reducering av
+  ett 2–3 gånger större system (51–70 %) skiljer sig inte från slumpen över 262 omgångar.
+- **Om det tas upp igen:** en modell för hur många andra spelare som har varje rad (utdelningen per rad, även för
+  5–7 rätt, ur strecken och omsättningen), och ett mått med mindre brus än återbetalning (förväntad utdelning mot
+  de verkliga poolerna i stället för de få storvinsterna).
+
+### Spelvärde per omgång (utrett 30 oktober 2026, låg prioritet)
+- Återbetalningen är fast (cirka 65 %) utom när föregående omgång saknade vinnare i högsta klassen (jackpot). Det
+  hände i 8 av 78 V85-omgångar och 4 av 213 V75-omgångar. Ett mått på "veckans spelvärde" skulle bara slå ut några
+  gånger per år.
+
 ## Idéer i reserven
 
 | Idé | Varför den väntar |
