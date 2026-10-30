@@ -104,16 +104,22 @@ export function bastaPerAntal(avd, lasta = [], lambda = LAMBDA) {
  * @param lasningar   {avd: [nr, ...]} – hästar som användaren låst (måste vara med)
  * @param krav        {avd: nr} – häst som måste vara med (Skrällchansen)
  * @param radpris     kr per rad (V85 0,5; nya V75 0,6)
+ * @param cache       valfri Map: avdelningarnas alternativ (det tunga steget) återanvänds mellan insatser
  * @returns {ok: true, val: [{avd, nr: [..], last: [..], skrall}], rader, kostnad, chans}
  *        | {ok: false, fel: "text"}
  */
-export function optimera(avdelningar, budget, lasningar = {}, lambda = LAMBDA, krav = {}, radpris = RADPRIS) {
+export function optimera(avdelningar, budget, lasningar = {}, lambda = LAMBDA, krav = {}, radpris = RADPRIS, cache = null) {
   if (avdelningar.length < 2) return { ok: false, fel: "Omgången saknar avdelningar." };
   const maxRader = Math.floor(budget / radpris + 1e-9);
   if (maxRader < 1) return { ok: false, fel: "Budgeten räcker inte till en rad." };
 
   const maste = (a) => [...(lasningar[a.avd] || []), ...(krav[a.avd] != null ? [krav[a.avd]] : [])];
-  const alternativ = avdelningar.map((a) => bastaPerAntal(a, maste(a), lambda));
+  const alternativ = avdelningar.map((a) => {
+    if (!cache) return bastaPerAntal(a, maste(a), lambda);
+    const nyckel = `${a.avd}|${maste(a).join(",")}|${lambda}`;
+    if (!cache.has(nyckel)) cache.set(nyckel, bastaPerAntal(a, maste(a), lambda));
+    return cache.get(nyckel);
+  });
   const tom = alternativ.findIndex((alt) => !alt.length);
   if (tom >= 0) return { ok: false, fel: `Avdelning ${avdelningar[tom].avd} saknar hästar att välja.` };
 

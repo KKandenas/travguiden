@@ -311,7 +311,7 @@ Vyer (`#` i adressen så att bakåtknappen fungerar):
 |---|---|
 | `#kupong` | Veckans V85: välj förslag (Oddsen, Experterna, Skrällchansen) och insats (25–500 kr; bland annat 120 kr = 240 rader och 150 kr i V85). En rad per avdelning med de spelade hästarna; fäll ut för alla hästar, AI-kommentar, låsningar och detaljer |
 | `#rattning` | Förra omgången: vinnare, antal rätt, rader per antal rätt och vinst för valt förslag och insats |
-| `#backtest` | Om du spelat varje omgång: saldo över tid för förslagen och för bara strecken. Period: alla omgångar (V75 och V85 sedan 2023), sedan premiären (17 oktober 2026), bara V85 eller från ett visst år. Antal rätt visas som "alla rätt / 1 fel / 2 fel / 3 fel" eftersom V75 och V85 har olika många avdelningar |
+| `#backtest` | Om du spelat varje omgång: saldo över tid för förslagen och för bara strecken. Period: alla omgångar (V75 och V85 sedan 2023), sedan premiären (17 oktober 2026), bara V85 eller från ett visst år. Antal rätt visas som "alla rätt / 1 fel / 2 fel / 3 fel" eftersom V75 och V85 har olika många avdelningar | Under diagrammet: **Per insats** (alla förslag mot alla insatser, återbetalning, räknas på begäran i en Web Worker, `docs/backtest_worker.js`, cirka 10 s) och **Omgång för omgång** (antal rätt och tillbaka för varje förslag, de 20 senaste eller alla) |
 | `#om` | Så funkar Travguiden: förslagen, chansen, systemet, aktuell utvärdering och källor |
 
 Vald insats och låsningar sparas i webbläsarens localStorage. Lägg till `?exempel` i adressen för exempelomgången.

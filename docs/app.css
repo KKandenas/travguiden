@@ -255,6 +255,9 @@ h1 { font-family: var(--rubrikfont); font-size: 36px; font-weight: 800; line-hei
 .stat-tabell .tal { text-align: right; white-space: nowrap; }
 .stat-tabell tr.har-vinst td { color: var(--ratt); font-weight: 700; }
 .stat-tabell tr.aktiv td { font-weight: 700; background: var(--yta-2); }
+.stat-tabell td.basta { font-weight: 800; color: var(--primar); }
+.stat-tabell.omgangar td, .stat-tabell.omgangar th, .per-insats-tabell td, .per-insats-tabell th { white-space: nowrap; }
+.stat-tabell.omgangar td.plus { color: var(--ratt); }
 .tabell-scroll { overflow-x: auto; }
 .bt-diagram { margin-top: 14px; }
 .bt-diagram svg { display: block; width: 100%; height: auto; overflow: visible; }

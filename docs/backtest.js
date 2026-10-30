@@ -7,7 +7,7 @@
 //   (de två sista finns bara för omgångar där experternas system respektive Hästkoll fanns; null = saknas).
 // Chanserna är walk-forward: räknade med vikter som bara sett lopp före omgångens månad.
 
-import { LAMBDA, RADPRIS, SKRALL, optimera, ratta, skrallKrav, vinst } from "./optimizer.js?v=20261025a";
+import { LAMBDA, RADPRIS, SKRALL, optimera, ratta, skrallKrav, vinst } from "./optimizer.js?v=20261030e";
 
 // Förslagen i appen plus Strecken (folkets bedömning som chans) som jämförelse. Experterna finns bara för
 // omgångar där experternas system sparades (h har då ett fjärde värde).
@@ -43,11 +43,11 @@ export function avdelningarFran(omg, kalla = "modell") {
 }
 
 /** En omgång: systemet, antal rätt, insats och vinst. */
-export function spelaOmgang(omg, budget, kalla = "modell", lambda = LAMBDA, regler = SKRALL) {
+export function spelaOmgang(omg, budget, kalla = "modell", lambda = LAMBDA, regler = SKRALL, cache = null) {
   if (KALLOR[kalla].kraver && !KALLOR[kalla].kraver(omg)) return null;
   const avd = avdelningarFran(omg, kalla);
   const krav = KALLOR[kalla].skrall ? skrallKrav(avd, budget, {}, regler) : {};
-  const res = optimera(avd, budget, {}, lambda, krav, omg.radpris ?? RADPRIS);
+  const res = optimera(avd, budget, {}, lambda, krav, omg.radpris ?? RADPRIS, cache);
   if (!res.ok) return null;
   const vinnare = Object.fromEntries(omg.avd.map((a, i) => [i + 1, a.v]));
   const ersattare = Object.fromEntries(omg.avd.map((a, i) => [i + 1, { struken: a.s, favorit: a.f }]));
@@ -68,6 +68,23 @@ export function backtesta(historik, budget, kalla = "modell", lambda = LAMBDA, r
     ut.push({ ...s, saldo });
   }
   return ut;
+}
+
+/** Alla förslag × insatser på en gång: {kalla: {insats: sammanställning}}. Avdelningarnas alternativ räknas en gång
+ *  per omgång och förslag och återanvänds för alla insatser (cache), vilket gör det ungefär åtta gånger snabbare. */
+export function backtestaAlla(historik, budgetar, kallor = Object.keys(KALLOR), framsteg = () => {}) {
+  const spel = Object.fromEntries(kallor.map((k) => [k, Object.fromEntries(budgetar.map((b) => [b, []]))]));
+  historik.omgangar.forEach((omg, i) => {
+    for (const k of kallor) {
+      const cache = new Map();
+      for (const b of budgetar) {
+        const s = spelaOmgang(omg, b, k, LAMBDA, SKRALL, cache);
+        if (s) spel[k][b].push(s);
+      }
+    }
+    framsteg((i + 1) / historik.omgangar.length);
+  });
+  return Object.fromEntries(kallor.map((k) => [k, Object.fromEntries(budgetar.map((b) => [b, sammanstall(spel[k][b])]))]));
 }
 
 export function sammanstall(spel) {

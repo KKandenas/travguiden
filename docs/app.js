@@ -1,8 +1,8 @@
 import {
   BUDGETAR, RADPRIS, VARDE_GRANS, deltagare, kronor, optimera, ratta, sammanfattning, skrallchanser,
   skrallKrav, vinst,
-} from "./optimizer.js?v=20261025a";
-import { KALLOR, PERIODER, backtesta, iPeriod, sammanstall } from "./backtest.js?v=20261025a";
+} from "./optimizer.js?v=20261030e";
+import { KALLOR, PERIODER, backtesta, iPeriod, sammanstall } from "./backtest.js?v=20261030e";
 
 const $ = (id) => document.getElementById(id);
 const LAGRING = "travguiden";
@@ -24,6 +24,8 @@ const state = {
   historik: null,       // historik.json, laddas först när backtestet öppnas
   btBudget: null,
   btPeriod: "alla",
+  btVisaAlla: false,    // omgång för omgång: alla omgångar i stället för de senaste 20
+  btPerInsats: {},      // period -> {kalla: {insats: sammanställning}} (räknas på begäran)
 };
 
 // ---------- lagring (localStorage kan saknas eller kasta, t.ex. i privat läge) ----------
@@ -600,21 +602,101 @@ function renderaBacktest() {
       el("tbody", {}, ...serier.map((s) => el("tr", {}, el("td", { text: s.namn }),
         ...[0, 1, 2, 3].map((k) => el("td", { class: "tal", text: s.spel.length ? s.sum.fordelning[k] : "–" })),
         el("td", { class: "tal", text: s.spel.length ? `${s.sum.medVinst} av ${s.sum.omgangar}` : "–" })))))),
-    el("h2", { class: "kort-rubrik", style: "margin-top:18px", text: "Omgång för omgång (Oddsen)" }),
-    el("div", { class: "tabell-scroll" }, el("table", { class: "stat-tabell" },
-      el("thead", {}, el("tr", {}, el("th", { text: "Datum" }), el("th", { text: "Bana" }), el("th", { class: "tal", text: "Rätt" }),
-        el("th", { class: "tal", text: "Tillbaka" }), el("th", { class: "tal", text: "Saldo" }))),
-      el("tbody", {}, ...[...m.spel].reverse().map((s) => el("tr", { class: s.vinst > 0 ? "har-vinst" : "" },
-        el("td", { text: s.datum }), el("td", { text: s.bana }), el("td", { class: "tal", text: s.ratt }),
-        el("td", { class: "tal", text: s.vinst ? kr(s.vinst) : "–" }),
-        el("td", { class: "tal", text: plusKr(s.saldo) })))))),
+    perInsatsRuta(historik),
+    omgangstabell(serier),
     exp.spel.length < m.spel.length ? el("p", { class: "bt-not", text: "Experterna och Hästkoll räknas bara för omgångar där " +
       "experternas system respektive loppkommentarerna sparades, alltså sedan oktober 2026 (ATG tar bort båda efter loppet). " +
       "Jämför dem därför med de andra under \"Sedan premiären\"." }) : null,
     el("p", { class: "bt-not", text: `${m.sum.omgangar} omgångar sedan ${forsta}. Chanserna i backtestet är räknade med vikter som bara sett ` +
-      "lopp före omgångens månad, och utan vinnarodds (de finns inte sparade från före spelstopp i historiken). " +
+      "lopp före omgångens månad. Vinnarodds från före spelstopp finns bara sedan 24 oktober 2026; äldre omgångar bygger på strecken. " +
       "Utdelningen per rad är ordinarie (utan Boost). Ett fåtal stora vinster avgör mycket, så läs resultatet som en riktning, inte en garanti." }),
   );
+}
+
+/** Omgång för omgång: antal rätt och tillbaka för varje förslag vid vald insats (senaste först). */
+function omgangstabell(serier) {
+  const [m] = serier;
+  const per = Object.fromEntries(serier.map((s) => [s.k, Object.fromEntries(s.spel.map((x) => [x.id, x]))]));
+  const omg = [...m.spel].reverse();
+  const visas = state.btVisaAlla ? omg : omg.slice(0, 20);
+  const cell = (x) => (x ? el("td", { class: "tal" + (x.vinst > 0 ? " plus" : "") },
+    el("b", { text: x.ratt }), x.vinst > 0 ? ` · ${kr(x.vinst)}` : "") : el("td", { class: "tal dampad", text: "–" }));
+  return el("div", {},
+    el("h2", { class: "kort-rubrik", style: "margin-top:18px", text: `Omgång för omgång (${state.btBudget} kr)` }),
+    el("p", { class: "bt-not", style: "margin-top:0", text: "Antal rätt och vad systemet gav tillbaka, senaste omgången först." }),
+    el("div", { class: "tabell-scroll" }, el("table", { class: "stat-tabell omgangar" },
+      el("thead", {}, el("tr", {}, el("th", { text: "Datum" }), el("th", { text: "Bana" }),
+        ...serier.map((s) => el("th", { class: "tal", text: s.namn.replace(" · test", "") })))),
+      el("tbody", {}, ...visas.map((o) => el("tr", {},
+        el("td", { text: o.datum }), el("td", { text: o.bana }), ...serier.map((s) => cell(per[s.k][o.id]))))))),
+    omg.length > 20 ? el("button", { type: "button", class: "knapp", style: "margin-top:8px",
+      text: state.btVisaAlla ? "Visa bara de 20 senaste" : `Visa alla ${omg.length} omgångar`,
+      onclick: () => { state.btVisaAlla = !state.btVisaAlla; renderaBacktest(); } }) : null);
+}
+
+/** Reserv om en Web Worker inte går att starta: räknar i bitar om 25 omgångar så att sidan inte fryser. */
+function stegvis(historik, knapp, klart) {
+  const steg = Object.keys(KALLOR).flatMap((k) => BUDGETAR.map((b) => [k, b]));
+  const res = Object.fromEntries(Object.keys(KALLOR).map((k) => [k, {}]));
+  const nasta = (i, fran = 0, spel = []) => {
+    if (i === steg.length) return klart(res);
+    knapp.textContent = `Räknar … ${Math.round((i + fran / historik.omgangar.length) / steg.length * 100)} %`;
+    const [k, b] = steg[i];
+    spel.push(...backtesta({ omgangar: historik.omgangar.slice(fran, fran + 25) }, b, k));
+    if (fran + 25 < historik.omgangar.length) setTimeout(() => nasta(i, fran + 25, spel), 0);
+    else { res[k][b] = sammanstall(spel); setTimeout(() => nasta(i + 1), 0); }
+  };
+  setTimeout(() => nasta(0), 30);
+}
+
+/** Alla förslag mot alla insatser för vald period (återbetalning). Räknas när man ber om det och sparas per period. */
+function perInsatsRuta(historik) {
+  const klar = state.btPerInsats[state.btPeriod];
+  const ruta = el("div", { class: "per-insats" }, el("h2", { class: "kort-rubrik", style: "margin-top:18px", text: "Per insats" }));
+  if (!klar) {
+    ruta.append(el("p", { class: "bt-not", style: "margin-top:0",
+      text: "Återbetalning för varje förslag vid alla insatser, sida vid sida. Tar några sekunder att räkna." }),
+    el("button", { type: "button", class: "knapp", text: "Räkna alla insatser", onclick: (e) => {
+      const knapp = e.target, period = state.btPeriod;
+      knapp.disabled = true;
+      knapp.textContent = "Räknar …";
+      const klart = (res) => {
+        state.btPerInsats[period] = res;
+        if (state.btPeriod === period) renderaBacktest();
+      };
+      try {
+        // Egen tråd: sidan fryser inte och beräkningen går i full fart (10–15 s)
+        const w = new Worker("backtest_worker.js?v=20261030e", { type: "module" });
+        w.onmessage = (m) => {
+          if (m.data.framsteg) knapp.textContent = `Räknar … ${Math.round(m.data.framsteg * 100)} %`;
+          if (m.data.klar) { w.terminate(); klart(m.data.klar); }
+        };
+        w.onerror = () => { w.terminate(); stegvis(historik, knapp, klart); };
+        w.postMessage({ historik });
+      } catch {
+        stegvis(historik, knapp, klart);
+      }
+    } }));
+    return ruta;
+  }
+  // Bäst per insats bland förslagen som spelats på alla omgångar i perioden
+  const basta = Object.fromEntries(BUDGETAR.map((b) => [b, Math.max(...Object.values(klar)
+    .map((x) => (x[b].omgangar === klar.modell[b].omgangar ? x[b].aterbetalning : -1)))]));
+  ruta.append(el("div", { class: "tabell-scroll" }, el("table", { class: "stat-tabell per-insats-tabell" },
+    el("thead", {}, el("tr", {}, el("th", { text: "" }), ...BUDGETAR.map((b) => el("th", { class: "tal", text: `${b} kr` })))),
+    el("tbody", {}, ...Object.keys(KALLOR).map((k) => el("tr", {}, el("td", { text: KALLOR[k].namn }),
+      ...BUDGETAR.map((b) => {
+        const x = klar[k][b];
+        if (!x.omgangar) return el("td", { class: "tal dampad", text: "–" });
+        const pct = Math.round(x.aterbetalning * 100);
+        const farre = x.omgangar < klar.modell[b].omgangar;
+        return el("td", { class: "tal" + (x.aterbetalning === basta[b] && !farre ? " basta" : ""),
+          title: `${x.omgangar} omgångar, netto ${plusKr(x.netto)}` },
+          `${pct} %`, farre ? el("small", { class: "dampad", text: ` (${x.omgangar} omg.)` }) : null);
+      })))))),
+  el("p", { class: "bt-not", text: "Återbetalning = tillbaka / insats. Fetstil = bäst vid den insatsen. Experterna och Hästkoll räknas bara " +
+    "på omgångar där de fanns." }));
+  return ruta;
 }
 
 function diagram(serier) {

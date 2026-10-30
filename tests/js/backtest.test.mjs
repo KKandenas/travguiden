@@ -63,3 +63,12 @@ test("Hästkoll: egen chans där bedömningar finns, annars Oddsens; Experterna 
   assert.ok(!KALLOR.experter.kraver(omg([1, 0.1, 0.1, null, 0.2])) && KALLOR.experter.kraver(omg([1, 0.1, 0.1, 0.3])));
   assert.ok(KALLOR.hastkoll.kraver(omg([1, 0.1, 0.1, null, 0.2])) && !KALLOR.hastkoll.kraver(omg([1, 0.1, 0.1, 0.3])));
 });
+
+test("backtestaAlla ger samma resultat som backtesta en insats i taget", async () => {
+  const { backtestaAlla } = await import("../../docs/backtest.js");
+  const h = { omgangar: [omg("2026-01-01", [1, 2, 1, 3, 1, 1, 2, 1]), omg("2026-01-08", [1, 1, 1, 1, 2, 1, 1, 1])] };
+  const alla = backtestaAlla(h, [25, 50, 100], ["modell", "streck"]);
+  for (const k of ["modell", "streck"]) for (const b of [25, 50, 100]) {
+    assert.deepEqual(alla[k][b], sammanstall(backtesta(h, b, k)));
+  }
+});

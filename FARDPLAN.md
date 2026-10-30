@@ -139,4 +139,3 @@ Detaljerna finns i README.
 | Fler expertkällor (tipssajter) | Kräver AI-tolkning och mer Gemini-kvot. |
 | Tillägget V7 och Boost i rättning och backtest | Ingår inte i utdelningen appen räknar på. |
 | Reservhästar i rättningen | Om det efterfrågas. |
-| Backtest per systemstorlek, sida vid sida (som i Stryktipsguiden) | Kan byggas när det finns fler omgångar sedan premiären. |
