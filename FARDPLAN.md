@@ -40,8 +40,11 @@ modeller vägs in innan data visar att de är bättre än strecken (se Beslutsre
   vilket Hästkoll aldrig hade kunnat nå när V85 pausas.
 
 ### December–januari (efter 8–12 omgångar): första avstämningen
-- [ ] Vinnaroddsen: sedan 24 oktober finns ögonblicksbilder före spelstopp i alla avdelningar (tidigare bara
-  slutodds i avdelning 1). Skatta oddsvikten b på riktiga förhandsodds och jämför med dagens 0,17–0,19.
+- [ ] `python -m pipeline oddsanalys` (klar sedan 30 oktober): vinnaroddsen före spelstopp finns i alla avdelningar
+  sedan 24 oktober. Del 1 skattar oddsvikten b ovanpå Oddsens övriga vikter, med 90 % intervall – jämför med dagens
+  0,16–0,19 och ändra om intervallet tydligt ligger någon annanstans (ny modellversion). Del 2, sena pengar: vinner
+  hästar vars chans i vinnarpoolen stiger kraftigt under dagen oftare än Oddsen räknade med? Tydligt mönster →
+  kandidat med startdatum.
 - [ ] Hästkoll: första titt på kandidatraden (om-sidan) och på faktorerna – vilka faktorer i senaste starten
   hänger ihop med att hästen presterar bättre än strecken nästa gång?
 - [ ] Förslagen "Sedan premiären" i backtestet: rimligt jämfört med backtestet, eller avviker något?
@@ -104,6 +107,7 @@ Detaljerna finns i README.
 | Klassbyte (förstapris i senaste loppen mot dagens) | Walk-forward +0,0005 ± 0,0006, ingen trend. Inprisat. |
 | Skrällar bara i 3–10 % streck | Kandidaterna vann inte oftare än strecken sa; nuvarande regel behölls. |
 | Risknivå λ 0,7 | Jagar outsiders, 5–17 % återbetalning. λ 0,3 behölls. |
+| Risknivå λ för V75 (30 okt 2026, 186 omgångar) | 0–0,45 likvärdigt, 0,6 klart sämre; i V85 är 0,45 sämre. 0,3 behölls för båda. Små system gav 66–80 % i V75 mot 22–34 % i V85. |
 | Vinnarodds i avdelning 1 (slutodds) | Pekar åt samma håll som strecken redan gör för lågt streckade hästar. Utvärderas om på förhandsodds. |
 
 ## Större idéer att besluta om

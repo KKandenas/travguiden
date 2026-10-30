@@ -251,6 +251,11 @@ e^(d·bedömning), d = 0,25 tills kandidatutvärderingen har skattat en vikt. H�
 de finns. Oktober 2026, 19 687 hästar sedan 2023: formfällan (vann senast eller ≥ 30 % segrar i år) 0,80 ± 0,05,
 autostart spår 1–3 0,82 ± 0,07, barfota runt ny 1,16 ± 0,12.
 
+**Oddsanalys (`python -m pipeline oddsanalys [--fran D]`).** På omgångar med vinnarodds före spelstopp (sedan 24
+oktober 2026): oddsvikten b skattad ovanpå Oddsens övriga vikter, med 90 % intervall genom omsampling av
+omgångarna, och sena pengar – hästar grupperade efter hur mycket chansen i vinnarpoolen ändrats från första till sista
+bilden före spelstopp, mot Oddsens chans. Körs när ett åttatal omgångar finns.
+
 **Kandidater (`statistik.KANDIDATER`).** Barfota runt, formfällan och Hästkoll utvärderas walk-forward efter varje avgjord
 omgång och visas under "Under test" på om-sidan. En kandidat vägs in först när den slår nuvarande modell med mer
 än två standardfel på alla lopp sammantaget (minst 200 testlopp), utan att vara mer än två standardfel sämre i V75

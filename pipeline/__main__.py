@@ -8,6 +8,7 @@
     python -m pipeline hastinfo [--max 600]              # utrustning och senaste starter (kommande + historik)
     python -m pipeline hastkoll                          # Hästkoll: AI bedömer senaste loppen (kräver GEMINI_API_KEY)
     python -m pipeline skrallanalys [--fran D] [--min N] # vad hade skrällarna gemensamt? (mot Oddsens chans)
+    python -m pipeline oddsanalys [--fran D]             # vinnaroddsens vikt och sena pengar (förhandsodds)
     python -m pipeline resultat                          # resultat och utdelning för omgångar efter spelstopp
     python -m pipeline backfill 2025-10-25 2026-10-10    # hämta historiska omgångar (1 s paus mellan anrop)
     python -m pipeline backfill 2023-01-01 2025-10-18 --spelform V75   # äldre V75 som träningsdata
@@ -226,6 +227,8 @@ def main(argv=None) -> int:
     sub = p.add_subparsers(dest="kommando", required=True)
     for k in ("auto", "planerad", "atg", "experter", "kommentarer", "resultat", "statistik", "migrera"):
         sub.add_parser(k)
+    oa = sub.add_parser("oddsanalys")
+    oa.add_argument("--fran", default="2026-10-24", help="bara omgångar från detta datum")
     sa = sub.add_parser("skrallanalys")
     sa.add_argument("--fran", default="", help="bara lopp från detta datum (YYYY-MM-DD)")
     sa.add_argument("--min", type=int, default=100, help="visa bara grupper med minst så många hästar")
@@ -252,6 +255,10 @@ def main(argv=None) -> int:
 
     ok = True
     if a.kommando == "migrera":
+        return 0
+    if a.kommando == "oddsanalys":
+        from .model import oddsanalys
+        print(oddsanalys.rapport(conn, a.fran))
         return 0
     if a.kommando == "skrallanalys":
         from .model import skrallanalys
