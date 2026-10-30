@@ -142,20 +142,23 @@ def steg_hastinfo(conn, max_historik: int = 16) -> None:
             WHERE o.spelform IN ({_SPELFORMER}) AND o.avgjord = 0 AND o.spelstopp > ?""", (nu_utc(),)).fetchall()
     historik = conn.execute(
         f"""SELECT a.id, a.lopp_id FROM avdelningar a JOIN omgangar o ON o.id = a.omgang_id
-            WHERE o.spelform IN ({_SPELFORMER}) AND o.avgjord = 1 AND a.hastinfo_hamtad IS NULL
+            WHERE o.spelform IN ({_SPELFORMER}) AND o.avgjord = 1
+              AND (a.hastinfo_hamtad IS NULL OR a.forstapris IS NULL)       -- forstapris: hämtat före migrering 008
             ORDER BY o.spelstopp DESC, a.avd LIMIT ?""", (max_historik,)).fetchall()
     hamtade = fel = 0
     for i, (avd_id, lopp_id) in enumerate(list(kommande) + list(historik)):
         if i:
             time.sleep(0.3)
         try:
-            lagring.spara_hastinfo(conn, avd_id, atg.hamta_hastinfo(lopp_id), nu_utc())
+            info, forstapris = atg.hamta_hastinfo(lopp_id)
+            lagring.spara_hastinfo(conn, avd_id, info, nu_utc(), forstapris)
             hamtade += 1
         except (HamtningsFel, ValideringsFel, KeyError, ValueError, TypeError) as e:
             log.warning("Hästinfo: %s – %s", lopp_id, e)
             fel += 1
     kvar = conn.execute("SELECT COUNT(*) FROM avdelningar a JOIN omgangar o ON o.id = a.omgang_id "
-                        f"WHERE o.spelform IN ({_SPELFORMER}) AND o.avgjord = 1 AND a.hastinfo_hamtad IS NULL").fetchone()[0]
+                        f"WHERE o.spelform IN ({_SPELFORMER}) AND o.avgjord = 1 "
+                        "AND (a.hastinfo_hamtad IS NULL OR a.forstapris IS NULL)").fetchone()[0]
     log.info("Hästinfo: %d lopp hämtade (%d kommande), %d fel, %d historiska lopp kvar", hamtade, len(kommande), fel, kvar)
 
 

@@ -25,3 +25,18 @@ def test_spara_och_exportera(conn):
     h = export.omgang_data(conn, "V85_2026-10-17_16_5")["avdelningar"][0]["hastar"][0]
     assert h["utrustning"] == {"skor_fram": True, "skor_bak": True, "skor_andrad": False, "vagn": "Vanlig", "vagn_andrad": True}
     assert h["tidigare"][0]["datum"] == "2025-10-25" and h["tidigare"][0]["diskad"] is True
+
+
+
+def test_forstapris_underlag_och_sparad_kommentar_behalls(conn):
+    assert atg.tolka_forstapris("Pris: 125.000-62.500-34.000 kr (8 prisplacerade)") == 125000.0
+    info = atg.tolka_hastinfo(las_fixture("atg_lopp_extended.json"))
+    t = info[1]["tidigare"][0]
+    assert t["underlag"] and t["land"] and t["forstapris"] > 0
+    lagring.spara_omgang(conn, atg.tolka_spel(las_fixture("atg_v85_kommande.json"), "x"))
+    avd_id = conn.execute("SELECT id FROM avdelningar WHERE avd = 1").fetchone()[0]
+    lagring.spara_hastinfo(conn, avd_id, info, "x", 125000.0)
+    conn.execute("UPDATE tidigare_starter SET kommentar = 'Sparad kommentar.' WHERE nr = 1")
+    lagring.spara_hastinfo(conn, avd_id, info, "y", 125000.0)          # ATG visar inte kommentaren längre
+    assert conn.execute("SELECT COUNT(*) FROM tidigare_starter WHERE kommentar = 'Sparad kommentar.'").fetchone()[0] == 3
+    assert conn.execute("SELECT forstapris FROM avdelningar WHERE id = ?", (avd_id,)).fetchone()[0] == 125000.0

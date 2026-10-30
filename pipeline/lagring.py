@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 import sqlite3
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 from .modeller import Expertsystem, Omgang
 
@@ -112,13 +112,17 @@ def spara_expertsystem(conn: sqlite3.Connection, system: List[Expertsystem], ham
 
 
 _TIDIGARE = ("datum", "bana", "placering", "galopp", "diskad", "odds", "km_tid", "distans", "spar", "startmetod",
-             "kusk", "skor_fram", "skor_bak", "vagn", "kommentar")
+             "kusk", "skor_fram", "skor_bak", "vagn", "kommentar", "forstapris", "underlag", "land")
 
 
-def spara_hastinfo(conn: sqlite3.Connection, avd_id: int, info: dict, hamtad: str) -> int:
-    """Utrustning och tidigare starter för en avdelning (från atg.tolka_hastinfo). Ersätter tidigare uppgifter."""
+def spara_hastinfo(conn: sqlite3.Connection, avd_id: int, info: dict, hamtad: str,
+                   forstapris: Optional[float] = None) -> int:
+    """Utrustning och tidigare starter för en avdelning (från atg.tolka_hastinfo). Ersätter tidigare uppgifter,
+    men en sparad loppkommentar behålls om ATG inte längre visar den (de tas bort inom en vecka)."""
     n = 0
     with conn:
+        if forstapris is not None:
+            conn.execute("UPDATE avdelningar SET forstapris = ? WHERE id = ?", (forstapris, avd_id))
         for r in conn.execute("SELECT id, nr FROM starter WHERE avdelning_id = ?", (avd_id,)).fetchall():
             i = info.get(r["nr"])
             if i is None:
@@ -127,8 +131,13 @@ def spara_hastinfo(conn: sqlite3.Connection, avd_id: int, info: dict, hamtad: st
             conn.execute("UPDATE starter SET skor_fram = ?, skor_bak = ?, skor_andrad = ?, vagn = ?, vagn_andrad = ? "
                          "WHERE id = ?", (b(i["skor_fram"]), b(i["skor_bak"]), b(i["skor_andrad"]), i["vagn"],
                                           b(i["vagn_andrad"]), r["id"]))
+            sparade = {k["datum"]: k["kommentar"] for k in conn.execute(
+                "SELECT datum, kommentar FROM tidigare_starter WHERE start_id = ? AND kommentar IS NOT NULL", (r["id"],))}
             conn.execute("DELETE FROM tidigare_starter WHERE start_id = ?", (r["id"],))
             for nr, t in enumerate(i["tidigare"], start=1):
+                t = {**{f: None for f in _TIDIGARE}, **t}
+                if not t["kommentar"] and t["datum"] in sparade:
+                    t["kommentar"] = sparade[t["datum"]]
                 varden = [t[f] for f in _TIDIGARE]
                 for f in ("galopp", "diskad", "skor_fram", "skor_bak"):
                     j = _TIDIGARE.index(f)

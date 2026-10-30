@@ -227,6 +227,10 @@ def tolka_hastinfo(lopp: dict, max_tidigare: int = 5) -> dict:
                 "skor_fram": (utr.get("shoes") or {}).get("front"), "skor_bak": (utr.get("shoes") or {}).get("back"),
                 "vagn": ((utr.get("sulky") or {}).get("type") or {}).get("text"),
                 "kommentar": (r.get("trMediaInfo") or {}).get("comment"),
+                "forstapris": (r.get("race") or {}).get("firstPrize") / 100
+                              if isinstance((r.get("race") or {}).get("firstPrize"), (int, float)) else None,
+                "underlag": (r.get("track") or {}).get("condition"),
+                "land": (r.get("track") or {}).get("countryCode"),
             })
         tidigare.sort(key=lambda t: t["datum"], reverse=True)
         ut[s["number"]] = {
@@ -239,8 +243,16 @@ def tolka_hastinfo(lopp: dict, max_tidigare: int = 5) -> dict:
     return ut
 
 
-def hamta_hastinfo(lopp_id: str) -> dict:
+def tolka_forstapris(prissträng: Optional[str]) -> Optional[float]:
+    """"Pris: 125.000-62.500-… kr" -> 125000.0."""
+    import re
+    m = re.search(r"Pris:\s*([\d.]+)", prissträng or "")
+    return float(m.group(1).replace(".", "")) if m else None
+
+
+def hamta_hastinfo(lopp_id: str) -> tuple:
+    """(hästinfo per startnummer, loppets förstapris i kr)."""
     data, _ = hamta_json(f"{config.ATG_BASE}/races/{lopp_id}/extended")
     if not isinstance(data, dict) or not data.get("starts"):
         raise HamtningsFel(f"Loppet {lopp_id} saknar starter")
-    return tolka_hastinfo(data)
+    return tolka_hastinfo(data), tolka_forstapris(data.get("prize"))
