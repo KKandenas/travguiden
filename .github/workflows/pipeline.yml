@@ -2,7 +2,7 @@ name: Pipeline
 
 # GitHubs schemalagda körningar kan bli flera timmar sena eller utebli. Därför startas pipelinen
 # varje timme (och var 20:e minut på lördagar) med kommandot `planerad`. Den gör en riktig uppdatering
-# bara när en tid i pipeline/schema.py (svensk tid) har passerats och inte körts än – annars avslutas den
+# bara när en tid i pipeline/schema.py (svensk tid, tävlingsdagen räknad från spelstopp) har passerats och inte körts än – annars avslutas den
 # direkt utan att anropa några API:er eller ändra någon data. Udda minuter, eftersom GitHub är mest
 # belastat på hela timmar. Samma upplägg som i Stryktipsguiden.
 #

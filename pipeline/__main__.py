@@ -267,7 +267,11 @@ def main(argv=None) -> int:
     planerad = None
     if a.kommando == "planerad":
         r = conn.execute("SELECT varde FROM installningar WHERE nyckel = 'senaste_planerade'").fetchone()
-        planerad = schema.forfallen(r[0] if r else None, datetime.now(timezone.utc))
+        nu = datetime.now(timezone.utc)
+        spelstopp = [datetime.fromisoformat(x[0].replace("Z", "+00:00")) for x in conn.execute(
+            "SELECT spelstopp FROM omgangar WHERE spelstopp >= ?",
+            ((nu - schema.FONSTER).strftime("%Y-%m-%dT%H:%M:%SZ"),))]
+        planerad = schema.forfallen(r[0] if r else None, nu, spelstopp)
         if planerad is None:
             log.info("Planerad: inget att göra – den senaste planerade uppdateringen är redan körd")
             return 0

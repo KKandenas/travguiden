@@ -17,17 +17,21 @@ modeller vägs in innan data visar att de är bättre än strecken (se Beslutsre
 | Skrällchansen | Experternas chans och 1–2 skrällar (högst 15 % streck, minst 5 % chans, kvot ≥ 1,15). |
 | Hästkoll | Steg 1: utrustning, kuskbyte och form (visas). Steg 2: AI läser TR Medias loppkommentarer, version `hastkoll-3`, med faktorer per tidigare start. Eget förslag under test. |
 | Kandidater | Barfota runt och Hästkoll följs walk-forward efter varje avgjord omgång (om-sidan, "Under test"). |
-| Drift | cron-job.org startar pipelinen var 15:e minut; `pipeline/schema.py` avgör när något körs. Driftstatus på om-sidan. |
+| Drift | cron-job.org startar pipelinen var 15:e minut; `pipeline/schema.py` avgör när något körs (tävlingsdagen räknad från spelstopp). Driftstatus på om-sidan. |
 | AI | Gemini från ett eget Google-projekt (egen kvot), högst 4 anrop per minut och modell, Flash-Lite som reserv. |
 | Data som inte går att hämta i efterhand | Experternas kuponger, TR Medias loppkommentarer och vinnarodds före spelstopp – sparas när de finns. |
 
 ## Tidslinje
 
 ### Vecka 44 (26 oktober – 1 november): vintertid
-- [ ] Lördag 31 oktober (vintertid sedan 25 oktober): kontrollera i Actions att körningarna 14:30 och 14:45 kom
-  före spelstopp och att driftstatusen visar vinnarodds. Tiderna i `schema.py` är svensk tid och följer med
-  automatiskt.
-- [ ] Måndag–torsdag: Hästkoll version 3 bedömer veckans omgång före loppen. Läs några motiveringar och
+- [x] Lördag 31 oktober (vintertid): körningarna 14:30 och 14:45 kom före spelstopp (15:02). Inga vinnarodds den
+  dagen – omgången gick på Bjerke (Norge), och pipelinen fick inga vinnarodds som klarade gränsen (vinnarpool på minst 100 000 kr). Ingen Hästkoll heller, eftersom
+  TR Media inte kommenterar norska lopp. Båda är väntade.
+- [x] **Söndagsomgång (1 november, Solvalla):** fick bara körningen 08:00 före spelstopp, eftersom tävlingsdagens tider
+  var knutna till lördagar – sju timmar gamla streck och inga vinnarodds. Åtgärdat 1 november: tävlingsdagens tider
+  räknas nu från varje omgångs spelstopp (`schema.tavlingsdagens_tider`), även söndagar och helgdagar.
+- [x] Hästkoll version 3 bedömde söndagens omgång (95 hästar).
+- [ ] Läs några av Hästkolls motiveringar och
   faktorer (hästens detaljer i appen, eller tabellen `hastkoll_faktorer`) och kontrollera att kortspråket tolkas rätt.
 
 ### November: bytet till V75 (28 november)

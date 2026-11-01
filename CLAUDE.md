@@ -39,7 +39,7 @@ tidslinje med kontrollpunkter, beslutsregler, testat och inte infört) och DATAK
 - **AI: Geminis gratisnivå** från ett eget Google-projekt (skild kvot från Stryktipsguiden). Klienten
   `pipeline/ai/klient.py` är samma fil som i Stryktipsguiden – håll dem lika. Undvik onödiga manuella körningar
   med AI (`kommentarer`, `hastkoll`, `auto`).
-- Schemat: `pipeline/schema.py` (svensk tid, lördagstider på kvartar). GitHub-cron är opålitlig, så pipelinen
+- Schemat: `pipeline/schema.py` (svensk tid; tävlingsdagens tider räknas från spelstopp och avrundas nedåt till kvart). GitHub-cron är opålitlig, så pipelinen
   startas med `planerad` både av GitHubs cron och var 15:e minut av cron-job.org (README, "Extern start"). Nyckeln
   där sköter användaren själv. Kommer inga körningar alls: kontrollera först om nyckeln har gått ut eller jobbet är
   avaktiverat i cron-job.org.
