@@ -46,6 +46,18 @@ def test_bedomer_en_gang_och_exporteras(conn):
     assert {h["nr"]: h.get("hastkoll") for h in l1["hastar"]}[1] == 1
 
 
+def test_motivering_med_frammande_tecken_sparas_inte(conn):
+    _omgang_med_kommentarer(conn)
+
+    def ai(system, fraga, schema, max_tokens):
+        svar = FejkAI()(system, fraga, schema, max_tokens)
+        svar["hastar"][0]["motivering"] = "Går oft锦 bra i skymundan."
+        return svar
+    assert hastkoll.uppdatera(conn, ai, SPEL) == 2
+    assert hastkoll.uppdatera(conn, FejkAI(), SPEL) == 1                    # den underkända bedöms om
+    assert not hastkoll.FRAMMANDE_TECKEN.search("Dödens – höll bra, 3-spår’ … Ø é")
+
+
 def test_kandidat_som_hittar_vinnaren_uppfyller_kravet(monkeypatch):
     monkeypatch.setattr(statistik, "MIN_KANDIDATLOPP", 100)
     monkeypatch.setattr(statistik, "MIN_TESTLOPP", 50)

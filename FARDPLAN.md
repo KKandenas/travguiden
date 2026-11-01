@@ -15,7 +15,7 @@ modeller vägs in innan data visar att de är bättre än strecken (se Beslutsre
 | Oddsen (`kalibrerad-v1`) | Strecken kalibrerade per spelform (V85 a ≈ 0,84, V75 a ≈ 0,94) plus vinnarodds före spelstopp. |
 | Experterna (`experter-v1`) | ATG:s tipsartiklar: Fem tippar, TR Media, Fernlund m.fl., cirka 9 system per omgång. Vikt 0,15 tills den kan skattas. |
 | Skrällchansen | Experternas chans och 1–2 skrällar (högst 15 % streck, minst 5 % chans, kvot ≥ 1,15). |
-| Hästkoll | Steg 1: utrustning, kuskbyte och form (visas). Steg 2: AI läser TR Medias loppkommentarer, version `hastkoll-3`, med faktorer per tidigare start. Eget förslag under test. |
+| Hästkoll | Steg 1: utrustning, kuskbyte och form (visas). Steg 2: AI läser TR Medias loppkommentarer, version `hastkoll-4`, med faktorer per tidigare start. Eget förslag under test. |
 | Kandidater | Barfota runt och Hästkoll följs walk-forward efter varje avgjord omgång (om-sidan, "Under test"). |
 | Drift | cron-job.org startar pipelinen var 15:e minut; `pipeline/schema.py` avgör när något körs (tävlingsdagen räknad från spelstopp). Driftstatus på om-sidan. |
 | AI | Gemini från ett eget Google-projekt (egen kvot), högst 4 anrop per minut och modell, Flash-Lite som reserv. |
@@ -31,8 +31,10 @@ modeller vägs in innan data visar att de är bättre än strecken (se Beslutsre
   var knutna till lördagar – sju timmar gamla streck och inga vinnarodds. Åtgärdat 1 november: tävlingsdagens tider
   räknas nu från varje omgångs spelstopp (`schema.tavlingsdagens_tider`), även söndagar och helgdagar.
 - [x] Hästkoll version 3 bedömde söndagens omgång (95 hästar).
-- [ ] Läs några av Hästkolls motiveringar och
-  faktorer (hästens detaljer i appen, eller tabellen `hastkoll_faktorer`) och kontrollera att kortspråket tolkas rätt.
+- [x] Hästkolls motiveringar och faktorer genomlästa (279 starter, 1 november). Bedömningarna rimliga, men "utv led"
+  tolkades som utvändigt i stället för dödens (9 %), ett inledande "3-spår" fick styra läget och "Sg" missades en gång;
+  en motivering fick ett kinesiskt tecken. Åtgärdat i `hastkoll-4` (instruktionen och en teckenkontroll); de tre
+  omgångarna sedan premiären bedömdes om.
 
 ### November: bytet till V75 (28 november)
 - [ ] Veckan före: kontrollera att `/products/V75` har en kommande omgång och att appen visar den med 7
