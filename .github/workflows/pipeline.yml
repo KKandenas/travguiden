@@ -114,16 +114,27 @@ jobs:
               while read -r gammal; do gh release delete-asset databas-kopior "$gammal" -y; done
           fi
 
+      # JSON-filerna byggs helt ur databasen, så den nya exporten läggs ovanpå senaste main i stället för att slås
+      # ihop. En körning som väntat i kön har checkat ut main som den var när den startades, och git pull --rebase
+      # gav då konflikter i JSON-filerna (1 november 2026).
       - name: Committa ny data
         run: |
-          git add docs/*.json
-          if git diff --cached --quiet; then
-            echo "Ingen ny data."
-          else
-            git commit -m "Data: $(date -u +'%Y-%m-%d %H:%M') UTC (${{ inputs.kommando || 'schema' }})"
-            git pull --rebase
-            git push
-          fi
+          filer="omgang.json senaste.json historik.json"
+          for f in $filer; do cp "docs/$f" "$RUNNER_TEMP/"; done
+          for forsok in 1 2 3; do
+            git fetch -q origin main
+            git reset -q --hard origin/main
+            for f in $filer; do cp "$RUNNER_TEMP/$f" docs/; done
+            git add docs/*.json
+            if git diff --cached --quiet; then
+              echo "Ingen ny data."
+              exit 0
+            fi
+            git commit -q -m "Data: $(date -u +'%Y-%m-%d %H:%M') UTC (${{ inputs.kommando || 'schema' }})"
+            git push origin HEAD:main && exit 0
+            sleep 5
+          done
+          exit 1
 
       - name: Markera körningen som misslyckad
         if: steps.pipeline.outcome == 'failure'
