@@ -14,6 +14,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List
 
 from ..tid import nu_utc
+from .hastkoll import FRAMMANDE_TECKEN
 from .klient import AiFel, Anropare, modellnamn
 
 log = logging.getLogger(__name__)
@@ -151,6 +152,10 @@ def uppdatera(conn: sqlite3.Connection, anropa: Anropare, omgang: Dict[str, Any]
             nr, text = k.get("avd"), (k.get("kommentar") or "").strip()
             if nr not in att_gora or not text:
                 log.warning("Kommentarer: hoppar över svar för avdelning %r", nr)
+                continue
+            if FRAMMANDE_TECKEN.search(text):
+                # Som i Hästkoll ("Går oft锦 bra", 1 nov 2026): sparas inte, skrivs om vid nästa körning
+                log.warning("Kommentarer: avdelning %s har tecken utanför svenskan, skrivs om", nr)
                 continue
             if len(text) > MAX_TECKEN:
                 text = text[:MAX_TECKEN - 2].rsplit(" ", 1)[0] + " …"

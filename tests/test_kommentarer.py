@@ -76,3 +76,16 @@ def test_nya_expertsystem_ger_nya_kommentarer(conn):
     ai = FejkAI()
     kommentarer.uppdatera(conn, ai, _omgang(conn, med_expert=False), nu="2026-10-14T10:00:00Z")
     assert kommentarer.uppdatera(conn, ai, _omgang(conn, med_expert=True), nu="2026-10-14T11:00:00Z") == 8
+
+
+def test_kommentar_med_frammande_tecken_sparas_inte(conn):
+    omgang = _omgang(conn)
+
+    def ai(system, fraga, schema, max_tokens):
+        svar = FejkAI()(system, fraga, schema, max_tokens)
+        svar["kommentarer"][0]["kommentar"] = "Öppet lopp där 锦 favoriten får kämpa."
+        return svar
+    n = len(omgang["avdelningar"])
+    assert kommentarer.uppdatera(conn, ai, omgang, nu="2026-10-14T11:00:00Z") == n - 1
+    ai2 = FejkAI()
+    assert kommentarer.uppdatera(conn, ai2, omgang, nu="2026-10-14T11:15:00Z") == 1 and ai2.fragor == [[1]]
