@@ -1,8 +1,8 @@
 import {
   BUDGETAR, RADPRIS, VARDE_GRANS, deltagare, kronor, optimera, ratta, sammanfattning, skrallchanser,
   skrallKrav, vinst,
-} from "./optimizer.js?v=20261030e";
-import { KALLOR, PERIODER, backtesta, iPeriod, sammanstall } from "./backtest.js?v=20261030e";
+} from "./optimizer.js?v=20261102a";
+import { KALLOR, PERIODER, backtesta, iPeriod, sammanstall } from "./backtest.js?v=20261102a";
 
 const $ = (id) => document.getElementById(id);
 const LAGRING = "travguiden";
@@ -560,7 +560,10 @@ async function oppnaBacktest() {
     state.btBudget = state.budget;
     byggBudgetknappar($("bt-budgetknappar"), () => state.btBudget, (b) => { state.btBudget = b; renderaBacktest(); });
     const val = $("bt-period");
-    val.replaceChildren(...Object.entries(PERIODER).map(([k, p]) => el("option", { value: k, text: p.namn })));
+    // Bara perioder med minst en omgång (nya V75 visas från första avgjorda omgången)
+    const perioder = Object.entries(PERIODER).filter(([k]) => state.historik.omgangar.some((o) => iPeriod(o, k)));
+    val.replaceChildren(...perioder.map(([k, p]) => el("option", { value: k, text: p.namn })));
+    if (!perioder.some(([k]) => k === state.btPeriod)) state.btPeriod = "alla";
     val.value = state.btPeriod;
     val.addEventListener("change", () => { state.btPeriod = val.value; renderaBacktest(); });
   }
@@ -666,7 +669,7 @@ function perInsatsRuta(historik) {
       };
       try {
         // Egen tråd: sidan fryser inte och beräkningen går i full fart (10–15 s)
-        const w = new Worker("backtest_worker.js?v=20261030e", { type: "module" });
+        const w = new Worker("backtest_worker.js?v=20261102a", { type: "module" });
         w.onmessage = (m) => {
           if (m.data.framsteg) knapp.textContent = `Räknar … ${Math.round(m.data.framsteg * 100)} %`;
           if (m.data.klar) { w.terminate(); klart(m.data.klar); }

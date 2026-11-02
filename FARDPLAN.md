@@ -37,6 +37,9 @@ modeller vägs in innan data visar att de är bättre än strecken (se Beslutsre
   omgångarna sedan premiären bedömdes om.
 
 ### November: bytet till V75 (28 november)
+- [x] Generalrepetition (2 november): en riktig V75-omgång (Solvalla 11 oktober 2025) daterad 28 november 2026 och
+  visad i appen. 7 avdelningar, 60 öre per rad, rättning 7–5 rätt, förslagen utan experter och Hästkoll och
+  backtestet fungerar i mobil och dator. Backtestet fick perioden "Bara nya V75", som visas från första avgjorda omgången.
 - [ ] Veckan före: kontrollera att `/products/V75` har en kommande omgång och att appen visar den med 7
   avdelningar, 60 öre per rad och utdelning för 7–5 rätt.
 - [ ] Kontrollera att experternas V75-kuponger hittas (Fem tippar V75 m.fl.) och att namnen blir rätt.

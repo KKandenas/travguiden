@@ -33,11 +33,14 @@ test("Experterna spelas bara på omgångar med expertsystem", () => {
 });
 
 test("perioder: alla, sedan premiären och från 2026", async () => {
-  const { iPeriod, PREMIAR } = await import("../../docs/backtest.js");
+  const { iPeriod, PERIODER, PREMIAR } = await import("../../docs/backtest.js");
   const o = (datum) => ({ datum });
   assert.ok(iPeriod(o("2025-11-01"), "alla"));
-  assert.ok(!iPeriod(o("2025-11-01"), "2026") && iPeriod(o("2026-01-03"), "2026"));
+  assert.ok(!iPeriod(o("2025-11-01"), "ar2026") && iPeriod(o("2026-01-03"), "ar2026"));
+  assert.equal(Object.keys(PERIODER)[0], "alla");
   assert.ok(!iPeriod(o("2026-10-10"), "premiar") && iPeriod(o(PREMIAR), "premiar"));
+  assert.ok(iPeriod({ datum: "2026-11-28", spelform: "V75" }, "nyV75") && !iPeriod({ datum: "2025-10-11", spelform: "V75" }, "nyV75"));
+  assert.ok(!iPeriod({ datum: "2026-11-28", spelform: "V75" }, "v85"));
 });
 
 test("V75 i backtestet: 60 öre per rad och alla rätt = 7", () => {

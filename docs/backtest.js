@@ -7,7 +7,7 @@
 //   (de två sista finns bara för omgångar där experternas system respektive Hästkoll fanns; null = saknas).
 // Chanserna är walk-forward: räknade med vikter som bara sett lopp före omgångens månad.
 
-import { LAMBDA, RADPRIS, SKRALL, optimera, ratta, skrallKrav, vinst } from "./optimizer.js?v=20261030e";
+import { LAMBDA, RADPRIS, SKRALL, optimera, ratta, skrallKrav, vinst } from "./optimizer.js?v=20261102a";
 
 // Förslagen i appen plus Strecken (folkets bedömning som chans) som jämförelse. Experterna finns bara för
 // omgångar där experternas system sparades (h har då ett fjärde värde).
@@ -21,13 +21,15 @@ export const KALLOR = {
 
 // Perioder i backtestet. Premiären = första omgången efter att Travguiden publicerades (14 oktober 2026).
 export const PREMIAR = "2026-10-17";
+// Nycklarna får inte vara rena tal – JavaScript lägger dem först i objektet, och listan visas i den här ordningen.
 export const PERIODER = {
   alla: { namn: "Alla omgångar (V75 och V85 sedan 2023)", fran: "" },
   premiar: { namn: "Sedan premiären (17 oktober 2026)", fran: PREMIAR },
-  v85: { namn: "Bara V85 (25 oktober 2025 – )", fran: "2025-10-25", spelform: "V85" },
-  2026: { namn: "Från 2026", fran: "2026-01-01" },
-  2025: { namn: "Från 2025", fran: "2025-01-01" },
-  2024: { namn: "Från 2024", fran: "2024-01-01" },
+  v85: { namn: "Bara V85 (oktober 2025 – november 2026)", fran: "2025-10-25", spelform: "V85" },
+  nyV75: { namn: "Bara nya V75 (från 28 november 2026)", fran: "2026-11-28", spelform: "V75" },
+  ar2026: { namn: "Från 2026", fran: "2026-01-01" },
+  ar2025: { namn: "Från 2025", fran: "2025-01-01" },
+  ar2024: { namn: "Från 2024", fran: "2024-01-01" },
 };
 export const iPeriod = (omg, period) => {
   const p = PERIODER[period] || PERIODER.alla;
