@@ -9,6 +9,7 @@
     python -m pipeline hastkoll                          # Hästkoll: AI bedömer senaste loppen (kräver GEMINI_API_KEY)
     python -m pipeline skrallanalys [--fran D] [--min N] # vad hade skrällarna gemensamt? (mot Oddsens chans)
     python -m pipeline oddsanalys [--fran D]             # vinnaroddsens vikt och sena pengar (förhandsodds)
+    python -m pipeline vakt                              # driftvakten: problem med körningarna, ett per rad
     python -m pipeline resultat                          # resultat och utdelning för omgångar efter spelstopp
     python -m pipeline backfill 2025-10-25 2026-10-10    # hämta historiska omgångar (1 s paus mellan anrop)
     python -m pipeline backfill 2023-01-01 2025-10-18 --spelform V75   # äldre V75 som träningsdata
@@ -29,7 +30,7 @@ import sys
 import time
 from datetime import date, datetime, timedelta, timezone
 
-from . import config, db, export, lagring, schema
+from . import config, db, export, lagring, schema, vakt
 from .ai import klient as ai_klient
 from .ai import hastkoll as ai_hastkoll
 from .ai import kommentarer as ai_kommentarer
@@ -225,7 +226,7 @@ def main(argv=None) -> int:
     p = argparse.ArgumentParser(prog="pipeline", description="Travguidens datapipeline")
     p.add_argument("-v", "--verbose", action="store_true")
     sub = p.add_subparsers(dest="kommando", required=True)
-    for k in ("auto", "planerad", "atg", "experter", "kommentarer", "resultat", "statistik", "migrera"):
+    for k in ("auto", "planerad", "atg", "experter", "kommentarer", "resultat", "statistik", "migrera", "vakt"):
         sub.add_parser(k)
     oa = sub.add_parser("oddsanalys")
     oa.add_argument("--fran", default="2026-10-24", help="bara omgångar från detta datum")
@@ -255,6 +256,10 @@ def main(argv=None) -> int:
 
     ok = True
     if a.kommando == "migrera":
+        return 0
+    if a.kommando == "vakt":
+        for rad in vakt.kontrollera(conn):
+            print(rad)
         return 0
     if a.kommando == "oddsanalys":
         from .model import oddsanalys
@@ -328,6 +333,7 @@ def main(argv=None) -> int:
             conn.execute("""INSERT INTO installningar (nyckel, varde, uppdaterad) VALUES ('senaste_planerade', ?, ?)
                             ON CONFLICT(nyckel) DO UPDATE SET varde = excluded.varde, uppdaterad = excluded.uppdaterad""",
                          (planerad.strftime("%Y-%m-%dT%H:%M:%SZ"), nu_utc()))
+        vakt.spara_korning(conn, planerad, nu)
     return 0 if ok else 1
 
 

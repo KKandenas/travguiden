@@ -96,6 +96,11 @@ tas igen vid nästa start. Övriga starter avslutas direkt utan API-anrop. Samma
 Starter som inte behövs avslutas efter cirka 20 sekunder utan API-anrop. När nyckeln går ut slutar de externa
 starterna, och då gäller GitHubs egen cron igen.
 
+**Driftvakt:** sist i varje körning (`python -m pipeline vakt` och steget Driftvakt i workflowet). Den öppnar ett
+GitHub-ärende med etiketten `driftlarm` – GitHub mejlar ägaren – när cron-job.org inte har startat pipelinen på en
+timme, när en planerad tid kördes mer än 45 minuter sent eller när en omgång saknar resultat 12 timmar efter spelstopp.
+Ärendet stängs av sig själv när allt går som det ska igen. Fel i en körning mejlar GitHub om redan.
+
 Alla steg är idempotenta. Under **Actions → Pipeline → Run workflow** går det att köra manuellt, även backfill.
 
 ## Databasen

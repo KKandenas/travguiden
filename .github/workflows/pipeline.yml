@@ -32,6 +32,7 @@ on:
 
 permissions:
   contents: write
+  issues: write       # driftvakten öppnar och stänger ärenden med etiketten driftlarm
 
 concurrency:
   group: pipeline
@@ -135,6 +136,33 @@ jobs:
             sleep 5
           done
           exit 1
+
+      # Fel i körningen mejlar GitHub redan om. Vakten larmar när körningarna inte startas som planerat: cron-job.org
+      # har inte startat pipelinen på en timme, en planerad tid kördes mer än 45 minuter sent, eller resultat saknas.
+      # Ett ärende (mejl till ägaren) öppnas en gång och stängs av sig själv när allt går som det ska igen.
+      - name: Driftvakt
+        if: always()
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          larm=$(python -m pipeline vakt)
+          senast=$(gh run list -w pipeline.yml -e workflow_dispatch -L 1 --json createdAt -q '.[0].createdAt')
+          if [ -n "$senast" ] && [ $(( $(date -u +%s) - $(date -u -d "$senast" +%s) )) -gt 3600 ]; then
+            larm="$larm"$'\n'"cron-job.org har inte startat pipelinen sedan $senast (UTC) – bara GitHubs opålitliga schema startar den nu. Kontrollera att jobbet är aktivt och att nyckeln inte har gått ut (README, \"Extern start\")."
+          fi
+          larm=$(printf '%s\n' "$larm" | sed '/^$/d')
+          oppet=$(gh issue list --label driftlarm --state open --json number -q '.[0].number' 2>/dev/null || true)
+          if [ -n "$larm" ]; then
+            echo "::warning::$larm"
+            if [ -z "$oppet" ]; then
+              gh label create driftlarm --color B60205 --description "Automatiskt larm från pipelinen" --force
+              printf '%s\n\n%s\n' "$larm" "Ärendet stängs av sig själv när körningarna går som planerat igen." | \
+                gh issue create --title "Driftlarm: körningarna går inte som planerat" --label driftlarm --body-file -
+            fi
+          elif [ -n "$oppet" ]; then
+            gh issue close "$oppet" --comment "Körningarna går som planerat igen."
+          fi
 
       - name: Markera körningen som misslyckad
         if: steps.pipeline.outcome == 'failure'

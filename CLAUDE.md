@@ -42,7 +42,8 @@ tidslinje med kontrollpunkter, beslutsregler, testat och inte infört) och DATAK
 - Schemat: `pipeline/schema.py` (svensk tid; tävlingsdagens tider räknas från spelstopp och avrundas nedåt till kvart). GitHub-cron är opålitlig, så pipelinen
   startas med `planerad` både av GitHubs cron och var 15:e minut av cron-job.org (README, "Extern start"). Nyckeln
   där sköter användaren själv. Kommer inga körningar alls: kontrollera först om nyckeln har gått ut eller jobbet är
-  avaktiverat i cron-job.org.
+  avaktiverat i cron-job.org. Driftvakten (`pipeline/vakt.py`, steget Driftvakt) öppnar då ett ärende med
+  etiketten `driftlarm` och stänger det själv när körningarna går som planerat igen.
 - Data som bara finns en kort tid sparas när den hittas: experternas kuponger (404 efter loppet), TR Medias
   loppkommentarer (borta inom en vecka) och vinnarodds före spelstopp.
 - Analyskommandon (ingen AI): `statistik`, `skrallanalys [--fran D]`, `oddsanalys [--fran D]`. Starta på GitHub
