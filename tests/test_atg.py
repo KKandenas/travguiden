@@ -12,7 +12,7 @@ HAMTAD = "2026-10-14T08:00:00Z"
 
 def test_kommande_omgang():
     o = atg.tolka_spel(las_fixture("atg_v85_kommande.json"), HAMTAD)
-    assert o.id == "V85_2026-10-17_16_5" and o.spelform == "V85" and o.bana == "Gävle"
+    assert o.id == "V85_2026-10-17_16_5" and o.spelform == "V85" and o.bana == "Gävle" and o.land == "SE"
     assert o.spelstopp == "2026-10-17T13:00:00Z"          # 15:00 svensk sommartid
     assert o.tidpunkt == "2026-10-14T08:15:45Z"           # poolens tidsstämpel
     assert len(o.avdelningar) == 8 and not o.avgjord and o.utdelning == {}

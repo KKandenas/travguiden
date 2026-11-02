@@ -13,7 +13,8 @@ def _fyll(conn):
 def test_omgang_data(conn):
     _fyll(conn)
     d = export.omgang_data(conn, "V85_2026-10-17_16_5")
-    assert len(d["avdelningar"]) == 8 and d["omgang"]["bana"] == "Gävle"
+    assert len(d["avdelningar"]) == 8 and d["omgang"]["bana"] == "Gävle" and d["omgang"]["land"] == "SE"
+    assert d["omgang"]["vinnarodds"] is False                 # fixturen är hämtad före tävlingsdagen
     for a in d["avdelningar"]:
         chanser = [h["chans"] for h in a["hastar"] if not h.get("struken")]
         assert abs(sum(chanser) - 1) < 0.01

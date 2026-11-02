@@ -124,12 +124,17 @@ def omgang_data(conn: sqlite3.Connection, omgang_id: str, dolj_resultat: bool = 
         if a["vinnare"] and not dolj_resultat:
             avd["vinnare"] = [int(x) for x in a["vinnare"].split(",")]
         avdelningar.append(avd)
+    # Oddsen använder bara vinnarodds före spelstopp (oddsen efter spelstopp sparas också, men för rättningen)
+    vinnarodds = conn.execute("""SELECT EXISTS (SELECT 1 FROM vinnarodds v JOIN starter s ON s.id = v.start_id
+                                 JOIN avdelningar a ON a.id = s.avdelning_id
+                                 WHERE a.omgang_id = ? AND v.tidpunkt <= ?)""", (omgang_id, o["spelstopp"])).fetchone()[0]
     utdelning = {} if dolj_resultat else {
         r["ratt"]: {"kr": r["kr"], "antal": r["antal"]}
         for r in conn.execute("SELECT * FROM utdelning WHERE omgang_id = ? ORDER BY ratt DESC", (omgang_id,))}
     return {
         "spel": spel(o["spelform"], o["datum"], len(avdelningar)),
-        "omgang": {"id": o["id"], "spelform": o["spelform"], "datum": o["datum"], "bana": o["bana"],
+        "omgang": {"id": o["id"], "spelform": o["spelform"], "datum": o["datum"], "bana": o["bana"], "land": o["land"],
+                   "vinnarodds": bool(vinnarodds),
                    "spelstopp": o["spelstopp"], "status": o["status"], "omsattning": o["omsattning"],
                    "avgjord": bool(o["avgjord"]) and not dolj_resultat},
         "modell": {"version": modeller.AKTIV, "namn": modeller.MODELLER[modeller.AKTIV]},

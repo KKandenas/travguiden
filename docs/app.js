@@ -1,8 +1,8 @@
 import {
   BUDGETAR, RADPRIS, VARDE_GRANS, deltagare, kronor, optimera, ratta, sammanfattning, skrallchanser,
   skrallKrav, vinst,
-} from "./optimizer.js?v=20261102a";
-import { KALLOR, PERIODER, backtesta, iPeriod, sammanstall } from "./backtest.js?v=20261102a";
+} from "./optimizer.js?v=20261102b";
+import { KALLOR, PERIODER, backtesta, iPeriod, sammanstall } from "./backtest.js?v=20261102b";
 
 const $ = (id) => document.getElementById(id);
 const LAGRING = "travguiden";
@@ -113,8 +113,24 @@ function optimeraForslag(data, kalla, budget, lasningar) {
     spelFor(data).radpris);
 }
 
+const LAND = { NO: "Norsk", DK: "Dansk", FI: "Finsk", FR: "Fransk", DE: "Tysk", IT: "Italiensk" };
+const utlandsk = (data) => Boolean(data.omgang.land && data.omgang.land !== "SE");
+
+/** Utländsk bana utan vinnarodds (Bjerke 31 oktober 2026): Oddsen bygger då bara på strecken. */
+function utlandsInfo(data) {
+  if (!utlandsk(data) || data.omgang.vinnarodds) return "";
+  return `${LAND[data.omgang.land] || "Utländsk"} bana: inga vinnarodds från ATG ` +
+    (data.omgang.avgjord || new Date(data.omgang.spelstopp) <= new Date()
+      ? "före spelstopp, så Oddsen byggde bara på strecken."
+      : "än – på utländska banor brukar de saknas, och då bygger Oddsen bara på strecken.");
+}
+
 /** Kort förklaring under sammanfattningen. */
 function forslagInfo(data, kalla, res) {
+  return [utlandsInfo(data), forslagInfoKalla(data, kalla, res)].filter(Boolean).join(" ");
+}
+
+function forslagInfoKalla(data, kalla, res) {
   if (kalla === "experter") {
     if (!harExperter(data)) {
       return data.omgang.avgjord ? "Experternas system sparades inte för den här omgången – förslaget är samma som Oddsen."
@@ -127,6 +143,7 @@ function forslagInfo(data, kalla, res) {
     const alla = data.avdelningar.flatMap((a) => a.hastar.filter((h) => !h.struken));
     const b = alla.filter((h) => h.hastkoll);
     if (!b.length) {
+      if (utlandsk(data)) return "Hästkoll görs inte för lopp utomlands – TR Media skriver inga loppkommentarer för dem. Förslaget är samma som Oddsen.";
       return data.omgang.avgjord ? "Hästkoll gjordes inte för den här omgången – förslaget är samma som Oddsen."
         : "Hästkoll har inte bedömt omgången än (görs när ATG lagt ut loppkommentarerna) – förslaget är samma som Oddsen.";
     }
@@ -669,7 +686,7 @@ function perInsatsRuta(historik) {
       };
       try {
         // Egen tråd: sidan fryser inte och beräkningen går i full fart (10–15 s)
-        const w = new Worker("backtest_worker.js?v=20261102a", { type: "module" });
+        const w = new Worker("backtest_worker.js?v=20261102b", { type: "module" });
         w.onmessage = (m) => {
           if (m.data.framsteg) knapp.textContent = `Räknar … ${Math.round(m.data.framsteg * 100)} %`;
           if (m.data.klar) { w.terminate(); klart(m.data.klar); }

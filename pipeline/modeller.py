@@ -68,6 +68,7 @@ class Omgang:
     utdelning: Dict[int, float] = field(default_factory=dict)   # antal rätt -> kr per rad
     vinnande_rader: Dict[int, int] = field(default_factory=dict)
     avgjord: bool = False
+    land: Optional[str] = None              # banans land (SE, NO, DK …)
 
 
 @dataclass

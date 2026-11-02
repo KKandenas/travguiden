@@ -148,6 +148,7 @@ def tolka_spel(spel: dict, hamtad: str) -> Omgang:
     return Omgang(
         id=spel_id, spelform=spelform, datum=datum,
         bana=((lopp[0].get("track") or {}).get("name")) or "",
+        land=(lopp[0].get("track") or {}).get("countryCode"),
         spelstopp=avdelningar[0].starttid or tidpunkt,
         status=spel.get("status") or "",
         omsattning=pool["turnover"] / 100 if pool.get("turnover") else None,
