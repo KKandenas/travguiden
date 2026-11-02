@@ -111,6 +111,7 @@ Detaljerna finns i README.
 | Gemensam kalibrering för V75 och V85 | V75-strecken var redan välkalibrerade; separat exponent per spelform infördes. |
 | Fartindex (km-tid mot bana, distans, startmetod, underlag) | Walk-forward +0,0001 ± 0,0009, ingen trend. Inprisat. |
 | Klassbyte (förstapris i senaste loppen mot dagens) | Walk-forward +0,0005 ± 0,0006, ingen trend. Inprisat. |
+| Underlag – tung bana (2 nov 2026) | Bara 3 % av V-loppen (66 av 2 131) gick på dead/heavy. Där vann storfavoriterna 0,72 ± 0,24 och hästar under 5 % streck 1,46 ± 0,44 gånger det Oddsen räknade med – samma riktning (fler skrällar), men inom brusets ram. Hästens egna resultat på tung bana går inte att testa (bara de 5 senaste starterna sparas). Ta upp igen efter vintern med fler tunga och vinterbanor. |
 | Skrällar bara i 3–10 % streck | Kandidaterna vann inte oftare än strecken sa; nuvarande regel behölls. |
 | Risknivå λ 0,7 | Jagar outsiders, 5–17 % återbetalning. λ 0,3 behölls. |
 | Risknivå λ för V75 (30 okt 2026, 186 omgångar) | 0–0,45 likvärdigt, 0,6 klart sämre; i V85 är 0,45 sämre. 0,3 behölls för båda. Små system gav 66–80 % i V75 mot 22–34 % i V85. |
