@@ -1,8 +1,8 @@
 import {
   BUDGETAR, RADPRIS, VARDE_GRANS, deltagare, kronor, optimera, ratta, sammanfattning, skrallchanser,
   skrallKrav, vinst,
-} from "./optimizer.js?v=20261102b";
-import { KALLOR, PERIODER, backtesta, iPeriod, sammanstall } from "./backtest.js?v=20261102b";
+} from "./optimizer.js?v=20261103a";
+import { KALLOR, PERIODER, backtesta, iPeriod, sammanstall } from "./backtest.js?v=20261103a";
 
 const $ = (id) => document.getElementById(id);
 const LAGRING = "travguiden";
@@ -211,6 +211,7 @@ async function start() {
   $("avdelningar").addEventListener("click", klickKupong);
   fallText = fallKnapp($("fall-alla"), state.utfallda, uppdatera, spelFor(state.data).antal_avd);
   $("rensa").addEventListener("click", () => { state.lasningar = {}; uppdatera(); });
+  initVeckolage();
   renderaOmStatistik();
   renderaDrift(state.data);
   uppdatera();
@@ -250,7 +251,104 @@ function uppdatera() {
   renderaTopp();
   ritaAvdelningar($("avdelningar"), d, r.ok ? r.val : [], state.lasningar, state.oppna, true, state.kalla, state.utfallda);
   fallText();
+  renderaVeckolage();
   sparaLagring();
+}
+
+// ---------- veckans läge ----------
+
+const VECKOLAGE_STANGD = "travguiden-veckolage-stangd";
+
+/** Rutan "Veckans läge": överstreckade favoriter, värde, skrällchanser, spiken och den öppnaste avdelningen,
+ *  Hästkolls största justering och experternas spik. Allt räknas ur omgången (Oddsens chans); inget nytt hämtas.
+ *  Varje rad öppnar sin avdelning och häst. Samma ruta som i Stryktipsguiden. */
+function renderaVeckolage() {
+  const d = state.data, ruta = $("veckolage");
+  const harChans = d.avdelningar.some((a) => a.hastar.some((h) => h.chans && h.streck));
+  ruta.hidden = !harChans;
+  if (!harChans) return;
+  const andel = Object.fromEntries(avdelningarFor(d, "modell").map((a) => [a.avd, andelar(a)]));
+  const hastar = d.avdelningar.flatMap((a) => a.hastar.filter((h) => !h.struken && andel[a.avd][h.nr])
+    .map((h) => ({ a, h, ...andel[a.avd][h.nr] })));
+  const lank = (x, text) => el("button", { type: "button", class: "vl-lank", "data-avd": x.a.avd, "data-nr": x.h?.nr ?? "",
+    text: `Avd ${x.a.avd}: ${text}` });
+  const hastText = (x) => `${x.h.nr} ${x.h.namn} (${procent(x.chans)} / ${procent(x.streck)})`;
+  const rader = [];
+  const rad = (ikon, rubrik, delar, tom = null) => {
+    if (!delar.length && !tom) return;
+    const p = el("p", { class: "vl-text" });
+    if (!delar.length) p.append(tom);
+    delar.forEach((del, i) => p.append(...(i && !del.classList?.contains("vl-motiv") ? [" · ", del] : [del])));
+    rader.push(el("div", { class: "vl-rad" }, el("span", { class: `vl-ikon ${ikon}`, "aria-hidden": "true" }),
+      el("div", {}, el("b", { text: rubrik }), p)));
+  };
+
+  // Favoriter (mest streckade i avdelningen) som spelarna streckat mest över chansen
+  const over = d.avdelningar.map((a) => hastar.filter((x) => x.a === a).sort((p, q) => q.streck - p.streck)[0])
+    .filter((x) => x && x.streck - x.chans >= 0.05).sort((p, q) => (q.streck - q.chans) - (p.streck - p.chans)).slice(0, 2);
+  rad("ned", "Mest överstreckat", over.map((x) => lank(x, hastText(x))));
+
+  // Hästar med störst värde (chans minus streck)
+  const varde = hastar.filter((x) => x.chans - x.streck >= VARDE_GRANS)
+    .sort((p, q) => (q.chans - q.streck) - (p.chans - p.streck)).slice(0, 2);
+  rad("varde", "Störst värde", varde.map((x) => lank(x, hastText(x))));
+
+  // Skrällchanser (samma som förslaget Skrällchansen väljer bland)
+  const skrallar = Object.values(skrallchanser(avdelningarFor(d, "skrall"))).sort((p, q) => q.kvot - p.kvot);
+  rad("skrall", "Skrällchans", skrallar.map((s) => {
+    const a = d.avdelningar.find((x) => x.avd === s.avd), h = a.hastar.find((x) => x.nr === s.nr);
+    return lank({ a, h }, `${h.nr} ${h.namn} (${procent(s.chans)} / ${procent(s.streck)})`);
+  }), "Inga den här veckan – ingen häst är tydligt understreckad utan att vara för osannolik.");
+
+  // Spiken (störst chans) och den öppnaste avdelningen (lägst favoritchans)
+  const fav = d.avdelningar.map((a) => hastar.filter((x) => x.a === a).sort((p, q) => q.chans - p.chans)[0]).filter(Boolean);
+  if (fav.length > 1) {
+    const sakrast = fav.reduce((p, q) => (q.chans > p.chans ? q : p)), oppnast = fav.reduce((p, q) => (q.chans < p.chans ? q : p));
+    rad("spik", "Spik och öppnast", [
+      el("span", {}, "säkrast ", lank(sakrast, `${sakrast.h.nr} ${sakrast.h.namn} (${procent(sakrast.chans)} %)`)),
+      el("span", {}, "öppnast ", lank({ a: oppnast.a }, `ingen över ${procent(oppnast.chans)} %`))]);
+  }
+
+  // Hästkoll: hästen där bedömningen flyttat chansen mest från Oddsen
+  const hk = hastar.filter((x) => x.h.chans_hk != null && x.h.hastkoll).map((x) => ({ ...x, diff: x.h.chans_hk - x.h.chans }))
+    .sort((p, q) => Math.abs(q.diff) - Math.abs(p.diff))[0];
+  if (hk && Math.abs(hk.diff) >= 0.02) {
+    const motiv = (hk.h.hastkoll.motivering || "").split(/(?<=\.)\s/)[0];
+    rad("hastkoll", "Hästkoll", [lank(hk, `${hk.h.nr} ${hk.h.namn}: chansen ${hk.diff > 0 ? "+" : "−"}${procent(Math.abs(hk.diff))} procentenheter`),
+      ...(motiv ? [el("span", { class: "vl-motiv", text: motiv })] : [])]);
+  }
+
+  // Experterna: hästen flest system har som spik
+  if (harExperter(d)) {
+    const valPer = {};          // "avd-system" -> antal valda hästar
+    for (const a of d.avdelningar) for (const h of a.hastar) for (const e of h.experter || []) valPer[`${a.avd}-${e}`] = (valPer[`${a.avd}-${e}`] || 0) + 1;
+    const spik = hastar.map((x) => ({ ...x, n: (x.h.experter || []).filter((e) => valPer[`${x.a.avd}-${e}`] === 1).length }))
+      .sort((p, q) => q.n - p.n)[0];
+    const delar = [`${d.experter.length} system`];
+    if (spik && spik.n >= 2) delar.push(el("span", {}, `spik hos ${spik.n}: `, lank(spik, `${spik.h.nr} ${spik.h.namn}`)));
+    rad("experter", "Experterna", delar);
+  }
+
+  $("veckolage-innehall").replaceChildren(el("p", { class: "vl-forklaring", text: "Siffrorna: chans / streck i %" }), ...rader);
+  ruta.hidden = !rader.length;
+}
+
+function initVeckolage() {
+  const ruta = $("veckolage");
+  try { if (localStorage.getItem(VECKOLAGE_STANGD) === "1") ruta.open = false; } catch { /* privat läge */ }
+  ruta.addEventListener("toggle", () => {
+    try { ruta.open ? localStorage.removeItem(VECKOLAGE_STANGD) : localStorage.setItem(VECKOLAGE_STANGD, "1"); } catch { /* privat läge */ }
+  });
+  $("veckolage-innehall").addEventListener("click", (e) => {
+    const b = e.target.closest(".vl-lank");
+    if (!b) return;
+    const avd = Number(b.dataset.avd), nr = Number(b.dataset.nr);
+    state.utfallda.add(avd);
+    if (nr) state.oppna.add(`${avd}-${nr}`);
+    uppdatera();
+    const mal = document.querySelector(`#avdelningar .avd[data-avd="${avd}"]` + (nr ? ` .hast[data-nr="${nr}"]` : ""));
+    mal?.scrollIntoView({ block: "start", behavior: "smooth" });
+  });
 }
 
 function chansText(p) {
@@ -686,7 +784,7 @@ function perInsatsRuta(historik) {
       };
       try {
         // Egen tråd: sidan fryser inte och beräkningen går i full fart (10–15 s)
-        const w = new Worker("backtest_worker.js?v=20261102b", { type: "module" });
+        const w = new Worker("backtest_worker.js?v=20261103a", { type: "module" });
         w.onmessage = (m) => {
           if (m.data.framsteg) knapp.textContent = `Räknar … ${Math.round(m.data.framsteg * 100)} %`;
           if (m.data.klar) { w.terminate(); klart(m.data.klar); }

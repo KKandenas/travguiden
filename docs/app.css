@@ -138,6 +138,31 @@ h1 { font-family: var(--rubrikfont); font-size: 36px; font-weight: 800; line-hei
 .forklaring-kort { margin-top: 6px; text-align: center; font-size: 13px; color: var(--dampad); }
 .fel { margin-top: 8px; color: var(--fel); font-size: 14px; text-align: center; }
 .banner { background: var(--banner); border-radius: 12px; padding: 10px 14px; margin-bottom: 12px; font-size: 14px; }
+.kort.veckolage { padding: 0; }
+.veckolage summary { cursor: pointer; padding: 12px 16px; font-family: var(--rubrikfont); font-weight: 800; font-size: 16px; list-style: none;
+  display: flex; justify-content: space-between; align-items: center; }
+.veckolage summary::-webkit-details-marker { display: none; }
+.veckolage summary::after { content: "▾"; color: var(--dampad); transition: transform .15s; }
+.veckolage:not([open]) summary::after { transform: rotate(-90deg); }
+#veckolage-innehall { padding: 0 16px 12px; display: grid; gap: 10px; }
+.vl-forklaring { font-size: 12px; color: var(--dampad); margin: -6px 0 0; }
+.vl-rad { display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 8px; font-size: 13.5px; line-height: 1.4; }
+.vl-rad b { display: block; font-size: 13px; }
+.vl-text { margin: 1px 0 0; color: var(--dampad); }
+.vl-lank { background: none; border: 0; padding: 0; font: inherit; color: var(--primar); font-weight: 600; cursor: pointer; text-align: left; }
+.vl-lank:hover { text-decoration: underline; }
+.vl-motiv { display: block; margin-top: 2px; }
+.avd, .hast { scroll-margin-top: 84px; }
+.vl-ikon { width: 22px; height: 22px; border-radius: 6px; display: grid; place-items: center; font-size: 12px; font-weight: 800; line-height: 1;
+  background: var(--yta-2); color: var(--primar); }
+.vl-ikon.ned { background: color-mix(in srgb, var(--fel) 15%, transparent); color: var(--fel); }
+.vl-ikon.ned::before { content: "↓"; }
+.vl-ikon.varde::before { content: ""; width: 9px; height: 9px; border-radius: 50%; background: var(--orange); }
+.vl-ikon.skrall { color: var(--orange-text); }
+.vl-ikon.skrall::before { content: "⚡"; font-size: 11px; }
+.vl-ikon.spik::before { content: "S"; }
+.vl-ikon.hastkoll::before { content: "H"; }
+.vl-ikon.experter::before { content: "E"; }
 .tips-rad { font-size: 13px; color: var(--dampad); margin: 0 2px 10px; }
 .tips-rad a, .om a { color: var(--primar); font-weight: 600; }
 .lamna-in { display: block; margin-top: 12px; text-align: center; font-weight: 700; font-size: 15px; color: var(--primar); text-decoration: none; padding: 10px; border-radius: 10px; border: 1.5px solid var(--ruta-kant); }

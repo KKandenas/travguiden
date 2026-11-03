@@ -7,7 +7,7 @@
 //   (de två sista finns bara för omgångar där experternas system respektive Hästkoll fanns; null = saknas).
 // Chanserna är walk-forward: räknade med vikter som bara sett lopp före omgångens månad.
 
-import { LAMBDA, RADPRIS, SKRALL, optimera, ratta, skrallKrav, vinst } from "./optimizer.js?v=20261102b";
+import { LAMBDA, RADPRIS, SKRALL, optimera, ratta, skrallKrav, vinst } from "./optimizer.js?v=20261103a";
 
 // Förslagen i appen plus Strecken (folkets bedömning som chans) som jämförelse. Experterna finns bara för
 // omgångar där experternas system sparades (h har då ett fjärde värde).
