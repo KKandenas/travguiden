@@ -16,7 +16,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Optional
 
-from . import config
+from . import config, expertliga
 from .model import modeller
 from .tid import nu_utc
 
@@ -218,5 +218,7 @@ def exportera_allt(conn: sqlite3.Connection) -> None:
     senaste = conn.execute(f"SELECT id FROM omgangar WHERE spelform IN ({_SPELFORMER}) AND avgjord = 1 "
                            "ORDER BY spelstopp DESC LIMIT 1").fetchone()
     if senaste:
-        _skriv(config.DOCS_DIR / "senaste.json", omgang_data(conn, senaste[0]))
+        d = omgang_data(conn, senaste[0])
+        d["expertliga"] = expertliga.liga(conn, senaste[0])
+        _skriv(config.DOCS_DIR / "senaste.json", d)
     _skriv(config.DOCS_DIR / "historik.json", historik(conn))

@@ -1,8 +1,8 @@
 import {
   BUDGETAR, RADPRIS, VARDE_GRANS, deltagare, kronor, optimera, ratta, sammanfattning, skrallchanser,
   skrallKrav, vinst,
-} from "./optimizer.js?v=20261103b";
-import { KALLOR, PERIODER, backtesta, iPeriod, sammanstall } from "./backtest.js?v=20261103b";
+} from "./optimizer.js?v=20261103c";
+import { KALLOR, PERIODER, backtesta, iPeriod, sammanstall } from "./backtest.js?v=20261103c";
 
 const $ = (id) => document.getElementById(id);
 const LAGRING = "travguiden";
@@ -662,6 +662,35 @@ function renderaRattning() {
         el("td", { class: "tal", text: r.perRatt[k] || "–" }))))));
   ritaAvdelningar($("r-avdelningar"), d, res.val, {}, state.rOppna, false, state.kalla, state.rUtfallda);
   rFallText();
+  renderaExpertliga(d.expertliga);
+}
+
+/** Expertligan: experternas egna system sedan premiären, rättade i pipelinen (pipeline/expertliga.py). */
+function renderaExpertliga(liga) {
+  $("r-expertliga").hidden = !liga?.deltagare?.length;
+  if (!liga?.deltagare?.length) return;
+  const spikar = (x) => (x.spikar ? `spikar ${x.holl} av ${x.spikar}` : "");
+  const rad = (x) => el("li", {},
+    el("b", { text: x.namn }),
+    el("span", { text: [`${x.omgangar} ${x.omgangar === 1 ? "omgång" : "omgångar"}`,
+      x.ratt_snitt != null ? `snitt ${decimal(x.ratt_snitt, 1)} rätt (bäst ${x.basta})` : "", spikar(x)].filter(Boolean).join(" · ") }),
+    x.insats ? el("span", { text: `${kr(x.insats)} in · ${kr(x.tillbaka)} tillbaka · ` },
+      el("b", { class: x.tillbaka >= x.insats ? "plus" : "", text: `${Math.round((100 * x.tillbaka) / x.insats)} %` })) : null);
+  const senaste = (liga.senaste || []).map((s) => el("li", {},
+    el("b", { text: s.liga }),
+    el("span", { text: s.ratt != null ? `${s.ratt} rätt · ${kr(s.tillbaka)} tillbaka av ${kr(s.insats)}`
+      : `${spikar(s)} (övriga avdelningar åt Harry Boy)` })));
+  $("r-expertliga-innehall").replaceChildren(
+    el("p", { class: "liga-intro", text: `Experternas egna system sedan ${kortDatum.format(new Date(liga.fran))} ` +
+      `(${liga.omgangar} ${liga.omgangar === 1 ? "omgång" : "omgångar"}), rättade mot de riktiga utdelningarna. ` +
+      "Sorterat på återbetalning – med så få omgångar avgör en enda storvinst ordningen." }),
+    senaste.length ? el("h3", { class: "liga-rubrik", text: "Den här omgången" }) : null,
+    senaste.length ? el("ul", { class: "liga-lista" }, ...senaste) : null,
+    el("h3", { class: "liga-rubrik", text: "Sedan premiären" }),
+    el("ol", { class: "liga-lista" }, ...liga.deltagare.map(rad)),
+    liga.gaster?.length ? el("details", { class: "liga-gaster" },
+      el("summary", { text: `Gästerna i Fem tippar (${liga.gaster.length})` }),
+      el("ol", { class: "liga-lista" }, ...liga.gaster.map(rad))) : null);
 }
 
 // ---------- backtest ----------
@@ -786,7 +815,7 @@ function perInsatsRuta(historik) {
       };
       try {
         // Egen tråd: sidan fryser inte och beräkningen går i full fart (10–15 s)
-        const w = new Worker("backtest_worker.js?v=20261103b", { type: "module" });
+        const w = new Worker("backtest_worker.js?v=20261103c", { type: "module" });
         w.onmessage = (m) => {
           if (m.data.framsteg) knapp.textContent = `Räknar … ${Math.round(m.data.framsteg * 100)} %`;
           if (m.data.klar) { w.terminate(); klart(m.data.klar); }
