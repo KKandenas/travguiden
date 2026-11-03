@@ -14,8 +14,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@600;700;800&display=swap">
-<link rel="stylesheet" href="app.css?v=20261103d">
-<script type="module" src="app.js?v=20261103d"></script>
+<link rel="stylesheet" href="app.css?v=20261103e">
+<script type="module" src="app.js?v=20261103e"></script>
 </head>
 <body data-vy="kupong">
 <header class="topp">
@@ -76,13 +76,17 @@
           <div id="veckolage-innehall"></div>
         </details>
         <div id="banner" class="banner" hidden></div>
-        <p class="tips-rad">Tryck på en avdelning för att se alla hästar · tryck på rutan för att låsa en häst 🔒 · <a href="#om">Så läser du kupongen</a></p>
+        <p class="tips-rad">Procenten på varje avdelning = chansen att vinnaren är bland de valda. Tryck på en avdelning för att se alla hästar · tryck på rutan för att låsa en häst 🔒 · <a href="#om">Så läser du kupongen</a></p>
         <div class="knapprad">
           <button id="fall-alla" class="knapp" type="button">Fäll ut alla</button>
           <button id="rensa" class="knapp" type="button" hidden>Rensa låsningar</button>
         </div>
       </div>
       <ol id="avdelningar" class="avdelningar" aria-label="Avdelningar"></ol>
+    </div>
+    <div id="flytlist" class="flytlist" aria-hidden="true">
+      <span id="flyt-text"></span>
+      <a id="flyt-lamna" class="flyt-knapp" href="https://www.atg.se/spel/V85" target="_blank" rel="noopener noreferrer" tabindex="-1">Lämna in ↗</a>
     </div>
   </section>
 

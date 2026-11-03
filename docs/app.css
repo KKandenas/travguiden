@@ -125,6 +125,7 @@ h1 { font-family: var(--rubrikfont); font-size: 36px; font-weight: 800; line-hei
 .forslag button span { display: block; font-size: 10.5px; color: var(--dampad); }
 .forslag button[aria-checked="true"] { background: var(--yta); box-shadow: 0 1px 4px rgba(10, 40, 25, .15); }
 .forslag button[aria-checked="true"] b { color: var(--primar); }
+.forslag button.lika span { color: var(--orange-text); font-weight: 600; }
 .forslag button:focus-visible { outline: 2px solid var(--gul); outline-offset: 2px; }
 .budgetknappar { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
 .budgetknappar button {
@@ -210,7 +211,12 @@ h1 { font-family: var(--rubrikfont); font-size: 36px; font-weight: 800; line-hei
 .avd-text { min-width: 0; flex: 1; }
 .avd-text > b { display: block; font-size: 15px; }
 .avd-typ { flex: none; font-family: var(--rubrikfont); font-weight: 800; font-size: 14px; letter-spacing: .03em; color: var(--dampad); text-align: right; line-height: 1.1; }
-.avd-typ.spik { color: var(--gul-text); background: var(--gul); padding: 3px 8px; border-radius: 999px; }
+.avd-typ .spik { display: inline-block; color: var(--gul-text); background: var(--gul); padding: 3px 8px; border-radius: 999px; }
+.avd-typ small { display: block; margin-top: 3px; font-size: 13px; color: var(--text); letter-spacing: 0; }
+.avd-huvud { position: relative; }
+.tackning { position: absolute; left: 0; bottom: 0; height: 3px; background: var(--primar); opacity: .45; border-radius: 0 2px 2px 0; }
+.avd.miss .tackning { background: var(--fel); }
+.bricka-namn { display: none; font-weight: 500; }
 .avd.traff .avd-nr { background: var(--ratt); }
 .avd.miss .avd-nr { background: var(--fel); }
 
@@ -334,6 +340,18 @@ h1 { font-family: var(--rubrikfont); font-size: 36px; font-weight: 800; line-hei
 .fot { padding: 8px 16px 24px; text-align: center; color: var(--dampad); font-size: 12px; }
 .fot p + p { margin-top: 4px; }
 
+/* ---------- mobil: flytande list med rader och ATG-knappen ---------- */
+.flytlist {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 20; display: flex; align-items: center; gap: 10px;
+  padding: 10px 16px calc(10px + env(safe-area-inset-bottom)); background: var(--yta); box-shadow: 0 -2px 12px rgba(0, 0, 0, .15);
+  font-weight: 600; font-size: 14px; transform: translateY(110%); transition: transform .2s; visibility: hidden;
+}
+.flytlist.synlig { transform: none; visibility: visible; }
+body:not([data-vy="kupong"]) .flytlist { display: none; }
+#flyt-text { flex: 1; min-width: 0; }
+.flyt-knapp { flex: none; background: var(--primar); color: var(--vald-text); text-decoration: none; font-weight: 700; padding: 9px 14px; border-radius: 10px; }
+body[data-vy="kupong"] main { padding-bottom: 64px; }
+
 /* ---------- dator: två kolumner ---------- */
 @media (min-width: 900px) {
   .innehall, .omgang-inre, .topp-inre, .fot { max-width: 1080px; }
@@ -344,6 +362,8 @@ h1 { font-family: var(--rubrikfont); font-size: 36px; font-weight: 800; line-hei
   .tva-kolumner > .avdelningar { margin-top: 18px; }
   .valruta { grid-template-columns: 56px 56px; }
   .ordmarke { font-size: 28px; }
+  .bricka-namn { display: inline; }
+  .flytlist { display: none !important; }
 }
 @media (min-width: 900px) and (max-height: 640px) { .sidopanel { position: static; } }
 @media (max-width: 480px) {

@@ -1,8 +1,8 @@
 import {
   BUDGETAR, RADPRIS, VARDE_GRANS, deltagare, kronor, optimera, ratta, sammanfattning, skrallchanser,
   skrallKrav, vinst,
-} from "./optimizer.js?v=20261103d";
-import { KALLOR, PERIODER, backtesta, iPeriod, sammanstall } from "./backtest.js?v=20261103d";
+} from "./optimizer.js?v=20261103e";
+import { KALLOR, PERIODER, backtesta, iPeriod, sammanstall } from "./backtest.js?v=20261103e";
 
 const $ = (id) => document.getElementById(id);
 const LAGRING = "travguiden";
@@ -57,6 +57,7 @@ const kr = (x) => `${Math.round(x).toLocaleString("sv-SE")} kr`;
 const plusKr = (x) => (x > 0 ? "+" : x < 0 ? "−" : "") + kr(Math.abs(x));
 const decimal = (x, n = 2) => x.toFixed(n).replace(".", ",");
 const METOD = { auto: "autostart", volte: "voltstart" };
+const METOD_KORT = { auto: "auto", volte: "volte" };
 
 function el(tag, attrs = {}, ...barn) {
   const e = document.createElement(tag);
@@ -175,6 +176,19 @@ function markeraForslag() {
   for (const b of document.querySelectorAll(".forslag button")) b.setAttribute("aria-checked", String(b.dataset.kalla === state.kalla));
 }
 
+/** Markera förslag som ger exakt samma system som Oddsen (t.ex. innan expertsystemen eller Hästkoll finns). */
+function markeraLika(box, data, budget, lasningar) {
+  const nyckel = (r) => (r.ok ? JSON.stringify(r.val.map((v) => [...v.nr].sort((x, y) => x - y))) : "");
+  const oddsen = nyckel(optimeraForslag(data, "modell", budget, lasningar));
+  for (const b of box.querySelectorAll("button[data-kalla]")) {
+    const k = b.dataset.kalla, under = b.querySelector("span");
+    under.dataset.under ??= under.textContent;
+    const lika = k !== "modell" && nyckel(optimeraForslag(data, k, budget, lasningar)) === oddsen;
+    b.classList.toggle("lika", lika);
+    under.textContent = lika ? "= samma som Oddsen" : under.dataset.under;
+  }
+}
+
 /** Chans och streck som andelar bland de hästar som startar (samma som optimeraren räknar med). */
 const andelar = (optAvd) => Object.fromEntries(deltagare(optAvd).map((h) => [h.nr, h]));
 
@@ -217,6 +231,7 @@ async function start() {
   fallText = fallKnapp($("fall-alla"), state.utfallda, uppdatera, spelFor(state.data).antal_avd);
   $("rensa").addEventListener("click", () => { state.lasningar = {}; uppdatera(); });
   initVeckolage();
+  initFlytlist();
   renderaOmStatistik();
   renderaDrift(state.data);
   uppdatera();
@@ -256,6 +271,8 @@ function uppdatera() {
   renderaTopp();
   ritaAvdelningar($("avdelningar"), d, r.ok ? r.val : [], state.lasningar, state.oppna, true, state.kalla, state.utfallda);
   fallText();
+  markeraLika(document.querySelector('[data-vy="kupong"] .forslag'), d, state.budget, state.lasningar);
+  $("flyt-text").textContent = r.ok ? sammanfattning(r) : "";
   renderaVeckolage();
   sparaLagring();
 }
@@ -338,6 +355,15 @@ function renderaVeckolage() {
   ruta.hidden = !rader.length;
 }
 
+/** Mobil: en smal list längst ner med rader, kostnad och ATG-knappen när sammanfattningen scrollats ur bild. */
+function initFlytlist() {
+  const list = $("flytlist");
+  if (!("IntersectionObserver" in window)) return;
+  new IntersectionObserver(([e]) => {
+    list.classList.toggle("synlig", !e.isIntersecting && e.boundingClientRect.top < 0);
+  }).observe($("lamna-in"));
+}
+
 function initVeckolage() {
   const ruta = $("veckolage");
   try { if (localStorage.getItem(VECKOLAGE_STANGD) === "1") ruta.open = false; } catch { /* privat läge */ }
@@ -368,7 +394,7 @@ function renderaTopp() {
   const spel = spelFor(state.data);
   $("rubrik").textContent = `${spel.spelform} · ${o.bana}`;
   $("undertitel").textContent = `Systemförslag till ${spel.spelform}`;
-  $("lamna-in").href = `https://www.atg.se/spel/${spel.spelform}`;
+  $("lamna-in").href = $("flyt-lamna").href = `https://www.atg.se/spel/${spel.spelform}`;
   $("underrubrik").textContent = `${versal(datumFmt.format(stopp))} · första start ${tidFmt.format(stopp)}` +
     (o.omsattning ? ` · omsättning ${kr(o.omsattning)}` : "");
   const status = $("status");
@@ -411,8 +437,12 @@ function ritaAvdelningar(lista, data, val, lasningar, oppna, interaktiv, kalla, 
     const avgjord = vinnare.size > 0;
     const traff = avgjord && [...valda].some((n) => vinnare.has(n));
     const start = a.starttid ? tidFmt.format(new Date(a.starttid)) : "";
-    const typ = valda.size === 1 ? el("span", { class: "avd-typ spik", text: "SPIK" })
-      : el("span", { class: "avd-typ", text: valda.size ? `${valda.size} hästar` : "" });
+    // Täckning: chansen (enligt förslaget) att vinnaren finns bland de valda hästarna
+    const tackning = [...valda].reduce((s, nr) => s + (andel[nr]?.chans || 0), 0);
+    const tackText = valda.size ? `${procent(tackning)} %` : "";
+    const typ = valda.size === 1
+      ? el("span", { class: "avd-typ" }, el("span", { class: "spik", text: "SPIK" }), el("small", { text: tackText }))
+      : el("span", { class: "avd-typ" }, valda.size ? `${valda.size} hästar` : "", valda.size ? el("small", { text: tackText }) : null);
     const utfalld = utfallda.has(a.avd);
     const id = `avd-${interaktiv ? "k" : "r"}-${a.avd}`;
     const hast = (nr) => a.hastar.find((h) => h.nr === nr);
@@ -420,19 +450,23 @@ function ritaAvdelningar(lista, data, val, lasningar, oppna, interaktiv, kalla, 
     const brickor = valdaSorterade.map((nr) => el("span", {
       class: ["bricka", last.has(nr) && "last", skrall === nr && "skrall", vinnare.has(nr) && "vann"].filter(Boolean).join(" "),
       title: hast(nr)?.namn,
-    }, el("b", { text: nr }), valda.size === 1 ? ` ${hast(nr)?.namn ?? ""}` : null));
+    }, el("b", { text: nr }), valda.size === 1 ? ` ${hast(nr)?.namn ?? ""}`
+      : el("span", { class: "bricka-namn", text: hast(nr)?.namn ?? "" })));     // namnen visas bara på bred skärm
     const vinnartext = avgjord && !traff
       ? el("span", { class: "vann-annan", text: `Vann: ${[...vinnare].map((nr) => `${nr} ${hast(nr)?.namn ?? ""}`).join(", ")}` }) : null;
     return el("li", { class: "avd" + (avgjord && valda.size ? (traff ? " traff" : " miss") : "") + (utfalld ? " utfalld" : ""), "data-avd": a.avd },
-      el("button", { type: "button", class: "avd-huvud", "data-avd-toggle": "1", "aria-expanded": String(utfalld), "aria-controls": id },
+      el("button", { type: "button", class: "avd-huvud", "data-avd-toggle": "1", "aria-expanded": String(utfalld), "aria-controls": id,
+        title: valda.size ? `Chans att vinnaren är bland de valda: ${tackText}` : null },
         el("span", { class: "avd-nr", "aria-label": `Avdelning ${a.avd}`, text: a.avd }),
         el("span", { class: "avd-text" },
-          el("b", { text: `Lopp ${a.loppnr} · ${start}${start ? " · " : ""}${a.distans} m ${METOD[a.startmetod] || a.startmetod || ""}` }),
+          el("b", { text: `${start}${start ? " · " : ""}${a.distans} m ${METOD_KORT[a.startmetod] || a.startmetod || ""}` }),
           el("span", { class: "brickor" }, ...brickor, vinnartext)),
         typ,
-        el("span", { class: "pil", "aria-hidden": "true", text: "▾" })),
+        el("span", { class: "pil", "aria-hidden": "true", text: "▾" }),
+        valda.size ? el("span", { class: "tackning", style: `width:${Math.round(tackning * 100)}%`, "aria-hidden": "true" }) : null),
       utfalld ? el("div", { class: "avd-kropp", id },
-        el("p", { class: "loppnamn", text: kortLoppnamn(a.namn), title: a.namn || "" }),
+        el("p", { class: "loppnamn", text: [`Lopp ${a.loppnr}`, METOD[a.startmetod], kortLoppnamn(a.namn)].filter(Boolean).join(" · "),
+          title: a.namn || "" }),
         a.kommentar ? el("p", { class: "ai-kommentar" }, el("span", { class: "ai-etikett", text: "AI" }), a.kommentar) : null,
         el("ul", { class: "hastar" }, ...a.hastar.map((h) => hastRad(a, h, andel[h.nr], valda.has(h.nr), last.has(h.nr),
           vinnare.has(h.nr), oppna.has(`${a.avd}-${h.nr}`), interaktiv, { skrall: skrall === h.nr, experter: experter(a, h) })))) : null);
@@ -667,6 +701,7 @@ function renderaRattning() {
         el("td", { class: "tal", text: r.perRatt[k] || "–" }))))));
   ritaAvdelningar($("r-avdelningar"), d, res.val, {}, state.rOppna, false, state.kalla, state.rUtfallda);
   rFallText();
+  markeraLika(document.querySelector('[data-vy="rattning"] .forslag'), d, state.rBudget, {});
   renderaExpertliga(d.expertliga);
 }
 
@@ -820,7 +855,7 @@ function perInsatsRuta(historik) {
       };
       try {
         // Egen tråd: sidan fryser inte och beräkningen går i full fart (10–15 s)
-        const w = new Worker("backtest_worker.js?v=20261103d", { type: "module" });
+        const w = new Worker("backtest_worker.js?v=20261103e", { type: "module" });
         w.onmessage = (m) => {
           if (m.data.framsteg) knapp.textContent = `Räknar … ${Math.round(m.data.framsteg * 100)} %`;
           if (m.data.klar) { w.terminate(); klart(m.data.klar); }
