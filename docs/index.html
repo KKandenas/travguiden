@@ -14,8 +14,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@600;700;800&display=swap">
-<link rel="stylesheet" href="app.css?v=20261103e">
-<script type="module" src="app.js?v=20261103e"></script>
+<link rel="stylesheet" href="app.css?v=20261103f">
+<script type="module" src="app.js?v=20261103f"></script>
 </head>
 <body data-vy="kupong">
 <header class="topp">
@@ -70,6 +70,8 @@
           <p id="forslag-info" class="forklaring-kort" aria-live="polite" hidden></p>
           <p id="fel" class="fel" role="alert" hidden></p>
           <a id="lamna-in" class="lamna-in" href="https://www.atg.se/spel/V85" target="_blank" rel="noopener noreferrer">Lämna in hos ATG<span class="sr-only"> (öppnas i nytt fönster)</span> <span aria-hidden="true">↗</span></a>
+          <button id="spara-spel" class="knapp spara-spel" type="button">Spara som mitt spel</button>
+          <p id="spara-info" class="forklaring-kort"></p>
         </section>
         <details id="veckolage" class="kort veckolage" open hidden>
           <summary>Veckans läge</summary>
@@ -111,6 +113,10 @@
           <div id="r-budgetknappar" class="budgetknappar" role="radiogroup" aria-label="Insats i rättningen"></div>
           <div id="r-resultat" aria-live="polite"><p class="dampad">Laddar …</p></div>
         </section>
+        <section id="r-minaspel" class="kort" hidden>
+          <h2 class="kort-rubrik">Mina spel</h2>
+          <div id="r-minaspel-innehall"></div>
+        </section>
         <div class="knapprad"><button id="r-fall-alla" class="knapp" type="button">Fäll ut alla</button></div>
         <section id="r-utdelning" class="kort" hidden>
           <h2 class="kort-rubrik">Utdelning</h2>
@@ -140,6 +146,26 @@
   <!-- ===== Om ===== -->
   <section class="vy innehall om" data-vy="om" hidden>
     <h1 class="vy-rubrik">Så funkar Travguiden</h1>
+    <section class="kort nytt" aria-labelledby="nytt-rubrik">
+      <h2 id="nytt-rubrik">Nytt i Travguiden</h2>
+      <ul class="nytt-lista">
+        <li><time datetime="2026-11-03">3 nov</time> <b>Mina spel:</b> spara systemet du spelat – det rättas automatiskt under Förra omgången (sparas bara i webbläsaren).</li>
+        <li><time datetime="2026-11-03">3 nov</time> <b>Kupongen:</b> chansen att vinnaren är med i varje avdelning, en list med rader och Lämna in längst ner i mobilen, och "= samma som Oddsen" på förslag som ger samma system.</li>
+        <li><time datetime="2026-11-03">3 nov</time> <b>Veckans läge</b> på kupongen och <b>Expertligan</b> under Förra omgången.</li>
+        <li><time datetime="2026-11-02">2 nov</time> Utländska banor: appen säger till när vinnarodds och Hästkoll saknas. Förberett för V75 den 28 november.</li>
+        <li><time datetime="2026-11-01">1 nov</time> Täta uppdateringar före spelstopp även på söndagar och helgdagar. Hästkoll läser TR Medias kortspråk bättre.</li>
+      </ul>
+      <details class="nytt-aldre">
+        <summary>Tidigare</summary>
+        <ul class="nytt-lista">
+          <li><time datetime="2026-10-30">30 okt</time> Backtestet per insats och omgång för omgång. Hemskärmsikon.</li>
+          <li><time datetime="2026-10-25">25 okt</time> Hästkoll sparar sina bedömningar och tolkar loppkommentarerna rätt.</li>
+          <li><time datetime="2026-10-17">17 okt</time> Hästkoll: AI läser TR Medias loppkommentarer, som eget förslag under test.</li>
+          <li><time datetime="2026-10-15">15 okt</time> Skrällchansen bygger på experternas system.</li>
+          <li><time datetime="2026-10-14">14 okt</time> Premiär: Oddsen, Experterna och Skrällchansen, rättning och backtest.</li>
+        </ul>
+      </details>
+    </section>
     <section class="kort">
       <h2>Kupongen</h2>
       <p>Varje avdelning visar hästarna i startnummerordning. Rutan till höger har två siffror:</p>

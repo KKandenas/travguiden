@@ -62,7 +62,9 @@ tidslinje med kontrollpunkter, beslutsregler, testat och inte infört) och DATAK
 - Python: `python3 -m venv .venv` och `.venv/bin/pip install -r requirements-dev.txt`. Tester:
   `.venv/bin/python -m pytest -q`. Lokalt är det Python 3.9 utan AI-paket; AI-stegen hoppas då över.
 - JS-tester: `node --test tests/js/*.test.mjs` (GitHub Actions). Utan Node lokalt: `tests/js/kor_lokalt.sh`
-  (macOS JavaScriptCore).
+  (macOS JavaScriptCore). Röktestet av gränssnittet (`tests/ui/rok.mjs`, Chromium via Playwright) körs bara i
+  GitHub Actions – kontrollera jobbet `ui` efter push.
+- Användarsynliga ändringar läggs in i "Nytt i Travguiden" överst på om-sidan (`docs/index.html`).
 - Förhandsvisning: `.claude/launch.json` ("travguiden", port 8766). Webbläsaren cachar `index.html`; ladda om med
   en ny `?t=` i adressen.
 - Cache-busting: varje ändring i `docs/*.js` eller `app.css` kräver ny `?v=`-version, samma överallt (ett test

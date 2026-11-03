@@ -284,6 +284,21 @@ h1 { font-family: var(--rubrikfont); font-size: 36px; font-weight: 800; line-hei
 .liga-lista li > span b { color: var(--text); }
 .liga-lista li > span b.plus { color: var(--ratt); }
 .liga-gaster { margin-top: 10px; }
+.om .nytt-lista { list-style: none; padding: 0; margin: 0; }
+.om .nytt-lista li { margin: 0; padding: 6px 0; border-top: 1px solid var(--linje); font-size: 14px; line-height: 1.45; }
+.nytt-lista li:first-child { border-top: 0; }
+.nytt-lista time { display: inline-block; min-width: 46px; font-weight: 700; color: var(--dampad); font-size: 13px; }
+.nytt-aldre { margin-top: 6px; }
+.nytt-aldre summary { cursor: pointer; font-weight: 600; color: var(--primar); font-size: 13.5px; }
+.spara-spel { margin-top: 8px; min-height: 40px; font-size: 14px; }
+.spara-spel:disabled { cursor: default; color: var(--primar); border-color: var(--primar); opacity: 1; }
+.minaspel-lista li { display: flex; gap: 8px; align-items: flex-start; }
+.minaspel-lista li > div { flex: 1; min-width: 0; }
+.minaspel-lista li > div > b { display: block; font-size: 13.5px; }
+.minaspel-lista li > div > span { display: block; color: var(--dampad); }
+.minaspel-totalt { font-size: 13.5px; margin: 10px 0 0; }
+.ta-bort { flex: none; width: 28px; height: 28px; border-radius: 8px; border: 1px solid var(--linje); background: var(--yta-2);
+  color: var(--dampad); font-size: 16px; line-height: 1; cursor: pointer; }
 .liga-gaster summary { cursor: pointer; font-weight: 600; color: var(--primar); font-size: 13.5px; }
 .r-stort { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 12px; }
 .r-stort > div { background: var(--yta-2); border: 1px solid var(--linje); border-radius: 12px; padding: 10px 12px; }

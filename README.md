@@ -328,7 +328,7 @@ Vyer (`#` i adressen så att bakåtknappen fungerar):
 | Vy | Innehåll |
 |---|---|
 | `#kupong` | Veckans V85/V75: välj förslag (Oddsen, Experterna, Skrällchansen, Hästkoll) och insats (25–500 kr). Rutan **Veckans läge** (hopfällbar, som i Stryktipsguiden): mest överstreckade favoriter, störst värde, skrällchanser, säkraste spiken och öppnaste avdelningen, Hästkolls största justering och experternas vanligaste spik – varje rad öppnar sin avdelning och häst. En rad per avdelning med de spelade hästarna och chansen att vinnaren är bland dem (procent och stapel; på dator även hästnamnen); fäll ut för alla hästar, AI-kommentar, låsningar och detaljer. Förslag som ger samma system som Oddsen markeras "= samma som Oddsen". I mobilen visar en list längst ner rader, kostnad och Lämna in när sammanfattningen scrollats ur bild |
-| `#rattning` | Förra omgången: vinnare, antal rätt, rader per antal rätt och vinst för valt förslag och insats. **Expertligan** (`pipeline/expertliga.py`, i `senaste.json`): experternas egna system sedan premiären rättade mot utdelningen – antal rätt, spikar som höll, insats och tillbaka. Återkommande serier (TR Media, Fernlund, Åke Olsson, lilla/stora) slås ihop; Fem tippar visas samlat och gästerna för sig |
+| `#rattning` | Förra omgången: vinnare, antal rätt, rader per antal rätt och vinst för valt förslag och insats. **Mina spel** (`docs/minaspel.js`): system som sparats med "Spara som mitt spel" på kupongen rättas här, äldre omgångar via `historik.json`; allt ligger i webbläsarens localStorage. **Expertligan** (`pipeline/expertliga.py`, i `senaste.json`): experternas egna system sedan premiären rättade mot utdelningen – antal rätt, spikar som höll, insats och tillbaka. Återkommande serier (TR Media, Fernlund, Åke Olsson, lilla/stora) slås ihop; Fem tippar visas samlat och gästerna för sig |
 | `#backtest` | Om du spelat varje omgång: saldo över tid för förslagen och för bara strecken. Period: alla omgångar (V75 och V85 sedan 2023), sedan premiären (17 oktober 2026), bara V85 eller från ett visst år. Antal rätt visas som "alla rätt / 1 fel / 2 fel / 3 fel" eftersom V75 och V85 har olika många avdelningar. Under diagrammet: **Per insats** (alla förslag mot alla insatser, återbetalning, räknas på begäran i en Web Worker, `docs/backtest_worker.js`, cirka 10 s) och **Omgång för omgång** (antal rätt och tillbaka för varje förslag, de 20 senaste eller alla) |
 | `#om` | Så funkar Travguiden: förslagen, chansen, systemet, aktuell utvärdering och källor |
 
@@ -342,7 +342,12 @@ Vald insats och låsningar sparas i webbläsarens localStorage. Lägg till `?exe
 ```bash
 .venv/bin/python -m pytest
 node --test tests/js/*.test.mjs     # kräver Node 18+, körs annars i GitHub Actions
+tests/js/kor_lokalt.sh              # samma JS-tester utan Node (macOS JavaScriptCore)
 ```
+
+`tests/ui/rok.mjs` är ett röktest av gränssnittet i Chromium (Playwright) med appens riktiga data: alla vyer i mobil-
+och datorbredd, förslagen, Veckans läge och Mina spel. Det underkänner fel i konsolen, "null"/"undefined"/"NaN" i
+texten och sidledsscroll. Körs i GitHub Actions (jobbet `ui` i `tests.yml`).
 
 ## Färdplan
 

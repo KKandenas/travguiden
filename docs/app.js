@@ -1,8 +1,9 @@
 import {
   BUDGETAR, RADPRIS, VARDE_GRANS, deltagare, kronor, optimera, ratta, sammanfattning, skrallchanser,
   skrallKrav, vinst,
-} from "./optimizer.js?v=20261103e";
-import { KALLOR, PERIODER, backtesta, iPeriod, sammanstall } from "./backtest.js?v=20261103e";
+} from "./optimizer.js?v=20261103f";
+import { KALLOR, PERIODER, backtesta, iPeriod, sammanstall } from "./backtest.js?v=20261103f";
+import * as minaSpel from "./minaspel.js?v=20261103f";
 
 const $ = (id) => document.getElementById(id);
 const LAGRING = "travguiden";
@@ -232,6 +233,8 @@ async function start() {
   $("rensa").addEventListener("click", () => { state.lasningar = {}; uppdatera(); });
   initVeckolage();
   initFlytlist();
+  initSparaSpel();
+  initMinaSpel();
   renderaOmStatistik();
   renderaDrift(state.data);
   uppdatera();
@@ -272,6 +275,7 @@ function uppdatera() {
   ritaAvdelningar($("avdelningar"), d, r.ok ? r.val : [], state.lasningar, state.oppna, true, state.kalla, state.utfallda);
   fallText();
   markeraLika(document.querySelector('[data-vy="kupong"] .forslag'), d, state.budget, state.lasningar);
+  renderaSparaKnapp();
   $("flyt-text").textContent = r.ok ? sammanfattning(r) : "";
   renderaVeckolage();
   sparaLagring();
@@ -671,12 +675,7 @@ function renderaRattning() {
     (o.omsattning ? ` · omsättning ${kr(o.omsattning)}` : "");
   const res = optimeraForslag(d, state.kalla, state.rBudget, {});
   if (!res.ok) { $("r-resultat").replaceChildren(el("p", { class: "fel", text: res.fel })); return; }
-  const vinnare = Object.fromEntries(d.avdelningar.map((a) => [a.avd, a.vinnare || []]));
-  const ersattare = Object.fromEntries(d.avdelningar.map((a) => {
-    const kvar = a.hastar.filter((h) => !h.struken && h.streck != null);
-    const fav = kvar.reduce((b, h) => (!b || h.streck > b.streck ? h : b), null);
-    return [a.avd, { struken: a.hastar.filter((h) => h.struken).map((h) => h.nr), favorit: fav?.nr }];
-  }));
+  const { vinnare, ersattare } = minaSpel.resultatFranOmgang(d) || { vinnare: {}, ersattare: {} };
   const r = ratta(res.val, vinnare, ersattare);
   const utd = Object.fromEntries(Object.entries(d.utdelning).map(([k, u]) => [k, u.kr]));
   const v = vinst(r.perRatt, utd);
@@ -703,6 +702,93 @@ function renderaRattning() {
   rFallText();
   markeraLika(document.querySelector('[data-vy="rattning"] .forslag'), d, state.rBudget, {});
   renderaExpertliga(d.expertliga);
+  renderaMinaSpel();
+}
+
+// ---------- mina spel (sparas i webbläsaren, docs/minaspel.js) ----------
+
+function lasSpel() {
+  try { return JSON.parse(localStorage.getItem(minaSpel.NYCKEL)) || []; } catch { return []; }
+}
+function sparaSpel(lista) {
+  try { localStorage.setItem(minaSpel.NYCKEL, JSON.stringify(lista)); return true; } catch { return false; }
+}
+
+const aktuelltSpel = () => (state.resultat?.ok
+  ? minaSpel.nyttSpel(state.data, state.kalla, FORSLAG[state.kalla].namn, state.budget, state.resultat) : null);
+
+/** Knappen i kupongen: spara det visade systemet, eller visa att det redan är sparat. */
+function renderaSparaKnapp() {
+  const lista = lasSpel(), spel = aktuelltSpel(), knapp = $("spara-spel");
+  const sparat = Boolean(spel && minaSpel.harSparat(lista, spel));
+  knapp.disabled = !spel || sparat || state.exempel;
+  knapp.textContent = sparat ? "Sparat som mitt spel ✓" : "Spara som mitt spel";
+  const n = lista.filter((s) => s.omgang === state.data.omgang.id).length;
+  $("spara-info").textContent = n
+    ? `${n} sparat ${n === 1 ? "spel" : "spel"} för omgången – rättas under Förra omgången.`
+    : "Sparas bara i den här webbläsaren och rättas efter loppen.";
+}
+
+function initSparaSpel() {
+  $("spara-spel").addEventListener("click", () => {
+    const spel = aktuelltSpel();
+    if (!spel) return;
+    if (!sparaSpel(minaSpel.laggTill(lasSpel(), spel))) {
+      $("spara-info").textContent = "Kunde inte spara – webbläsaren tillåter inte lagring (privat läge?).";
+      return;
+    }
+    renderaSparaKnapp();
+  });
+}
+
+async function hamtaHistorik() {
+  if (!state.historik) state.historik = await (await fetch("historik.json", { cache: "no-cache" })).json();
+  return state.historik;
+}
+
+/** Rutan Mina spel under Förra omgången: omgångens sparade spel och alla rättade spel totalt. */
+async function renderaMinaSpel() {
+  const lista = lasSpel(), ruta = $("r-minaspel");
+  ruta.hidden = !lista.length;
+  if (!lista.length) return;
+  const resultat = {};
+  const senaste = state.senaste, resSenaste = minaSpel.resultatFranOmgang(senaste);
+  if (resSenaste) resultat[senaste.omgang.id] = resSenaste;
+  if (lista.some((s) => !resultat[s.omgang] && s.datum < senaste.omgang.datum)) {
+    try {
+      for (const o of (await hamtaHistorik()).omgangar) if (!resultat[o.id]) resultat[o.id] = minaSpel.resultatFranHistorik(o);
+    } catch { /* historiken saknas – äldre spel väntar */ }
+  }
+  const s = minaSpel.sammanstall(lista, resultat);
+  const etikett = (x) => `${x.kallnamn} · ${kr(x.budget)} · ${x.rader} ${x.rader === 1 ? "rad" : "rader"}`;
+  const tabort = (x) => el("button", { type: "button", class: "ta-bort", "data-ta-bort": x.id, "aria-label": "Ta bort spelet", text: "×" });
+  const rad = (x, medDatum) => el("li", {},
+    el("div", {}, el("b", { text: (medDatum ? `${kortDatum.format(new Date(x.datum))} · ${x.bana} · ` : "") + etikett(x) }),
+      el("span", { text: `${x.ratt} rätt · ${kr(x.tillbaka)} tillbaka · netto ` },
+        el("b", { class: x.netto >= 0 ? "plus" : "", text: plusKr(x.netto) }))),
+    tabort(x));
+  const denna = s.rattade.filter((x) => x.omgang === senaste.omgang.id);
+  const andra = s.rattade.filter((x) => x.omgang !== senaste.omgang.id).sort((a, b) => b.datum.localeCompare(a.datum));
+  fyll($("r-minaspel-innehall"),
+    denna.length ? el("ul", { class: "liga-lista minaspel-lista" }, ...denna.map((x) => rad(x, false)))
+      : el("p", { class: "liga-intro", text: "Inga sparade spel för den här omgången." }),
+    s.rattade.length ? el("p", { class: "minaspel-totalt" },
+      `Totalt ${s.rattade.length} spel i ${s.omgangar} ${s.omgangar === 1 ? "omgång" : "omgångar"}: ${kr(s.insats)} in · ` +
+      `${kr(s.tillbaka)} tillbaka · netto `, el("b", { class: s.netto >= 0 ? "plus" : "", text: plusKr(s.netto) })) : null,
+    andra.length ? el("details", { class: "liga-gaster" }, el("summary", { text: `Tidigare spel (${andra.length})` }),
+      el("ul", { class: "liga-lista minaspel-lista" }, ...andra.map((x) => rad(x, true)))) : null,
+    s.vantar.length ? el("p", { class: "liga-intro", text: `Väntar på resultat: ${s.vantar.length} spel (` +
+      [...new Set(s.vantar.map((x) => `${x.bana} ${kortDatum.format(new Date(x.datum))}`))].join(", ") + ")." }) : null,
+    el("p", { class: "liga-intro", text: "Sparas bara i den här webbläsaren." }));
+}
+
+function initMinaSpel() {
+  $("r-minaspel-innehall").addEventListener("click", (e) => {
+    const b = e.target.closest("[data-ta-bort]");
+    if (!b) return;
+    sparaSpel(lasSpel().filter((s) => s.id !== b.dataset.taBort));
+    renderaMinaSpel();
+  });
 }
 
 /** Expertligan: experternas egna system sedan premiären, rättade i pipelinen (pipeline/expertliga.py). */
@@ -738,7 +824,7 @@ function renderaExpertliga(liga) {
 async function oppnaBacktest() {
   if (!state.historik) {
     try {
-      state.historik = await (await fetch("historik.json", { cache: "no-cache" })).json();
+      await hamtaHistorik();
     } catch (e) {
       $("backtest-innehall").replaceChildren(el("p", { class: "fel", text: "Kunde inte ladda historiken." }));
       return;
@@ -855,7 +941,7 @@ function perInsatsRuta(historik) {
       };
       try {
         // Egen tråd: sidan fryser inte och beräkningen går i full fart (10–15 s)
-        const w = new Worker("backtest_worker.js?v=20261103e", { type: "module" });
+        const w = new Worker("backtest_worker.js?v=20261103f", { type: "module" });
         w.onmessage = (m) => {
           if (m.data.framsteg) knapp.textContent = `Räknar … ${Math.round(m.data.framsteg * 100)} %`;
           if (m.data.klar) { w.terminate(); klart(m.data.klar); }

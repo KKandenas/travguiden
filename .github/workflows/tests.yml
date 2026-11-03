@@ -28,3 +28,15 @@ jobs:
         with:
           node-version: "24"
       - run: node --test tests/js/*.test.mjs
+
+  # Röktest av gränssnittet i Chromium med appens riktiga data (tests/ui/rok.mjs)
+  ui:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "24"
+      - run: npm install --no-save --no-package-lock playwright@1.49.1
+      - run: npx playwright install --with-deps chromium
+      - run: node tests/ui/rok.mjs
