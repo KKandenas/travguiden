@@ -90,7 +90,7 @@ for (const bredd of BREDDER) {
 
   await steg(`${b} förslag och insatser`, async () => {
     for (const k of ["experter", "skrall", "hastkoll", "modell"]) {
-      await page.locator(`[data-vy="kupong"] .forslag button[data-kalla="${k}"]`).click();
+      await page.locator(`section[data-vy="kupong"] .forslag button[data-kalla="${k}"]`).click();
       for (const kr of [25, 500, 200]) await page.locator(`#budgetknappar button[data-budget="${kr}"]`).click();
       await kontrollera(page, `${b} förslaget ${k}`);
     }

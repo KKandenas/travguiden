@@ -1,9 +1,9 @@
 import {
   BUDGETAR, RADPRIS, VARDE_GRANS, deltagare, kronor, optimera, ratta, sammanfattning, skrallchanser,
   skrallKrav, vinst,
-} from "./optimizer.js?v=20261103f";
-import { KALLOR, PERIODER, backtesta, iPeriod, sammanstall } from "./backtest.js?v=20261103f";
-import * as minaSpel from "./minaspel.js?v=20261103f";
+} from "./optimizer.js?v=20261103g";
+import { KALLOR, PERIODER, backtesta, iPeriod, sammanstall } from "./backtest.js?v=20261103g";
+import * as minaSpel from "./minaspel.js?v=20261103g";
 
 const $ = (id) => document.getElementById(id);
 const LAGRING = "travguiden";
@@ -274,7 +274,7 @@ function uppdatera() {
   renderaTopp();
   ritaAvdelningar($("avdelningar"), d, r.ok ? r.val : [], state.lasningar, state.oppna, true, state.kalla, state.utfallda);
   fallText();
-  markeraLika(document.querySelector('[data-vy="kupong"] .forslag'), d, state.budget, state.lasningar);
+  markeraLika(document.querySelector('section[data-vy="kupong"] .forslag'), d, state.budget, state.lasningar);
   renderaSparaKnapp();
   $("flyt-text").textContent = r.ok ? sammanfattning(r) : "";
   renderaVeckolage();
@@ -700,7 +700,7 @@ function renderaRattning() {
         el("td", { class: "tal", text: r.perRatt[k] || "–" }))))));
   ritaAvdelningar($("r-avdelningar"), d, res.val, {}, state.rOppna, false, state.kalla, state.rUtfallda);
   rFallText();
-  markeraLika(document.querySelector('[data-vy="rattning"] .forslag'), d, state.rBudget, {});
+  markeraLika(document.querySelector('section[data-vy="rattning"] .forslag'), d, state.rBudget, {});
   renderaExpertliga(d.expertliga);
   renderaMinaSpel();
 }
@@ -941,7 +941,7 @@ function perInsatsRuta(historik) {
       };
       try {
         // Egen tråd: sidan fryser inte och beräkningen går i full fart (10–15 s)
-        const w = new Worker("backtest_worker.js?v=20261103f", { type: "module" });
+        const w = new Worker("backtest_worker.js?v=20261103g", { type: "module" });
         w.onmessage = (m) => {
           if (m.data.framsteg) knapp.textContent = `Räknar … ${Math.round(m.data.framsteg * 100)} %`;
           if (m.data.klar) { w.terminate(); klart(m.data.klar); }
