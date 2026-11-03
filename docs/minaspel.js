@@ -3,7 +3,7 @@
 // därmed förslaget ändras fram till spelstopp. Rättningen använder senaste.json för förra omgången och
 // historik.json för äldre omgångar.
 
-import { ratta, vinst } from "./optimizer.js?v=20261103g";
+import { ratta, vinst } from "./optimizer.js?v=20261103h";
 
 export const NYCKEL = "travguiden-mina-spel";
 export const MAX_SPEL = 500;

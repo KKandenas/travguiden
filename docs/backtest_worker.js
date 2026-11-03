@@ -1,6 +1,6 @@
 // Räknar backtestet för alla förslag och insatser i en egen tråd, så att sidan inte fryser (app.js → perInsatsRuta).
-import { backtestaAlla } from "./backtest.js?v=20261103g";
-import { BUDGETAR } from "./optimizer.js?v=20261103g";
+import { backtestaAlla } from "./backtest.js?v=20261103h";
+import { BUDGETAR } from "./optimizer.js?v=20261103h";
 
 self.onmessage = (e) => {
   let senast = 0;

@@ -145,6 +145,13 @@ await steg("Mina spel", async () => {
   const knapp = page.locator("#spara-spel");
   await knapp.click();
   if (!/Sparat/.test(await knapp.innerText())) throw new Error(`knappen efter sparande: "${await knapp.innerText()}"`);
+  // Ett spel som inte är avgjort går att ta bort direkt på kupongen
+  if (await page.locator("#sparade-spel li").count() !== 1) throw new Error("det sparade spelet syns inte på kupongen");
+  await page.locator("#sparade-spel [data-ta-bort]").click();
+  if (await page.locator("#sparade-spel li").count() !== 0 || /Sparat/.test(await knapp.innerText())) {
+    throw new Error("spelet togs inte bort från kupongen");
+  }
+  await knapp.click();
   await page.evaluate(async () => {
     const s = await (await fetch("senaste.json")).json();
     const lista = JSON.parse(localStorage.getItem("travguiden-mina-spel"));
