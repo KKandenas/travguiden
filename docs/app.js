@@ -1,8 +1,8 @@
 import {
   BUDGETAR, RADPRIS, VARDE_GRANS, deltagare, kronor, optimera, ratta, sammanfattning, skrallchanser,
   skrallKrav, vinst,
-} from "./optimizer.js?v=20261103c";
-import { KALLOR, PERIODER, backtesta, iPeriod, sammanstall } from "./backtest.js?v=20261103c";
+} from "./optimizer.js?v=20261103d";
+import { KALLOR, PERIODER, backtesta, iPeriod, sammanstall } from "./backtest.js?v=20261103d";
 
 const $ = (id) => document.getElementById(id);
 const LAGRING = "travguiden";
@@ -69,6 +69,11 @@ function el(tag, attrs = {}, ...barn) {
   }
   for (const b of barn.flat()) if (b != null && b !== false) e.append(b);
   return e;
+}
+
+/** Som nod.replaceChildren, men hoppar över null/false som el() gör (replaceChildren skriver ut "null"). */
+function fyll(nod, ...barn) {
+  nod.replaceChildren(...barn.flat().filter((b) => b != null && b !== false));
 }
 
 // ---------- hämtning ----------
@@ -329,7 +334,7 @@ function renderaVeckolage() {
     rad("experter", "Experterna", delar);
   }
 
-  $("veckolage-innehall").replaceChildren(el("p", { class: "vl-forklaring", text: "Siffrorna: chans / streck i %" }), ...rader);
+  fyll($("veckolage-innehall"), el("p", { class: "vl-forklaring", text: "Siffrorna: chans / streck i %" }), ...rader);
   ruta.hidden = !rader.length;
 }
 
@@ -642,7 +647,7 @@ function renderaRattning() {
   const utd = Object.fromEntries(Object.entries(d.utdelning).map(([k, u]) => [k, u.kr]));
   const v = vinst(r.perRatt, utd);
   const info = forslagInfo(d, state.kalla, res);
-  $("r-resultat").replaceChildren(
+  fyll($("r-resultat"),
     el("p", { class: "sammanfattning", text: sammanfattning(res) }),
     info ? el("p", { class: "forklaring-kort", text: info }) : null,
     el("div", { class: "r-stort" },
@@ -680,7 +685,7 @@ function renderaExpertliga(liga) {
     el("b", { text: s.liga }),
     el("span", { text: s.ratt != null ? `${s.ratt} rätt · ${kr(s.tillbaka)} tillbaka av ${kr(s.insats)}`
       : `${spikar(s)} (övriga avdelningar åt Harry Boy)` })));
-  $("r-expertliga-innehall").replaceChildren(
+  fyll($("r-expertliga-innehall"),
     el("p", { class: "liga-intro", text: `Experternas egna system sedan ${kortDatum.format(new Date(liga.fran))} ` +
       `(${liga.omgangar} ${liga.omgangar === 1 ? "omgång" : "omgångar"}), rättade mot de riktiga utdelningarna. ` +
       "Sorterat på återbetalning – med så få omgångar avgör en enda storvinst ordningen." }),
@@ -735,7 +740,7 @@ function renderaBacktest() {
   }
   const exp = serier.find((s) => s.k === "experter");
   const forsta = m.spel[0]?.datum;
-  box.replaceChildren(
+  fyll(box,
     el("div", { class: "r-stort" }, ...serier.map((s) => el("div", {},
       el("span", {}, el("i", { class: "nyckel", style: `background:${s.farg}` }), s.namn),
       s.spel.length ? el("b", { class: s.sum.netto >= 0 ? "plus" : "minus", text: plusKr(s.sum.netto) }) : el("b", { class: "dampad", text: "–" }),
@@ -815,7 +820,7 @@ function perInsatsRuta(historik) {
       };
       try {
         // Egen tråd: sidan fryser inte och beräkningen går i full fart (10–15 s)
-        const w = new Worker("backtest_worker.js?v=20261103c", { type: "module" });
+        const w = new Worker("backtest_worker.js?v=20261103d", { type: "module" });
         w.onmessage = (m) => {
           if (m.data.framsteg) knapp.textContent = `Räknar … ${Math.round(m.data.framsteg * 100)} %`;
           if (m.data.klar) { w.terminate(); klart(m.data.klar); }
@@ -966,7 +971,7 @@ function renderaOmStatistik() {
   const s = state.data?.statistik;
   if (!s || !s.lopp) return;
   const bra = s.forbattring > 2 * s.standardfel;
-  $("om-statistik").replaceChildren(
+  fyll($("om-statistik"),
     el("p", { text: `Utvärdering på ${s.lopp.toLocaleString("sv-SE")} lopp, där varje månad bedömts med vikter som bara sett ` +
       `tidigare lopp: strecken gav vinnaren i snitt logloss ${decimal(s.logloss_streck, 3)}, Oddsen ${decimal(s.logloss_modell, 3)} ` +
       `(lägre är bättre). Favoriten vann ${Math.round(s.favorit_vann * 100)} % av loppen.` }),
