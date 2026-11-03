@@ -53,6 +53,31 @@ def test_kupong_for_fel_omgang():
         atgtips.tolka_kupong(las_fixture("atgtips_kupong.json"), _post(spel_id="V85_2026-10-10_5_6"), None)
 
 
+def test_avdelningar_at_harry_boy_sparas_inte_men_resten_av_kupongen_galler():
+    k = las_fixture("atgtips_kupong.json")
+    for r in k["races"][2:4]:
+        r["bets"], r["harryOpen"] = [], True
+    e = atgtips.tolka_kupong(k, _post(), "X")
+    assert len(e.val) == 6 and k["races"][2]["id"] not in e.val
+    for r in k["races"][4:]:
+        r["bets"], r["harryOpen"] = [], True
+    with pytest.raises(ValideringsFel):                     # mindre än hälften med val
+        atgtips.tolka_kupong(k, _post(), "X")
+
+
+def test_expertandel_bara_bland_system_med_val_i_avdelningen(conn):
+    lagring.spara_omgang(conn, atg.tolka_spel(las_fixture("atg_v85_kommande.json"), "x"))
+    k = las_fixture("atgtips_kupong.json")
+    hel = atgtips.tolka_kupong(k, _post(), "Hel")
+    forsta = k["races"][0]
+    forsta["bets"], forsta["harryOpen"] = [], True
+    delvis = atgtips.tolka_kupong(k, _post(kupong_id="2956601d-126e-4258-be6e-fdef45f1cfe0"), "Delvis")
+    lagring.spara_expertsystem(conn, [hel, delvis], "x")
+    l1 = next(l for l in data.lopp(conn) if l["avd"] == 1)
+    valda = [h for h in l1["hastar"] if h.get("experter")]
+    assert valda and abs(sum(h["expertandel"] for h in l1["hastar"]) - 1) < 1e-9   # bara det hela systemet räknas
+
+
 def test_lagring_och_expertandel(conn):
     lagring.spara_omgang(conn, atg.tolka_spel(las_fixture("atg_v85_kommande.json"), "x"))
     e = atgtips.tolka_kupong(las_fixture("atgtips_kupong.json"), _post(), "Nicklas Bäckström")

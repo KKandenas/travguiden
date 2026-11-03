@@ -1,8 +1,8 @@
 import {
   BUDGETAR, RADPRIS, VARDE_GRANS, deltagare, kronor, optimera, ratta, sammanfattning, skrallchanser,
   skrallKrav, vinst,
-} from "./optimizer.js?v=20261103a";
-import { KALLOR, PERIODER, backtesta, iPeriod, sammanstall } from "./backtest.js?v=20261103a";
+} from "./optimizer.js?v=20261103b";
+import { KALLOR, PERIODER, backtesta, iPeriod, sammanstall } from "./backtest.js?v=20261103b";
 
 const $ = (id) => document.getElementById(id);
 const LAGRING = "travguiden";
@@ -453,9 +453,11 @@ function expertInfo(data) {
   for (const a of data.avdelningar) {
     for (const h of a.hastar) for (const e of h.experter || []) perAvd[`${a.avd}-${e}`] = (perAvd[`${a.avd}-${e}`] || 0) + 1;
   }
+  // Bara system med val i avdelningen räknas (en avdelning kan vara lämnad åt Harry Boy)
+  const systemIAvd = (avd) => data.experter.filter((_, e) => perAvd[`${avd}-${e}`]).length;
   return (a, h) => ({
     antal: (h.experter || []).length,
-    totalt: data.experter.length,
+    totalt: systemIAvd(a.avd),
     namn: (h.experter || []).map((e) => data.experter[e].namn + (perAvd[`${a.avd}-${e}`] === 1 ? " (spik)" : "")),
   });
 }
@@ -784,7 +786,7 @@ function perInsatsRuta(historik) {
       };
       try {
         // Egen tråd: sidan fryser inte och beräkningen går i full fart (10–15 s)
-        const w = new Worker("backtest_worker.js?v=20261103a", { type: "module" });
+        const w = new Worker("backtest_worker.js?v=20261103b", { type: "module" });
         w.onmessage = (m) => {
           if (m.data.framsteg) knapp.textContent = `Räknar … ${Math.round(m.data.framsteg * 100)} %`;
           if (m.data.klar) { w.terminate(); klart(m.data.klar); }

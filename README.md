@@ -167,14 +167,15 @@ tillägg, kuskens segerprocent i år, hästens segerandel i karriären. Folket h
 
 `pipeline/sources/atgtips.py` hämtar experternas system ur ATG:s tipsartiklar, främst *Fem tippar V85* (fem kuskar,
 tränare och gäster, 240 rader var) och artiklar med Fernlund, Olsson med flera. Se DATAKALLOR.md för hur.
-Harry Boy-kuponger (ATG:s slumpsystem) räknas inte. **ATG raderar kupongerna efter loppet**, så de sparas när de
+Harry Boy-kuponger (ATG:s slumpsystem) räknas inte. En avdelning som experten lämnat åt Harry Boy sparas inte, men
+resten av kupongen gäller (minst hälften av avdelningarna måste ha val). **ATG raderar kupongerna efter loppet**, så de sparas när de
 hittas, och historik finns bara från och med oktober 2026. Därför går Experterna inte att backtesta bakåt.
 
 Modellen `experter-v1` lägger till en egenskap i Oddsens logit:
 
     chans ∝ … · (expertandel + 0,05)^c
 
-där *expertandel* är snittet över systemen av 1/(antal valda hästar i avdelningen) om hästen är med (en spik hos
+där *expertandel* är snittet över systemen med val i avdelningen av 1/(antal valda hästar i avdelningen) om hästen är med (en spik hos
 alla ger 1, en av fyra hos en av fem tippare 0,05). Hästar i lopp utan expertsystem påverkas inte. **c = 0,15**
 tills det finns 150 avgjorda lopp med expertsystem (cirka 19 omgångar); därefter skattas c walk-forward som Oddsens
 vikter. Experterna publicerar tidigt i veckan och strecken tar in mycket av deras bedömning, därav den försiktiga

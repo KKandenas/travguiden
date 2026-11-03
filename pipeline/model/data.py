@@ -69,7 +69,10 @@ def _expertandelar(conn: sqlite3.Connection, lopp: dict) -> None:
         alla = system.get(l["omgang_id"])
         if not alla:
             continue
+        # Bara system med val i avdelningen räknas (en avdelning kan vara lämnad åt Harry Boy)
+        val = [s[l["avd"]] for s in alla.values() if s.get(l["avd"])]
+        if not val:
+            continue
         for h in l["hastar"]:
-            val = [s.get(l["avd"], []) for s in alla.values()]
-            h["expertandel"] = sum(1 / len(v) for v in val if h["nr"] in v) / len(alla)
+            h["expertandel"] = sum(1 / len(v) for v in val if h["nr"] in v) / len(val)
             h["experter"] = sum(1 for v in val if h["nr"] in v)

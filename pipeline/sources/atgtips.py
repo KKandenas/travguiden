@@ -157,14 +157,19 @@ def tolka_kupong(data: dict, post: dict, namn: Optional[str]) -> Expertsystem:
     spel = (data.get("game") or {}).get("id")
     if spel != post["spel_id"]:
         raise ValideringsFel(f"kupongen {post['kupong_id']} gäller {spel}, väntade {post['spel_id']}")
-    val = {}
+    # En avdelning kan vara lämnad åt Harry Boy (ATG:s slumpval, "harryOpen"): experten har då inget val där, och
+    # avdelningen sparas inte. Resten av kupongen gäller (Bjerke 31 oktober 2026: val i 5 av 8, 3 åt Harry).
+    val, harry = {}, 0
     for r in data.get("races") or []:
         nr = sorted({b["number"] for b in r.get("bets") or [] if isinstance(b.get("number"), int)})
         if r.get("id") and nr:
             val[r["id"]] = nr
+        elif r.get("harryOpen"):
+            harry += 1
     antal = ANTAL_AVD.get(spel.split("_")[0])
-    if len(val) != antal:
-        raise ValideringsFel(f"kupongen {post['kupong_id']} har val i {len(val)} avdelningar, väntade {antal}")
+    if len(val) + harry != antal or len(val) * 2 < antal:
+        raise ValideringsFel(f"kupongen {post['kupong_id']} har val i {len(val)} avdelningar och {harry} åt Harry Boy, "
+                             f"väntade {antal} (minst hälften med val)")
     # Kupongens egen titel går först ("Patrik Fernlund stora systemförslag"), sedan namnet ur artikeln (Fem tippar,
     # där kupongerna bara heter "Kupong 3 Fem tippar"), avsändaren ur ingressen och sist artikelns titel.
     if post["titel"] and not _ALLMAN_TITEL.search(post["titel"]):
