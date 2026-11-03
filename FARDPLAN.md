@@ -144,7 +144,13 @@ Detaljerna finns i README.
 
 | Idé | Varför den väntar |
 |---|---|
-| Inloggning och Mina spel som i Stryktipsguiden | Inte prioriterat. |
+| Inloggning och konto som i Stryktipsguiden | Inte prioriterat. Mina spel finns utan konto (sparas i webbläsaren) sedan 3 nov 2026. |
+| Kopiera systemet som text, och dela ett system med en länk (förslag, insats, låsningar) | Avvaktar (3 nov 2026). |
+| Automatisk V75-kontroll 21 november (ärende om omgången eller expertkupongerna saknas) | Avvaktar – görs annars för hand enligt tidslinjen. |
+| Appen fungerar utan nät och öppnar direkt från hemskärmen (service worker) | Avvaktar. Kräver att uppdateringar hanteras så att ingen fastnar på gammal data. |
+| Exportera/importera Mina spel mellan enheter | Avvaktar – bara värt om mobil och dator används växelvis. |
+| Genomgång av tillgängligheten (kontrast, skärmläsare, tangentbord; axe i röktestet) | Avvaktar. |
+| Hämta Bjerke-kupongen 31 okt (avdelningar åt Harry Boy) i efterhand | Liten engångsåtgärd; finns hos ATG så länge kupongen inte raderats. |
 | ATG:s tipskommentar per häst i startlistan | Fritext som kräver AI-tolkning; publiceras sent i veckan. |
 | Fler expertkällor (tipssajter) | Kräver AI-tolkning och mer Gemini-kvot. |
 | Tillägget V7 och Boost i rättning och backtest | Ingår inte i utdelningen appen räknar på. |
