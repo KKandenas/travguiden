@@ -1,9 +1,9 @@
 import {
   BUDGETAR, RADPRIS, VARDE_GRANS, deltagare, kronor, optimera, ratta, sammanfattning, skrallchanser,
   skrallKrav, vinst,
-} from "./optimizer.js?v=20261103h";
-import { KALLOR, PERIODER, backtesta, iPeriod, sammanstall } from "./backtest.js?v=20261103h";
-import * as minaSpel from "./minaspel.js?v=20261103h";
+} from "./optimizer.js?v=20261110a";
+import { KALLOR, PERIODER, backtesta, iPeriod, sammanstall } from "./backtest.js?v=20261110a";
+import * as minaSpel from "./minaspel.js?v=20261110a";
 
 const $ = (id) => document.getElementById(id);
 const LAGRING = "travguiden";
@@ -15,6 +15,9 @@ const state = {
   budget: 200,          // kr
   kalla: "modell",      // valt förslag, se FORSLAG
   lasningar: {},        // {avd: [nr, ...]} för aktuell omgång
+  spikar: {},           // {avd: nr}: spikar användaren valt för aktuell omgång
+  spikAntal: null,      // antal spikar i systemet; null = systemet väljer
+  optCache: {},         // förslag -> Map med avdelningarnas alternativ (optimeraren)
   oppna: new Set(),     // "avd-nr" för hästar med utfällda detaljer
   resultat: null,       // senaste optimeringen
   senaste: null,        // senaste.json – förra omgången
@@ -41,6 +44,8 @@ function sparaLagring() {
     d.budget = state.budget;
     d.kalla = state.kalla;
     d.lasningar = { [id]: state.lasningar };          // bara aktuell omgång behöver sparas
+    d.spikar = { [id]: state.spikar };
+    d.spikAntal = state.spikAntal;
     d.budgetar = { ...(d.budgetar || {}), [id]: state.budget };
     const nycklar = Object.keys(d.budgetar).sort().slice(-6);   // budgeten per omgång till rättningen
     d.budgetar = Object.fromEntries(nycklar.map((k) => [k, d.budgetar[k]]));
@@ -114,11 +119,14 @@ function spelFor(data) {
     radpris: RADPRIS, vinstgrupper: [8, 7, 6, 5] };
 }
 
-function optimeraForslag(data, kalla, budget, lasningar) {
+/** spikar: {antal, val} (se optimera). Kupongens data får en cache per förslag, så att spikknapparna går snabbt. */
+function optimeraForslag(data, kalla, budget, lasningar, spikar = {}) {
   const avd = avdelningarFor(data, kalla);
+  const cache = data === state.data ? (state.optCache[kalla] ??= new Map()) : null;
   return optimera(avd, budget, lasningar, undefined, kalla === "skrall" ? skrallKrav(avd, budget, lasningar) : {},
-    spelFor(data).radpris);
+    spelFor(data).radpris, cache, spikar);
 }
+const spikarNu = () => ({ antal: state.spikAntal, val: state.spikar });
 
 const LAND = { NO: "Norsk", DK: "Dansk", FI: "Finsk", FR: "Fransk", DE: "Tysk", IT: "Italiensk" };
 const utlandsk = (data) => Boolean(data.omgang.land && data.omgang.land !== "SE");
@@ -178,13 +186,13 @@ function markeraForslag() {
 }
 
 /** Markera förslag som ger exakt samma system som Oddsen (t.ex. innan expertsystemen eller Hästkoll finns). */
-function markeraLika(box, data, budget, lasningar) {
+function markeraLika(box, data, budget, lasningar, spikar = {}) {
   const nyckel = (r) => (r.ok ? JSON.stringify(r.val.map((v) => [...v.nr].sort((x, y) => x - y))) : "");
-  const oddsen = nyckel(optimeraForslag(data, "modell", budget, lasningar));
+  const oddsen = nyckel(optimeraForslag(data, "modell", budget, lasningar, spikar));
   for (const b of box.querySelectorAll("button[data-kalla]")) {
     const k = b.dataset.kalla, under = b.querySelector("span");
     under.dataset.under ??= under.textContent;
-    const lika = k !== "modell" && nyckel(optimeraForslag(data, k, budget, lasningar)) === oddsen;
+    const lika = k !== "modell" && nyckel(optimeraForslag(data, k, budget, lasningar, spikar)) === oddsen;
     b.classList.toggle("lika", lika);
     under.textContent = lika ? "= samma som Oddsen" : under.dataset.under;
   }
@@ -227,10 +235,18 @@ async function start() {
   }
   markeraForslag();
   state.lasningar = (lagrat.lasningar || {})[state.data.omgang.id] || {};
+  state.spikar = (lagrat.spikar || {})[state.data.omgang.id] || {};
+  if (Number.isInteger(lagrat.spikAntal)) state.spikAntal = lagrat.spikAntal;
   byggBudgetknappar($("budgetknappar"), () => state.budget, (b) => { state.budget = b; uppdatera(); }, spelFor(state.data).radpris);
   $("avdelningar").addEventListener("click", klickKupong);
   fallText = fallKnapp($("fall-alla"), state.utfallda, uppdatera, spelFor(state.data).antal_avd);
-  $("rensa").addEventListener("click", () => { state.lasningar = {}; uppdatera(); });
+  $("rensa").addEventListener("click", () => { state.lasningar = {}; state.spikar = {}; uppdatera(); });
+  $("spikknappar").addEventListener("click", (e) => {
+    const b = e.target.closest("button[data-spikar]");
+    if (!b || b.disabled) return;
+    state.spikAntal = b.dataset.spikar === "auto" ? null : Number(b.dataset.spikar);
+    uppdatera();
+  });
   initVeckolage();
   initFlytlist();
   initSparaSpel();
@@ -256,11 +272,12 @@ function markeraBudget(box, b) {
 
 function uppdatera() {
   const d = state.data;
-  state.resultat = optimeraForslag(d, state.kalla, state.budget, state.lasningar);
-  if (!state.resultat.ok && Object.keys(state.lasningar).length) {
+  state.resultat = optimeraForslag(d, state.kalla, state.budget, state.lasningar, spikarNu());
+  const egnaVal = Object.keys(state.lasningar).length || Object.keys(state.spikar).length || state.spikAntal != null;
+  if (!state.resultat.ok && egnaVal) {
     $("fel").textContent = state.resultat.fel;
     $("fel").hidden = false;
-    state.resultat = optimeraForslag(d, state.kalla, state.budget, {});   // visa förslaget utan låsningar
+    state.resultat = optimeraForslag(d, state.kalla, state.budget, {});   // visa förslaget utan egna val
   } else {
     $("fel").hidden = true;
   }
@@ -270,11 +287,14 @@ function uppdatera() {
   const info = forslagInfo(d, state.kalla, r);
   $("forslag-info").textContent = info;
   $("forslag-info").hidden = !info;
-  $("rensa").hidden = !Object.values(state.lasningar).some((l) => l.length);
+  const harEgna = Object.values(state.lasningar).some((l) => l.length) || Object.keys(state.spikar).length > 0;
+  $("rensa").hidden = !harEgna;
+  $("rensa").textContent = Object.keys(state.spikar).length ? "Rensa låsningar och spikar" : "Rensa låsningar";
+  renderaSpikknappar();
   renderaTopp();
   ritaAvdelningar($("avdelningar"), d, r.ok ? r.val : [], state.lasningar, state.oppna, true, state.kalla, state.utfallda);
   fallText();
-  markeraLika(document.querySelector('section[data-vy="kupong"] .forslag'), d, state.budget, state.lasningar);
+  markeraLika(document.querySelector('section[data-vy="kupong"] .forslag'), d, state.budget, state.lasningar, spikarNu());
   renderaSparaKnapp();
   $("flyt-text").textContent = r.ok ? sammanfattning(r) : "";
   renderaVeckolage();
@@ -386,6 +406,23 @@ function initVeckolage() {
   });
 }
 
+/** Raden "Spikar": Auto och 0–6 (högst antal avdelningar − 1). Antal som inte går ihop med insatsen tonas ner. */
+function renderaSpikknappar() {
+  const d = state.data, avd = spelFor(d).antal_avd, max = Math.min(6, avd - 1);
+  const maxRader = Math.floor(state.budget / spelFor(d).radpris + 1e-9), egna = Object.keys(state.spikar).length;
+  const val = ["auto", ...Array.from({ length: max + 1 }, (_, i) => i)];
+  fyll($("spikknappar"), ...val.map((v) => {
+    const antal = v === "auto" ? null : v;
+    // Utan spik behövs minst två hästar: N spikar kräver minst 2^(avdelningar − N) rader (låsningar ger felmeddelande)
+    const mojligt = antal == null || (2 ** (avd - antal) <= maxRader && egna <= antal);
+    return el("button", {
+      type: "button", role: "radio", "data-spikar": v, "aria-checked": String(antal === state.spikAntal),
+      disabled: !mojligt && antal !== state.spikAntal,
+      title: mojligt ? null : `${antal} ${antal === 1 ? "spik" : "spikar"} går inte ihop med insatsen`,
+    }, v === "auto" ? "Auto" : String(v));
+  }));
+}
+
 function chansText(p) {
   if (p >= 0.01) return `${decimal(p * 100, 1)} %`;
   return `1 på ${Math.round(1 / p).toLocaleString("sv-SE")}`;
@@ -434,7 +471,8 @@ function ritaAvdelningar(lista, data, val, lasningar, oppna, interaktiv, kalla, 
   const experter = expertInfo(data);
   lista.replaceChildren(...data.avdelningar.map((a, i) => {
     const valda = valPer[a.avd] || new Set();
-    const last = new Set(lasningar[a.avd] || []);
+    const spik = interaktiv ? state.spikar[a.avd] : undefined;
+    const last = new Set(spik != null ? [spik] : lasningar[a.avd] || []);
     const andel = andelar(optAvd[i]);
     const skrall = skrallar[a.avd]?.nr;
     const vinnare = new Set(a.vinnare || []);
@@ -472,8 +510,8 @@ function ritaAvdelningar(lista, data, val, lasningar, oppna, interaktiv, kalla, 
         el("p", { class: "loppnamn", text: [`Lopp ${a.loppnr}`, METOD[a.startmetod], kortLoppnamn(a.namn)].filter(Boolean).join(" · "),
           title: a.namn || "" }),
         a.kommentar ? el("p", { class: "ai-kommentar" }, el("span", { class: "ai-etikett", text: "AI" }), a.kommentar) : null,
-        el("ul", { class: "hastar" }, ...a.hastar.map((h) => hastRad(a, h, andel[h.nr], valda.has(h.nr), last.has(h.nr),
-          vinnare.has(h.nr), oppna.has(`${a.avd}-${h.nr}`), interaktiv, { skrall: skrall === h.nr, experter: experter(a, h) })))) : null);
+        el("ul", { class: "hastar" }, ...a.hastar.map((h) => hastRad(a, h, andel[h.nr], valda.has(h.nr), last.has(h.nr) && spik == null,
+          vinnare.has(h.nr), oppna.has(`${a.avd}-${h.nr}`), interaktiv, { skrall: skrall === h.nr, experter: experter(a, h), spikad: spik === h.nr })))) : null);
   }));
 }
 
@@ -560,7 +598,11 @@ function hastRad(a, h, andel, vald, last, vann, oppen, interaktiv, extra = {}) {
         last ? el("span", { class: "las", "aria-hidden": "true", text: "🔒" }) : null,
         varde ? el("span", { class: "prick", "aria-hidden": "true" }) : null,
         el("span", { class: "del" }, el("b", { text: procent(h.streck) }), el("small", { text: "streck" })),
-        el("span", { class: "del" }, el("b", { text: struken ? "–" : procent(andel?.chans) }), el("small", { text: "chans" })))),
+        el("span", { class: "del" }, el("b", { text: struken ? "–" : procent(andel?.chans) }), el("small", { text: "chans" }))),
+      interaktiv && !struken ? el("button", {
+        type: "button", class: "spika" + (extra.spikad ? " spikad" : ""), "data-spika": "1", "aria-pressed": String(Boolean(extra.spikad)),
+        "aria-label": extra.spikad ? `${h.namn} är din spik – tryck för att ta bort` : `Spika ${h.namn}`,
+      }, extra.spikad ? "Spik ✓" : "Spika") : null),
     oppen ? detaljer(h, andel, id, exp, a) : null);
 }
 
@@ -620,7 +662,11 @@ function klickKupong(e) {
   const avd = Number(e.target.closest(".avd")?.dataset.avd);
   if (!li || !avd) return;
   const nr = Number(li.dataset.nr);
-  if (e.target.closest("[data-las]")) {
+  if (e.target.closest("[data-spika]")) {
+    if (state.spikar[avd] === nr) delete state.spikar[avd];
+    else state.spikar[avd] = nr;
+    uppdatera();
+  } else if (e.target.closest("[data-las]")) {
     const lista = new Set(state.lasningar[avd] || []);
     lista.has(nr) ? lista.delete(nr) : lista.add(nr);
     if (lista.size) state.lasningar[avd] = [...lista].sort((a, b) => a - b);
@@ -951,7 +997,7 @@ function perInsatsRuta(historik) {
       };
       try {
         // Egen tråd: sidan fryser inte och beräkningen går i full fart (10–15 s)
-        const w = new Worker("backtest_worker.js?v=20261103h", { type: "module" });
+        const w = new Worker("backtest_worker.js?v=20261110a", { type: "module" });
         w.onmessage = (m) => {
           if (m.data.framsteg) knapp.textContent = `Räknar … ${Math.round(m.data.framsteg * 100)} %`;
           if (m.data.klar) { w.terminate(); klart(m.data.klar); }

@@ -132,3 +132,29 @@ test("V75: 7 avdelningar och 60 öre per rad", () => {
   const vinnare = Object.fromEntries(r.val.map((v) => [v.avd, [v.nr[0]]]));
   assert.equal(ratta(r.val, vinnare).ratt, 7);
 });
+
+
+test("antal spikar: exakt så många, och egna spikar gäller före låsningar och skrällkrav", () => {
+  for (const antal of [0, 1, 3, 5]) {
+    const r = optimera(omgang(), 500, {}, undefined, {}, 0.5, null, { antal });
+    assert.ok(r.ok, `${antal} spikar`);
+    assert.equal(r.val.filter((v) => v.nr.length === 1).length, antal);
+    assert.ok(r.rader <= 1000);
+  }
+  const egen = optimera(omgang(), 200, { 2: [1, 2] }, undefined, { 3: 4 }, 0.5, null, { antal: 2, val: { 2: 5, 3: 6 } });
+  assert.ok(egen.ok);
+  assert.deepEqual(egen.val[1].nr, [5]);
+  assert.deepEqual(egen.val[2].nr, [6]);
+  assert.equal(egen.val.filter((v) => v.nr.length === 1).length, 2);
+  const auto = optimera(omgang(), 200, {}, undefined, {}, 0.5, null, { val: { 4: 6 } });   // antal: systemet väljer
+  assert.ok(auto.ok && auto.val[3].nr.length === 1 && auto.val[3].nr[0] === 6);
+});
+
+test("antal spikar som inte går ihop med insatsen ger ett begripligt fel", () => {
+  const r = optimera(omgang(), 25, {}, undefined, {}, 0.5, null, { antal: 0 });     // 0 spikar = minst 256 rader
+  assert.ok(!r.ok);
+  assert.match(r.fel, /minst 256 rader/);
+  const forManga = optimera(omgang(), 200, {}, undefined, {}, 0.5, null, { antal: 1, val: { 1: 1, 2: 1 } });
+  assert.ok(!forManga.ok);
+  assert.match(forManga.fel, /valt 2 spikar/);
+});

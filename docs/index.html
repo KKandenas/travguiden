@@ -14,8 +14,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@600;700;800&display=swap">
-<link rel="stylesheet" href="app.css?v=20261103h">
-<script type="module" src="app.js?v=20261103h"></script>
+<link rel="stylesheet" href="app.css?v=20261110a">
+<script type="module" src="app.js?v=20261110a"></script>
 </head>
 <body data-vy="kupong">
 <header class="topp">
@@ -65,6 +65,10 @@
           </div>
           <h2 id="budget-rubrik" class="kort-rubrik">Hur mycket vill du spela för?</h2>
           <div id="budgetknappar" class="budgetknappar" role="radiogroup" aria-label="Insats"></div>
+          <div class="spikval">
+            <span class="spikval-rubrik" id="spikval-rubrik">Spikar</span>
+            <div id="spikknappar" class="spikknappar" role="radiogroup" aria-labelledby="spikval-rubrik"></div>
+          </div>
           <p id="sammanfattning" class="sammanfattning" aria-live="polite"></p>
           <p id="systemchans" class="forklaring-kort"></p>
           <p id="forslag-info" class="forklaring-kort" aria-live="polite" hidden></p>
@@ -79,7 +83,7 @@
           <div id="veckolage-innehall"></div>
         </details>
         <div id="banner" class="banner" hidden></div>
-        <p class="tips-rad">Procenten på varje avdelning = chansen att vinnaren är bland de valda. Tryck på en avdelning för att se alla hästar · tryck på rutan för att låsa en häst 🔒 · <a href="#om">Så läser du kupongen</a></p>
+        <p class="tips-rad">Procenten på varje avdelning = chansen att vinnaren är bland de valda. Tryck på en avdelning för att se alla hästar · tryck på rutan för att låsa en häst 🔒 · Spika gör hästen till ensam spik · <a href="#om">Så läser du kupongen</a></p>
         <div class="knapprad">
           <button id="fall-alla" class="knapp" type="button">Fäll ut alla</button>
           <button id="rensa" class="knapp" type="button" hidden>Rensa låsningar</button>
@@ -150,6 +154,7 @@
     <section class="kort nytt" aria-labelledby="nytt-rubrik">
       <h2 id="nytt-rubrik">Nytt i Travguiden</h2>
       <ul class="nytt-lista">
+        <li><time datetime="2026-11-10">10 nov</time> <b>Spikar:</b> välj hur många spikar systemet ska ha, och spika egna hästar med Spika på hästraden.</li>
         <li><time datetime="2026-11-03">3 nov</time> <b>Mina spel:</b> spara systemet du spelat – det rättas automatiskt under Förra omgången (sparas bara i webbläsaren). Ta bort med × på kupongen eller under Förra omgången.</li>
         <li><time datetime="2026-11-03">3 nov</time> <b>Kupongen:</b> chansen att vinnaren är med i varje avdelning, en list med rader och Lämna in längst ner i mobilen, och "= samma som Oddsen" på förslag som ger samma system.</li>
         <li><time datetime="2026-11-03">3 nov</time> <b>Veckans läge</b> på kupongen och <b>Expertligan</b> under Förra omgången.</li>
@@ -175,6 +180,7 @@
         <li><b>Chans</b> – Travguidens bedömning av hur troligt det är att hästen vinner.</li>
         <li><span class="prick inline" aria-hidden="true"></span> <b>Orange prick</b> – chansen är minst två procentenheter högre än strecken. Hästen är understreckad och betalar mer om den vinner.</li>
         <li>Gröna rutor är systemets hästar. Tryck på en ruta för att låsa hästen 🔒 – den kommer då alltid med, och resten av systemet räknas om runt den.</li>
+        <li><b>Spika</b> på en häst gör den till ensam häst i avdelningen. Under insatsen väljer du hur många spikar systemet ska ha (<b>Auto</b> = Travguiden väljer); dina egna spikar räknas in, och resten väljer systemet.</li>
       </ul>
     </section>
     <section class="kort">

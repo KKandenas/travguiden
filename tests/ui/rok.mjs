@@ -96,6 +96,22 @@ for (const bredd of BREDDER) {
     }
   });
 
+  await steg(`${b} spikar`, async () => {
+    await page.locator('#spikknappar button[data-spikar="2"]').click();
+    let text = await page.locator("#sammanfattning").innerText();
+    if (!/— 2 spikar/.test(text)) throw new Error(`2 spikar valda, sammanfattningen: "${text}"`);
+    await page.locator("#avdelningar .avd-huvud").first().click();
+    const forsta = page.locator("#avdelningar .avd").first();
+    await forsta.locator(".hast:not(.struken) .spika").last().click();      // en lågt streckad häst som egen spik
+    if (!/SPIK/.test(await forsta.locator(".avd-typ").innerText())) throw new Error("den egna spiken syns inte i avdelningen");
+    text = await page.locator("#sammanfattning").innerText();
+    if (!/— 2 spikar/.test(text)) throw new Error(`egen spik + 2 spikar, sammanfattningen: "${text}"`);
+    await kontrollera(page, `${b} spikar`);
+    await page.locator("#rensa").click();
+    await page.locator('#spikknappar button[data-spikar="auto"]').click();
+    await forsta.locator(".avd-huvud").click();
+  });
+
   await steg(`${b} utfälld avdelning och Veckans läge`, async () => {
     await page.locator("#avdelningar .avd-huvud").first().click();
     await page.waitForSelector("#avdelningar .avd.utfalld .hast");

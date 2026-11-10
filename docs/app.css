@@ -223,7 +223,22 @@ h1 { font-family: var(--rubrikfont); font-size: 36px; font-weight: 800; line-hei
 .hastar { list-style: none; margin: 0; padding: 0; }
 .hast { border-top: 1px solid var(--linje); }
 .hast:first-child { border-top: 0; }
-.hast-rad { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; }
+.hast-rad { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; }
+.spika {
+  margin: 0 10px 0 0; min-height: 34px; padding: 0 9px; border-radius: 9px; border: 1.5px solid var(--ruta-kant);
+  background: var(--yta); color: var(--primar); font-weight: 700; font-size: 12.5px; cursor: pointer; white-space: nowrap;
+}
+.spika.spikad { background: var(--gul); border-color: var(--gul); color: var(--gul-text); }
+.hast-rad .valruta { margin-right: 6px; }
+.spikval { display: flex; align-items: center; gap: 8px; margin-top: 10px; }
+.spikval-rubrik { flex: none; font-weight: 700; font-size: 14px; }
+.spikknappar { flex: 1; display: grid; grid-template-columns: 1.6fr repeat(7, 1fr); gap: 4px; }
+.spikknappar button {
+  min-height: 34px; border-radius: 9px; border: 1.5px solid var(--ruta-kant); background: var(--yta-2);
+  font-family: var(--rubrikfont); font-weight: 700; font-size: 15px; cursor: pointer; padding: 0;
+}
+.spikknappar button[aria-checked="true"] { background: var(--primar); color: var(--vald-text); border-color: var(--primar); }
+.spikknappar button:disabled { opacity: .35; cursor: default; }
 .hast-info {
   display: grid; grid-template-columns: 28px minmax(0, 1fr); gap: 10px; align-items: center; width: 100%;
   padding: 7px 4px 7px 12px; background: none; border: 0; text-align: left; cursor: pointer; min-width: 0;

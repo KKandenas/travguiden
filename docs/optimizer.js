@@ -105,43 +105,64 @@ export function bastaPerAntal(avd, lasta = [], lambda = LAMBDA) {
  * @param krav        {avd: nr} – häst som måste vara med (Skrällchansen)
  * @param radpris     kr per rad (V85 0,5; nya V75 0,6)
  * @param cache       valfri Map: avdelningarnas alternativ (det tunga steget) återanvänds mellan insatser
+ * @param spikar      {antal, val}: antal = exakt så många spikar (null = systemet väljer), val = {avd: nr} för
+ *                    spikar användaren valt. En vald spik gäller före låsningar och skrällkrav i avdelningen.
  * @returns {ok: true, val: [{avd, nr: [..], last: [..], skrall}], rader, kostnad, chans}
  *        | {ok: false, fel: "text"}
  */
-export function optimera(avdelningar, budget, lasningar = {}, lambda = LAMBDA, krav = {}, radpris = RADPRIS, cache = null) {
+export function optimera(avdelningar, budget, lasningar = {}, lambda = LAMBDA, krav = {}, radpris = RADPRIS, cache = null,
+  spikar = {}) {
   if (avdelningar.length < 2) return { ok: false, fel: "Omgången saknar avdelningar." };
   const maxRader = Math.floor(budget / radpris + 1e-9);
   if (maxRader < 1) return { ok: false, fel: "Budgeten räcker inte till en rad." };
+  const spikVal = spikar.val || {}, antal = spikar.antal ?? null;
+  const valda = avdelningar.filter((a) => spikVal[a.avd] != null).length;
+  if (antal != null && valda > antal) {
+    return { ok: false, fel: `Du har valt ${valda} spikar men bett om ${antal}. Ta bort en spik eller välj fler.` };
+  }
 
-  const maste = (a) => [...(lasningar[a.avd] || []), ...(krav[a.avd] != null ? [krav[a.avd]] : [])];
+  const maste = (a) => (spikVal[a.avd] != null ? [spikVal[a.avd]]
+    : [...(lasningar[a.avd] || []), ...(krav[a.avd] != null ? [krav[a.avd]] : [])]);
   const alternativ = avdelningar.map((a) => {
-    if (!cache) return bastaPerAntal(a, maste(a), lambda);
-    const nyckel = `${a.avd}|${maste(a).join(",")}|${lambda}`;
-    if (!cache.has(nyckel)) cache.set(nyckel, bastaPerAntal(a, maste(a), lambda));
+    const hamta = () => {
+      const alt = bastaPerAntal(a, maste(a), lambda);
+      return spikVal[a.avd] != null ? alt.filter((x) => x.k === 1) : alt;
+    };
+    if (!cache) return hamta();
+    const nyckel = `${a.avd}|${spikVal[a.avd] != null ? "s" : ""}${maste(a).join(",")}|${lambda}`;
+    if (!cache.has(nyckel)) cache.set(nyckel, hamta());
     return cache.get(nyckel);
   });
   const tom = alternativ.findIndex((alt) => !alt.length);
   if (tom >= 0) return { ok: false, fel: `Avdelning ${avdelningar[tom].avd} saknar hästar att välja.` };
 
-  // tillstand: rader -> {poang, val: [index per avdelning]}
-  let tillstand = new Map([[1, { poang: 0, val: [] }]]);
+  // tillstand: rader · 16 + antal spikar -> {poang, val: [index per avdelning]}
+  let tillstand = new Map([[16, { poang: 0, val: [] }]]);
   for (const alt of alternativ) {
     const nytt = new Map();
-    for (const [rader, s] of tillstand) {
+    for (const [nyckel, s] of tillstand) {
+      const rader = nyckel >> 4, sp = nyckel & 15;
       for (let j = 0; j < alt.length; j++) {
         const r = rader * alt[j].k;
         if (r > maxRader) break;           // alt är sorterad på k
-        const p = s.poang + alt[j].poang;
-        const fore = nytt.get(r);
-        if (!fore || p > fore.poang) nytt.set(r, { poang: p, val: [...s.val, j] });
+        const ns = sp + (alt[j].k === 1 ? 1 : 0);
+        if (antal != null && ns > antal) continue;
+        const k = r * 16 + ns, p = s.poang + alt[j].poang;
+        const fore = nytt.get(k);
+        if (!fore || p > fore.poang) nytt.set(k, { poang: p, val: [...s.val, j] });
       }
     }
     tillstand = nytt;
   }
-  if (!tillstand.size) return { ok: false, fel: lasningsfel(avdelningar, lasningar, maxRader, radpris) };
-
   let bast = null, bastRader = 0;
-  for (const [rader, s] of tillstand) if (!bast || s.poang > bast.poang) { bast = s; bastRader = rader; }
+  for (const [nyckel, s] of tillstand) {
+    if (antal != null && (nyckel & 15) !== antal) continue;
+    if (!bast || s.poang > bast.poang) { bast = s; bastRader = nyckel >> 4; }
+  }
+  if (!bast) {
+    return { ok: false, fel: antal != null
+      ? spikfel(avdelningar, antal, maxRader, radpris) : lasningsfel(avdelningar, lasningar, maxRader, radpris) };
+  }
   let chans = 1;
   const val = avdelningar.map((a, i) => {
     const v = alternativ[i][bast.val[i]];
@@ -150,6 +171,14 @@ export function optimera(avdelningar, budget, lasningar = {}, lambda = LAMBDA, k
       skrall: krav[a.avd] ?? null };
   });
   return { ok: true, val, rader: bastRader, kostnad: Math.round(bastRader * radpris * 100) / 100, chans };
+}
+
+function spikfel(avdelningar, antal, maxRader, radpris) {
+  const minst = 2 ** (avdelningar.length - antal);
+  return minst > maxRader
+    ? `Med ${antal} ${antal === 1 ? "spik" : "spikar"} behövs minst ${minst} rader (${kronor(Math.round(minst * radpris * 100) / 100)}). ` +
+      "Välj fler spikar eller en större insats."
+    : `${antal} ${antal === 1 ? "spik" : "spikar"} går inte ihop med dina låsningar och den här insatsen.`;
 }
 
 function lasningsfel(avdelningar, lasningar, maxRader, radpris) {
