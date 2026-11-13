@@ -152,6 +152,7 @@ def tolka_spel(spel: dict, hamtad: str) -> Omgang:
         spelstopp=avdelningar[0].starttid or tidpunkt,
         status=spel.get("status") or "",
         omsattning=pool["turnover"] / 100 if pool.get("turnover") else None,
+        jackpot=pool["jackpotAmount"] / 100 if pool.get("jackpotAmount") else None,
         tidpunkt=tidpunkt, avdelningar=avdelningar,
         utdelning=utdelning if avgjord else {}, vinnande_rader=vinnande if avgjord else {},
         avgjord=avgjord,

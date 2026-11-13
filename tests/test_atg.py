@@ -13,6 +13,7 @@ HAMTAD = "2026-10-14T08:00:00Z"
 def test_kommande_omgang():
     o = atg.tolka_spel(las_fixture("atg_v85_kommande.json"), HAMTAD)
     assert o.id == "V85_2026-10-17_16_5" and o.spelform == "V85" and o.bana == "Gävle" and o.land == "SE"
+    assert o.jackpot is None                               # ingen jackpotAmount i fixturen
     assert o.spelstopp == "2026-10-17T13:00:00Z"          # 15:00 svensk sommartid
     assert o.tidpunkt == "2026-10-14T08:15:45Z"           # poolens tidsstämpel
     assert len(o.avdelningar) == 8 and not o.avgjord and o.utdelning == {}
@@ -93,3 +94,13 @@ def test_produkt_utan_kommande_omgangar():
     assert d["upcoming"] == [{"id": "V85_x"}]
     with pytest.raises(HamtningsFel):
         atg.tolka_produkt({"fel": "x"}, "V75")
+
+
+def test_jackpot_i_kr(conn):
+    spel = las_fixture("atg_v85_kommande.json")
+    spel["pools"]["V85"]["jackpotAmount"] = 31561814          # öre, som ATG skickar det
+    o = atg.tolka_spel(spel, HAMTAD)
+    assert o.jackpot == 315618.14
+    from pipeline import export, lagring
+    lagring.spara_omgang(conn, o)
+    assert export.omgang_data(conn, o.id)["omgang"]["jackpot"] == 315618.14

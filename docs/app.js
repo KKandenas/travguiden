@@ -1,9 +1,9 @@
 import {
   BUDGETAR, RADPRIS, VARDE_GRANS, deltagare, kronor, optimera, ratta, sammanfattning, skrallchanser,
   skrallKrav, vinst,
-} from "./optimizer.js?v=20261110a";
-import { KALLOR, PERIODER, backtesta, iPeriod, sammanstall } from "./backtest.js?v=20261110a";
-import * as minaSpel from "./minaspel.js?v=20261110a";
+} from "./optimizer.js?v=20261113a";
+import { KALLOR, PERIODER, backtesta, iPeriod, sammanstall } from "./backtest.js?v=20261113a";
+import * as minaSpel from "./minaspel.js?v=20261113a";
 
 const $ = (id) => document.getElementById(id);
 const LAGRING = "travguiden";
@@ -442,6 +442,9 @@ function renderaTopp() {
   status.hidden = false;
   status.className = "status" + (kvar > 0 ? " oppen" : "");
   status.textContent = state.exempel ? "Exempel" : o.avgjord ? "Avgjord" : kvar > 0 ? "Öppen" : "Stängd";
+  const jp = $("jackpot");
+  jp.hidden = !(o.jackpot > 0) || o.avgjord;
+  jp.textContent = o.jackpot > 0 ? `Jackpot: ${kr(o.jackpot)} extra till ${spel.antal_avd} rätt` : "";
   const ned = $("nedrakning");
   ned.hidden = kvar <= 0 || state.exempel;
   if (kvar > 0) {
@@ -997,7 +1000,7 @@ function perInsatsRuta(historik) {
       };
       try {
         // Egen tråd: sidan fryser inte och beräkningen går i full fart (10–15 s)
-        const w = new Worker("backtest_worker.js?v=20261110a", { type: "module" });
+        const w = new Worker("backtest_worker.js?v=20261113a", { type: "module" });
         w.onmessage = (m) => {
           if (m.data.framsteg) knapp.textContent = `Räknar … ${Math.round(m.data.framsteg * 100)} %`;
           if (m.data.klar) { w.terminate(); klart(m.data.klar); }

@@ -136,6 +136,7 @@ def omgang_data(conn: sqlite3.Connection, omgang_id: str, dolj_resultat: bool = 
         "omgang": {"id": o["id"], "spelform": o["spelform"], "datum": o["datum"], "bana": o["bana"], "land": o["land"],
                    "vinnarodds": bool(vinnarodds),
                    "spelstopp": o["spelstopp"], "status": o["status"], "omsattning": o["omsattning"],
+                   "jackpot": o["jackpot"],
                    "avgjord": bool(o["avgjord"]) and not dolj_resultat},
         "modell": {"version": modeller.AKTIV, "namn": modeller.MODELLER[modeller.AKTIV]},
         "uppdaterad": nu_utc(),

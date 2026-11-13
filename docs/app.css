@@ -109,6 +109,11 @@ button { font: inherit; color: inherit; }
 .status.oppen::before { content: ""; display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: #5ee08f; margin-right: 6px; vertical-align: 1px; }
 h1 { font-family: var(--rubrikfont); font-size: 36px; font-weight: 800; line-height: 1.05; }
 .omgang p { margin-top: 4px; opacity: .85; }
+.jackpot {
+  display: inline-flex; margin: 12px 0 0 6px !important; font-weight: 700; font-size: 14px; opacity: 1 !important;
+  border: 1.5px solid var(--gul); color: var(--gul); padding: 5px 12px; border-radius: 999px;
+}
+.jackpot[hidden] { display: none; }
 .nedrakning {
   display: inline-flex; margin-top: 12px !important; opacity: 1 !important; font-weight: 700; font-size: 14px;
   background: var(--gul); color: var(--gul-text); padding: 6px 12px; border-radius: 999px;

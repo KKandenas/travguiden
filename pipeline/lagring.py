@@ -20,14 +20,15 @@ def spara_omgang(conn: sqlite3.Connection, o: Omgang) -> Dict[str, int]:
     nya = {"starter": 0, "streck": 0, "odds": 0}
     with conn:
         conn.execute(
-            """INSERT INTO omgangar (id, spelform, datum, bana, spelstopp, status, omsattning, avgjord, land)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """INSERT INTO omgangar (id, spelform, datum, bana, spelstopp, status, omsattning, avgjord, land, jackpot)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                ON CONFLICT(id) DO UPDATE SET datum = excluded.datum, bana = excluded.bana,
                    land = COALESCE(excluded.land, omgangar.land),
+                   jackpot = COALESCE(excluded.jackpot, omgangar.jackpot),
                    spelstopp = excluded.spelstopp, status = excluded.status,
                    omsattning = COALESCE(excluded.omsattning, omgangar.omsattning),
                    avgjord = MAX(omgangar.avgjord, excluded.avgjord)""",
-            (o.id, o.spelform, o.datum, o.bana, o.spelstopp, o.status, o.omsattning, int(o.avgjord), o.land))
+            (o.id, o.spelform, o.datum, o.bana, o.spelstopp, o.status, o.omsattning, int(o.avgjord), o.land, o.jackpot))
         for ratt, kr in o.utdelning.items():
             conn.execute("""INSERT INTO utdelning (omgang_id, ratt, kr, antal) VALUES (?, ?, ?, ?)
                             ON CONFLICT(omgang_id, ratt) DO UPDATE SET kr = excluded.kr, antal = excluded.antal""",

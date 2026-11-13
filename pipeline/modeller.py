@@ -69,6 +69,7 @@ class Omgang:
     vinnande_rader: Dict[int, int] = field(default_factory=dict)
     avgjord: bool = False
     land: Optional[str] = None              # banans land (SE, NO, DK …)
+    jackpot: Optional[float] = None         # kr extra i potten för högsta vinstgruppen
 
 
 @dataclass
