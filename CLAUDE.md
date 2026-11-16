@@ -63,7 +63,8 @@ tidslinje med kontrollpunkter, beslutsregler, testat och inte infört) och DATAK
   Tester: `.venv\Scripts\python -m pytest -q` (i Git Bash eller Linux/macOS: `.venv/bin/...`). `tzdata` behövs för
   svensk tid på Windows. Med Python 3.10+ installeras AI-paketen; AI-stegen körs då lokalt om GEMINI_API_KEY finns,
   annars hoppas de över. GitHub Actions testar Python 3.9 och 3.12.
-- JS-tester: `node --test tests/js/` (fungerar i alla skal; `*.test.mjs`-globben expanderas inte i PowerShell).
+- JS-tester: `node --test "tests/js/*.test.mjs"` (citattecknen gör att Node själv expanderar globben, så det
+  fungerar även i PowerShell; kräver Node 21+).
   `tests/js/kor_lokalt.sh` är bara för macOS utan Node. Röktestet av gränssnittet (`tests/ui/rok.mjs`, Chromium
   via Playwright) körs i GitHub Actions – kontrollera jobbet `ui` efter push.
 - Användarsynliga ändringar läggs in i "Nytt i Travguiden" överst på om-sidan (`docs/index.html`).
