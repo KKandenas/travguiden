@@ -41,15 +41,30 @@ V85 ersatte V75 den 25 oktober 2025. **Den 28 november 2026 kommer V75 tillbaka*
 
 ## Kom igång lokalt
 
-Kräver Python 3.9 eller senare. Inga API-nycklar behövs.
+Kräver Python 3.9 eller senare. Inga API-nycklar behövs. Med Python 3.10+ installeras även AI-paketen; AI-stegen
+körs bara om `GEMINI_API_KEY` är satt och hoppas annars över.
+
+Windows (PowerShell eller cmd):
+
+```
+python -m venv .venv
+.venv\Scripts\pip install -r requirements-dev.txt
+.venv\Scripts\python -m pytest              # testerna kräver inget nätverk
+.venv\Scripts\python -m pipeline auto       # hämtar det som är aktuellt just nu
+python -m http.server 8766 -d docs          # öppna http://localhost:8766
+```
+
+macOS, Linux och Git Bash:
 
 ```bash
 python3 -m venv .venv
 .venv/bin/pip install -r requirements-dev.txt
-.venv/bin/python -m pytest              # testerna kräver inget nätverk
-.venv/bin/python -m pipeline auto       # hämtar det som är aktuellt just nu
-python3 -m http.server 8766 -d docs     # öppna http://localhost:8766
+.venv/bin/python -m pytest
+.venv/bin/python -m pipeline auto
+python3 -m http.server 8766 -d docs
 ```
+
+På Windows behövs paketet `tzdata` (finns i `requirements.txt`) för svensk tid.
 
 | Kommando | Gör |
 |---|---|
@@ -111,9 +126,11 @@ körning, och repot skulle växa med över 1 GB per år. Pipelinen hämtar datab
 den börjar aldrig om med en tom databas. En komprimerad kopia per vecka sparas som release-fil (`databas-kopior`,
 de 8 senaste). Hämta databasen lokalt:
 
-```
+```bash
 git fetch origin databas && mkdir -p data && git show origin/databas:trav.db > data/trav.db
 ```
+
+Kör det i Git Bash, macOS eller Linux. Windows PowerShell 5 gör om utdata vid `>` och databasfilen blir trasig.
 
 Alla tider i UTC. Migreringar i `pipeline/migrations/NNN_namn.sql` körs automatiskt
 i nummerordning. Ändra aldrig en fil som redan körts – lägg till en ny.
@@ -340,9 +357,9 @@ Vald insats och låsningar sparas i webbläsarens localStorage. Lägg till `?exe
 ## Tester
 
 ```bash
-.venv/bin/python -m pytest
-node --test tests/js/*.test.mjs     # kräver Node 18+, körs annars i GitHub Actions
-tests/js/kor_lokalt.sh              # samma JS-tester utan Node (macOS JavaScriptCore)
+.venv/bin/python -m pytest              # Windows: .venv\Scripts\python -m pytest
+node --test "tests/js/*.test.mjs"       # Node 21+; citattecknen gör att det fungerar även i PowerShell
+tests/js/kor_lokalt.sh                  # samma JS-tester utan Node, bara macOS (JavaScriptCore)
 ```
 
 `tests/ui/rok.mjs` är ett röktest av gränssnittet i Chromium (Playwright) med appens riktiga data: alla vyer i mobil-
