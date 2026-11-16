@@ -59,11 +59,13 @@ tidslinje med kontrollpunkter, beslutsregler, testat och inte infört) och DATAK
 
 ## Utveckling
 
-- Python: `python3 -m venv .venv` och `.venv/bin/pip install -r requirements-dev.txt`. Tester:
-  `.venv/bin/python -m pytest -q`. Lokalt är det Python 3.9 utan AI-paket; AI-stegen hoppas då över.
-- JS-tester: `node --test tests/js/*.test.mjs` (GitHub Actions). Utan Node lokalt: `tests/js/kor_lokalt.sh`
-  (macOS JavaScriptCore). Röktestet av gränssnittet (`tests/ui/rok.mjs`, Chromium via Playwright) körs bara i
-  GitHub Actions – kontrollera jobbet `ui` efter push.
+- Lokalt är det Windows. Python: `python -m venv .venv` och `.venv\Scripts\pip install -r requirements-dev.txt`.
+  Tester: `.venv\Scripts\python -m pytest -q` (i Git Bash eller Linux/macOS: `.venv/bin/...`). `tzdata` behövs för
+  svensk tid på Windows. Med Python 3.10+ installeras AI-paketen; AI-stegen körs då lokalt om GEMINI_API_KEY finns,
+  annars hoppas de över. GitHub Actions testar Python 3.9 och 3.12.
+- JS-tester: `node --test tests/js/` (fungerar i alla skal; `*.test.mjs`-globben expanderas inte i PowerShell).
+  `tests/js/kor_lokalt.sh` är bara för macOS utan Node. Röktestet av gränssnittet (`tests/ui/rok.mjs`, Chromium
+  via Playwright) körs i GitHub Actions – kontrollera jobbet `ui` efter push.
 - Användarsynliga ändringar läggs in i "Nytt i Travguiden" överst på om-sidan (`docs/index.html`).
 - Förhandsvisning: `.claude/launch.json` ("travguiden", port 8766). Webbläsaren cachar `index.html`; ladda om med
   en ny `?t=` i adressen.
@@ -71,7 +73,8 @@ tidslinje med kontrollpunkter, beslutsregler, testat och inte infört) och DATAK
   kontrollerar det).
 - Databasen ligger på grenen `databas` (bara senaste versionen, skrivs över av pipelinen) och veckovis som
   release-fil (`databas-kopior`); `data/` är inte med i main. Hämta den lokalt med
-  `git fetch origin databas && git show origin/databas:trav.db > data/trav.db`. Pusha aldrig till `databas` lokalt.
+  `git fetch origin databas && git show origin/databas:trav.db > data/trav.db` – i Git Bash, inte Windows PowerShell 5,
+  som förstör binärfilen vid `>`. Pusha aldrig till `databas` lokalt.
 - Pipelinen committar `docs/*.json` till main flera gånger om dagen. Kör `git pull --rebase` före push, och återställ
   lokala `docs/*.json` (`git checkout -- docs/omgang.json docs/senaste.json docs/historik.json`) innan commit – de
   skrivs av boten.
