@@ -131,6 +131,8 @@ h1 { font-family: var(--rubrikfont); font-size: 36px; font-weight: 800; line-hei
 .forslag button[aria-checked="true"] { background: var(--yta); box-shadow: 0 1px 4px rgba(10, 40, 25, .15); }
 .forslag button[aria-checked="true"] b { color: var(--primar); }
 .forslag button.lika span { color: var(--orange-text); font-weight: 600; }
+.forslag button small.folk { display: block; margin-top: 3px; font-size: 10.5px; color: var(--text); font-variant-numeric: tabular-nums; }
+.forslag button small.folk:empty { display: none; }
 .forslag button:focus-visible { outline: 2px solid var(--gul); outline-offset: 2px; }
 .budgetknappar { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
 .budgetknappar button {

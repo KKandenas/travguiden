@@ -14,8 +14,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@600;700;800&display=swap">
-<link rel="stylesheet" href="app.css?v=20261118a">
-<script type="module" src="app.js?v=20261118a"></script>
+<link rel="stylesheet" href="app.css?v=20261118b">
+<script type="module" src="app.js?v=20261118b"></script>
 </head>
 <body data-vy="kupong">
 <header class="topp">
@@ -72,6 +72,7 @@
           </div>
           <p id="sammanfattning" class="sammanfattning" aria-live="polite"></p>
           <p id="systemchans" class="forklaring-kort"></p>
+          <p id="folkchans" class="forklaring-kort"></p>
           <p id="forslag-info" class="forklaring-kort" aria-live="polite" hidden></p>
           <p id="fel" class="fel" role="alert" hidden></p>
           <a id="lamna-in" class="lamna-in" href="https://www.atg.se/spel/V85" target="_blank" rel="noopener noreferrer">Lämna in hos ATG<span class="sr-only"> (öppnas i nytt fönster)</span> <span aria-hidden="true">↗</span></a>
@@ -155,6 +156,7 @@
     <section class="kort nytt" aria-labelledby="nytt-rubrik">
       <h2 id="nytt-rubrik">Nytt i Travguiden</h2>
       <ul class="nytt-lista">
+        <li><time datetime="2026-11-18">18 nov</time> <b>Folket:</b> varje förslag visar systemets chans för alla rätt bredvid folkets (räknad på strecken), så att man ser hur mycket förslagen går mot folket.</li>
         <li><time datetime="2026-11-18">18 nov</time> <b>AI-kommentarerna och Hästkoll</b> fungerar igen efter två veckors uppehåll – Google hade ändrat sitt gränssnitt.</li>
         <li><time datetime="2026-11-18">18 nov</time> <b>Stryk häst:</b> tryck två gånger på en hästs ruta (🔒, sedan ✕) för att ta bort den ur systemet, till exempel om du tycker att systemet tagit med för många hästar i ett lopp.</li>
         <li><time datetime="2026-11-13">13 nov</time> <b>Jackpot</b> visas i kupongens rubrik när det finns extra pengar i potten för alla rätt.</li>
@@ -184,6 +186,7 @@
         <li><b>Chans</b> – Travguidens bedömning av hur troligt det är att hästen vinner.</li>
         <li><span class="prick inline" aria-hidden="true"></span> <b>Orange prick</b> – chansen är minst två procentenheter högre än strecken. Hästen är understreckad och betalar mer om den vinner.</li>
         <li>Gröna rutor är systemets hästar. Tryck på en ruta för att låsa hästen 🔒 – den kommer då alltid med, och resten av systemet räknas om runt den. Tryck en gång till för att stryka hästen ✕ – den kommer då aldrig med, och pengarna läggs där de gör mest nytta, kanske i en annan avdelning. Ett tredje tryck gör hästen valfri igen.</li>
+        <li><b>Folket</b> – under systemets chans för alla rätt står samma chans räknad på strecken, och på varje förslag står båda (till exempel "0,8 % · folket 2,4 %"). Är folkets chans högre tror folket mer på systemets hästar än förslaget gör, och sitter systemet brukar det betala mindre än en snittrad. Det är vanligt i V85, där favoriterna är överstreckade: de vinner omkring 10 % mer sällan än strecken säger. Systemen har ändå med dem, eftersom man måste träffa alla avdelningar. Siffran gäller bara högsta vinstgruppen och är aldrig bättre än förslagets egen chans – den lovar ingen vinst.</li>
         <li><b>Spika</b> på en häst gör den till ensam häst i avdelningen. Under insatsen väljer du hur många spikar systemet ska ha (<b>Auto</b> = Travguiden väljer); dina egna spikar räknas in, och resten väljer systemet.</li>
       </ul>
     </section>

@@ -1,9 +1,9 @@
 import {
-  BUDGETAR, RADPRIS, VARDE_GRANS, deltagare, kronor, optimera, ratta, sammanfattning, skrallchanser,
+  BUDGETAR, RADPRIS, VARDE_GRANS, deltagare, folketsChans, kronor, optimera, ratta, sammanfattning, skrallchanser,
   skrallKrav, vinst,
-} from "./optimizer.js?v=20261118a";
-import { KALLOR, PERIODER, backtesta, iPeriod, sammanstall } from "./backtest.js?v=20261118a";
-import * as minaSpel from "./minaspel.js?v=20261118a";
+} from "./optimizer.js?v=20261118b";
+import { KALLOR, PERIODER, backtesta, iPeriod, sammanstall } from "./backtest.js?v=20261118b";
+import * as minaSpel from "./minaspel.js?v=20261118b";
 
 const $ = (id) => document.getElementById(id);
 const LAGRING = "travguiden";
@@ -189,17 +189,37 @@ function markeraForslag() {
   for (const b of document.querySelectorAll(".forslag button")) b.setAttribute("aria-checked", String(b.dataset.kalla === state.kalla));
 }
 
-/** Markera förslag som ger exakt samma system som Oddsen (t.ex. innan expertsystemen eller Hästkoll finns). */
+/** Markera förslag som ger exakt samma system som Oddsen (t.ex. innan expertsystemen eller Hästkoll finns), och
+ *  visa på varje knapp systemets chans för alla rätt mot folkets (strecken), så att man ser skillnaden före valet. */
 function markeraLika(box, data, budget, lasningar, spikar = {}, uteslutna = {}) {
   const nyckel = (r) => (r.ok ? JSON.stringify(r.val.map((v) => [...v.nr].sort((x, y) => x - y))) : "");
-  const oddsen = nyckel(optimeraForslag(data, "modell", budget, lasningar, spikar, uteslutna));
+  const res = (k) => optimeraForslag(data, k, budget, lasningar, spikar, uteslutna);
+  const oddsen = nyckel(res("modell"));
   for (const b of box.querySelectorAll("button[data-kalla]")) {
     const k = b.dataset.kalla, under = b.querySelector("span");
     under.dataset.under ??= under.textContent;
-    const lika = k !== "modell" && nyckel(optimeraForslag(data, k, budget, lasningar, spikar, uteslutna)) === oddsen;
+    const r = res(k);
+    const lika = k !== "modell" && nyckel(r) === oddsen;
     b.classList.toggle("lika", lika);
     under.textContent = lika ? "= samma som Oddsen" : under.dataset.under;
+    let folk = b.querySelector(".folk");
+    if (!folk) b.append(folk = el("small", { class: "folk" }));
+    const f = r.ok ? folketsChans(avdelningarFor(data, k), r.val) : null;
+    folk.textContent = f ? `${kortChans(f.chans)} · folket ${kortChans(f.folket)}` : "";
+    folk.title = f ? `Chans för ${spelFor(data).antal_avd} rätt enligt förslaget och enligt strecken` : "";
   }
+}
+const kortChans = (p) => (p >= 0.001 ? `${decimal(p * 100, 1)} %` : "<0,1 %");
+
+/** Raden under systemets chans: folkets chans för samma system, och vad skillnaden betyder för utdelningen. */
+function folkText(data, kalla, r) {
+  if (!r.ok) return "";
+  const { chans, folket } = folketsChans(avdelningarFor(data, kalla), r.val);
+  const kvot = chans / folket;
+  const bas = `Enligt strecken (folket): ${chansText(folket)}.`;
+  if (kvot <= 0.8) return `${bas} Folket tror mer på systemets hästar än förslaget gör – sitter systemet brukar det betala mindre än en snittrad.`;
+  if (kvot >= 1.25) return `${bas} Förslaget tror mer på systemets hästar än folket gör – sitter systemet brukar det betala mer än en snittrad.`;
+  return `${bas} Ungefär som förslaget – utdelningen brukar bli som för en snittrad.`;
 }
 
 /** Chans och streck som andelar bland de hästar som startar (samma som optimeraren räknar med). */
@@ -289,6 +309,7 @@ function uppdatera() {
   const r = state.resultat;
   $("sammanfattning").textContent = r.ok ? sammanfattning(r) : r.fel;
   $("systemchans").textContent = r.ok ? `Chans att systemet ger ${spelFor(d).antal_avd} rätt: ${chansText(r.chans)}` : "";
+  $("folkchans").textContent = folkText(d, state.kalla, r);
   const info = forslagInfo(d, state.kalla, r);
   $("forslag-info").textContent = info;
   $("forslag-info").hidden = !info;
@@ -1022,7 +1043,7 @@ function perInsatsRuta(historik) {
       };
       try {
         // Egen tråd: sidan fryser inte och beräkningen går i full fart (10–15 s)
-        const w = new Worker("backtest_worker.js?v=20261118a", { type: "module" });
+        const w = new Worker("backtest_worker.js?v=20261118b", { type: "module" });
         w.onmessage = (m) => {
           if (m.data.framsteg) knapp.textContent = `Räknar … ${Math.round(m.data.framsteg * 100)} %`;
           if (m.data.klar) { w.terminate(); klart(m.data.klar); }

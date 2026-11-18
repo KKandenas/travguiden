@@ -197,6 +197,23 @@ function lasningsfel(avdelningar, lasningar, maxRader, radpris) {
     : "Dina låsningar går inte ihop med den här budgeten. Välj en annan budget eller lås upp något.";
 }
 
+/**
+ * Systemets chans för alla rätt enligt förslaget, och samma chans räknad på strecken ("folket"). Folkets chans är
+ * också andelen av folkets rader som finns i systemet. Är folkets chans högre än systemets tror folket mer på
+ * systemets hästar än förslaget gör, och en vinst brukar betala mindre än en snittrad (favoriterna i V85 är
+ * överstreckade, se README). Samma andelar som optimeraren räknar med.
+ * @returns {chans, folket}
+ */
+export function folketsChans(avdelningar, val) {
+  let chans = 1, folket = 1;
+  for (const v of val) {
+    const h = deltagare(avdelningar.find((a) => a.avd === v.avd)).filter((x) => v.nr.includes(x.nr));
+    chans *= h.reduce((s, x) => s + x.chans, 0);
+    folket *= h.reduce((s, x) => s + x.streck, 0);
+  }
+  return { chans, folket };
+}
+
 export const kronor = (x) => `${Number.isInteger(x) ? x : x.toFixed(2).replace(".", ",")} kr`;
 
 /** "6 spikar · 2 gardering · 192 rader · 96 kr" */

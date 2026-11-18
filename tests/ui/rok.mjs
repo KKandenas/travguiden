@@ -85,6 +85,12 @@ for (const bredd of BREDDER) {
     if (antal !== omgang.spel.antal_avd) throw new Error(`${antal} avdelningar, väntade ${omgang.spel.antal_avd}`);
     const sammanfattning = await page.locator("#sammanfattning").innerText();
     if (!/rader? · .* kr/.test(sammanfattning)) throw new Error(`sammanfattningen: "${sammanfattning}"`);
+    const folk = await page.locator("#folkchans").innerText();
+    if (!/^Enligt strecken \(folket\): .+\. /.test(folk)) throw new Error(`folkets chans: "${folk}"`);
+    const knappar = await page.locator('section[data-vy="kupong"] .forslag button small.folk').allInnerTexts();
+    if (knappar.length !== 4 || !knappar.every((t) => /^(<0,1|\d+,\d) % · folket (<0,1|\d+,\d) %$/.test(t))) {
+      throw new Error(`förslagsknapparnas chans mot folket: ${JSON.stringify(knappar)}`);
+    }
     await kontrollera(page, `${b} kupongen`);
   });
 

@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { bastaPerAntal, deltagare, optimera, ratta, sammanfattning, skrallKrav, skrallchanser, vinst } from "../../docs/optimizer.js";
+import { bastaPerAntal, deltagare, folketsChans, optimera, ratta, sammanfattning, skrallKrav, skrallchanser, vinst } from "../../docs/optimizer.js";
 
 /** 8 avdelningar med 6 hästar där chans = streck utom där annat anges. */
 function omgang(andra = {}) {
@@ -190,4 +190,15 @@ test("en struken häst blir inte skräll – nästa kandidat i avdelningen tas i
   assert.equal(s[1].nr, 4);
   assert.equal(skrallchanser(omgang({ 1: skrall }), undefined, { 1: [4] })[1].nr, 3);
   assert.equal(skrallKrav(omgang({ 1: skrall }), 100, {}, undefined, { 1: [4] })[1], 3);
+});
+
+test("folkets chans: strecken för systemets hästar, jämfört med systemets egen chans", () => {
+  const o = omgang({ 1: [[0.3, 0.5], [0.3, 0.2], [0.2, 0.15], [0.1, 0.08], [0.06, 0.05], [0.04, 0.02]] });
+  const r = optimera(o, 200);
+  const f = folketsChans(o, r.val);
+  assert.ok(Math.abs(f.chans - r.chans) < 1e-12);
+  const v1 = r.val[0].nr;
+  const s1 = [0.5, 0.2, 0.15, 0.08, 0.05, 0.02].filter((_, i) => v1.includes(i + 1)).reduce((a, b) => a + b, 0);
+  const ovriga = r.val.slice(1).reduce((p, v) => p * [0.4, 0.2, 0.15, 0.12, 0.08, 0.05].filter((_, i) => v.nr.includes(i + 1)).reduce((a, b) => a + b, 0), 1);
+  assert.ok(Math.abs(f.folket - s1 * ovriga) < 1e-9);   // chans = streck i övriga avdelningar
 });
