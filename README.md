@@ -113,7 +113,8 @@ starterna, och då gäller GitHubs egen cron igen.
 
 **Driftvakt:** sist i varje körning (`python -m pipeline vakt` och steget Driftvakt i workflowet). Den öppnar ett
 GitHub-ärende med etiketten `driftlarm` – GitHub mejlar ägaren – när cron-job.org inte har startat pipelinen på en
-timme, när en planerad tid kördes mer än 45 minuter sent eller när en omgång saknar resultat 12 timmar efter spelstopp.
+timme, när en planerad tid kördes mer än 45 minuter sent, när en omgång saknar resultat 12 timmar efter spelstopp,
+och när AI inte är igång eller alla AI-anrop har misslyckats tre körningar i rad (AI-fel stoppar inte körningen).
 Ärendet stängs av sig själv när allt går som det ska igen. Fel i en körning mejlar GitHub om redan.
 
 Alla steg är idempotenta. Under **Actions → Pipeline → Run workflow** går det att köra manuellt, även backfill.

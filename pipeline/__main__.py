@@ -29,6 +29,7 @@ import logging
 import sys
 import time
 from datetime import date, datetime, timedelta, timezone
+from typing import Optional
 
 from . import config, db, export, lagring, schema, vakt
 from .ai import klient as ai_klient
@@ -56,14 +57,24 @@ def _satt_status(conn, nyckel: str, varde: dict) -> None:
                      (nyckel, json.dumps(varde, ensure_ascii=False), nu_utc()))
 
 
+_ai_fore: Optional[dict] = None   # AI-statusen från förra körningen, läst första gången i den här körningen
+
+
 def spara_ai_status(conn) -> None:
-    """Hur AI-anropen gick i den här körningen. Sparas bara om AI användes eller saknas."""
+    """Hur AI-anropen gick i den här körningen. Sparas bara om AI användes eller saknas.
+    misslyckade_korningar räknar körningar i rad där alla AI-anrop misslyckades (driftvakten larmar vid
+    vakt.AI_MAX_MISSLYCKADE). Funktionen anropas flera gånger per körning, så räkningen utgår från förra körningen."""
+    global _ai_fore
     k = ai_klient.KORNING
     ok, orsak = ai_klient.tillganglig()
+    if _ai_fore is None:
+        r = conn.execute("SELECT varde FROM installningar WHERE nyckel = 'status:ai'").fetchone()
+        _ai_fore = json.loads(r[0]) if r else {}
     if not ok:
         _satt_status(conn, "status:ai", {"konfigurerad": False, "orsak": orsak})
     elif k["lyckade"] or k["misslyckade"] or k["stoppad"]:
-        _satt_status(conn, "status:ai", {"konfigurerad": True, **k})
+        i_rad = 0 if k["lyckade"] else _ai_fore.get("misslyckade_korningar", 0) + (1 if k["misslyckade"] else 0)
+        _satt_status(conn, "status:ai", {"konfigurerad": True, **k, "misslyckade_korningar": i_rad})
 
 
 def _spara_spel(conn, spel_id: str) -> bool:
