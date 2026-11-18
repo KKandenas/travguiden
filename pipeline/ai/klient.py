@@ -182,7 +182,6 @@ def _anropa_gemini(system: str, anvandare: str, schema: Dict[str, Any], max_toke
                 model=modell,
                 system_instruction=system,
                 input=anvandare,
-                response_mime_type="application/json",
                 response_format={"type": "text", "mime_type": "application/json", "schema": schema},
                 generation_config={"thinking_level": GEMINI_TANKANDE, "max_output_tokens": max_tokens},
                 store=False,
