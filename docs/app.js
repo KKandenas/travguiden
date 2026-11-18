@@ -1,9 +1,9 @@
 import {
   BUDGETAR, RADPRIS, VARDE_GRANS, deltagare, kronor, optimera, ratta, sammanfattning, skrallchanser,
   skrallKrav, vinst,
-} from "./optimizer.js?v=20261113a";
-import { KALLOR, PERIODER, backtesta, iPeriod, sammanstall } from "./backtest.js?v=20261113a";
-import * as minaSpel from "./minaspel.js?v=20261113a";
+} from "./optimizer.js?v=20261118a";
+import { KALLOR, PERIODER, backtesta, iPeriod, sammanstall } from "./backtest.js?v=20261118a";
+import * as minaSpel from "./minaspel.js?v=20261118a";
 
 const $ = (id) => document.getElementById(id);
 const LAGRING = "travguiden";
@@ -15,6 +15,7 @@ const state = {
   budget: 200,          // kr
   kalla: "modell",      // valt förslag, se FORSLAG
   lasningar: {},        // {avd: [nr, ...]} för aktuell omgång
+  uteslutna: {},        // {avd: [nr, ...]}: hästar användaren strukit ur systemet (✕), för aktuell omgång
   spikar: {},           // {avd: nr}: spikar användaren valt för aktuell omgång
   spikAntal: null,      // antal spikar i systemet; null = systemet väljer
   optCache: {},         // förslag -> Map med avdelningarnas alternativ (optimeraren)
@@ -45,6 +46,7 @@ function sparaLagring() {
     d.kalla = state.kalla;
     d.lasningar = { [id]: state.lasningar };          // bara aktuell omgång behöver sparas
     d.spikar = { [id]: state.spikar };
+    d.uteslutna = { [id]: state.uteslutna };
     d.spikAntal = state.spikAntal;
     d.budgetar = { ...(d.budgetar || {}), [id]: state.budget };
     const nycklar = Object.keys(d.budgetar).sort().slice(-6);   // budgeten per omgång till rättningen
@@ -120,13 +122,15 @@ function spelFor(data) {
 }
 
 /** spikar: {antal, val} (se optimera). Kupongens data får en cache per förslag, så att spikknapparna går snabbt. */
-function optimeraForslag(data, kalla, budget, lasningar, spikar = {}) {
+function optimeraForslag(data, kalla, budget, lasningar, spikar = {}, uteslutna = {}) {
   const avd = avdelningarFor(data, kalla);
   const cache = data === state.data ? (state.optCache[kalla] ??= new Map()) : null;
-  return optimera(avd, budget, lasningar, undefined, kalla === "skrall" ? skrallKrav(avd, budget, lasningar) : {},
-    spelFor(data).radpris, cache, spikar);
+  return optimera(avd, budget, lasningar, undefined,
+    kalla === "skrall" ? skrallKrav(avd, budget, lasningar, undefined, uteslutna) : {},
+    spelFor(data).radpris, cache, spikar, uteslutna);
 }
 const spikarNu = () => ({ antal: state.spikAntal, val: state.spikar });
+const harVal = (o) => Object.values(o).some((l) => l.length);
 
 const LAND = { NO: "Norsk", DK: "Dansk", FI: "Finsk", FR: "Fransk", DE: "Tysk", IT: "Italiensk" };
 const utlandsk = (data) => Boolean(data.omgang.land && data.omgang.land !== "SE");
@@ -186,13 +190,13 @@ function markeraForslag() {
 }
 
 /** Markera förslag som ger exakt samma system som Oddsen (t.ex. innan expertsystemen eller Hästkoll finns). */
-function markeraLika(box, data, budget, lasningar, spikar = {}) {
+function markeraLika(box, data, budget, lasningar, spikar = {}, uteslutna = {}) {
   const nyckel = (r) => (r.ok ? JSON.stringify(r.val.map((v) => [...v.nr].sort((x, y) => x - y))) : "");
-  const oddsen = nyckel(optimeraForslag(data, "modell", budget, lasningar, spikar));
+  const oddsen = nyckel(optimeraForslag(data, "modell", budget, lasningar, spikar, uteslutna));
   for (const b of box.querySelectorAll("button[data-kalla]")) {
     const k = b.dataset.kalla, under = b.querySelector("span");
     under.dataset.under ??= under.textContent;
-    const lika = k !== "modell" && nyckel(optimeraForslag(data, k, budget, lasningar, spikar)) === oddsen;
+    const lika = k !== "modell" && nyckel(optimeraForslag(data, k, budget, lasningar, spikar, uteslutna)) === oddsen;
     b.classList.toggle("lika", lika);
     under.textContent = lika ? "= samma som Oddsen" : under.dataset.under;
   }
@@ -236,11 +240,12 @@ async function start() {
   markeraForslag();
   state.lasningar = (lagrat.lasningar || {})[state.data.omgang.id] || {};
   state.spikar = (lagrat.spikar || {})[state.data.omgang.id] || {};
+  state.uteslutna = (lagrat.uteslutna || {})[state.data.omgang.id] || {};
   if (Number.isInteger(lagrat.spikAntal)) state.spikAntal = lagrat.spikAntal;
   byggBudgetknappar($("budgetknappar"), () => state.budget, (b) => { state.budget = b; uppdatera(); }, spelFor(state.data).radpris);
   $("avdelningar").addEventListener("click", klickKupong);
   fallText = fallKnapp($("fall-alla"), state.utfallda, uppdatera, spelFor(state.data).antal_avd);
-  $("rensa").addEventListener("click", () => { state.lasningar = {}; state.spikar = {}; uppdatera(); });
+  $("rensa").addEventListener("click", () => { state.lasningar = {}; state.uteslutna = {}; state.spikar = {}; uppdatera(); });
   $("spikknappar").addEventListener("click", (e) => {
     const b = e.target.closest("button[data-spikar]");
     if (!b || b.disabled) return;
@@ -272,8 +277,8 @@ function markeraBudget(box, b) {
 
 function uppdatera() {
   const d = state.data;
-  state.resultat = optimeraForslag(d, state.kalla, state.budget, state.lasningar, spikarNu());
-  const egnaVal = Object.keys(state.lasningar).length || Object.keys(state.spikar).length || state.spikAntal != null;
+  state.resultat = optimeraForslag(d, state.kalla, state.budget, state.lasningar, spikarNu(), state.uteslutna);
+  const egnaVal = harVal(state.lasningar) || harVal(state.uteslutna) || Object.keys(state.spikar).length || state.spikAntal != null;
   if (!state.resultat.ok && egnaVal) {
     $("fel").textContent = state.resultat.fel;
     $("fel").hidden = false;
@@ -287,14 +292,17 @@ function uppdatera() {
   const info = forslagInfo(d, state.kalla, r);
   $("forslag-info").textContent = info;
   $("forslag-info").hidden = !info;
-  const harEgna = Object.values(state.lasningar).some((l) => l.length) || Object.keys(state.spikar).length > 0;
-  $("rensa").hidden = !harEgna;
-  $("rensa").textContent = Object.keys(state.spikar).length ? "Rensa låsningar och spikar" : "Rensa låsningar";
+  const egna = [harVal(state.lasningar) && "låsningar", harVal(state.uteslutna) && "strykningar",
+    Object.keys(state.spikar).length && "spikar"].filter(Boolean);
+  $("rensa").hidden = !egna.length;
+  $("rensa").textContent = `Rensa ${egna.length > 1 ? `${egna.slice(0, -1).join(", ")} och ${egna.at(-1)}` : egna[0] || "låsningar"}`;
   renderaSpikknappar();
   renderaTopp();
-  ritaAvdelningar($("avdelningar"), d, r.ok ? r.val : [], state.lasningar, state.oppna, true, state.kalla, state.utfallda);
+  ritaAvdelningar($("avdelningar"), d, r.ok ? r.val : [], state.lasningar, state.oppna, true, state.kalla, state.utfallda,
+    state.uteslutna);
   fallText();
-  markeraLika(document.querySelector('section[data-vy="kupong"] .forslag'), d, state.budget, state.lasningar, spikarNu());
+  markeraLika(document.querySelector('section[data-vy="kupong"] .forslag'), d, state.budget, state.lasningar, spikarNu(),
+    state.uteslutna);
   renderaSparaKnapp();
   $("flyt-text").textContent = r.ok ? sammanfattning(r) : "";
   renderaVeckolage();
@@ -467,15 +475,16 @@ const versal = (s) => s.charAt(0).toUpperCase() + s.slice(1);
 /**
  * Ritar avdelningarna. val: [{avd, nr: [...]}] från optimeraren; interaktiv = låsning och detaljer på klick.
  */
-function ritaAvdelningar(lista, data, val, lasningar, oppna, interaktiv, kalla, utfallda) {
+function ritaAvdelningar(lista, data, val, lasningar, oppna, interaktiv, kalla, utfallda, uteslutna = {}) {
   const valPer = Object.fromEntries(val.map((v) => [v.avd, new Set(v.nr)]));
   const optAvd = avdelningarFor(data, kalla);
-  const skrallar = kalla === "skrall" ? skrallchanser(optAvd) : {};
+  const skrallar = kalla === "skrall" ? skrallchanser(optAvd, undefined, uteslutna) : {};
   const experter = expertInfo(data);
   lista.replaceChildren(...data.avdelningar.map((a, i) => {
     const valda = valPer[a.avd] || new Set();
     const spik = interaktiv ? state.spikar[a.avd] : undefined;
     const last = new Set(spik != null ? [spik] : lasningar[a.avd] || []);
+    const ute = new Set(spik != null ? [] : uteslutna[a.avd] || []);
     const andel = andelar(optAvd[i]);
     const skrall = skrallar[a.avd]?.nr;
     const vinnare = new Set(a.vinnare || []);
@@ -514,7 +523,8 @@ function ritaAvdelningar(lista, data, val, lasningar, oppna, interaktiv, kalla, 
           title: a.namn || "" }),
         a.kommentar ? el("p", { class: "ai-kommentar" }, el("span", { class: "ai-etikett", text: "AI" }), a.kommentar) : null,
         el("ul", { class: "hastar" }, ...a.hastar.map((h) => hastRad(a, h, andel[h.nr], valda.has(h.nr), last.has(h.nr) && spik == null,
-          vinnare.has(h.nr), oppna.has(`${a.avd}-${h.nr}`), interaktiv, { skrall: skrall === h.nr, experter: experter(a, h), spikad: spik === h.nr })))) : null);
+          vinnare.has(h.nr), oppna.has(`${a.avd}-${h.nr}`), interaktiv,
+          { skrall: skrall === h.nr, experter: experter(a, h), spikad: spik === h.nr, utesluten: ute.has(h.nr) })))) : null);
   }));
 }
 
@@ -578,7 +588,9 @@ function hastRad(a, h, andel, vald, last, vann, oppen, interaktiv, extra = {}) {
   const struken = Boolean(h.struken);
   const varde = andel && andel.chans - andel.streck >= VARDE_GRANS;
   const id = `d-${interaktiv ? "k" : "r"}-${a.avd}-${h.nr}`;
-  const klass = ["hast", vald && "vald", last && "last", struken && "struken", vann && "vinnare"].filter(Boolean).join(" ");
+  const ute = Boolean(extra.utesluten) && !struken;
+  const klass = ["hast", vald && "vald", last && "last", ute && "utesluten", struken && "struken", vann && "vinnare"]
+    .filter(Boolean).join(" ");
   const undertext = [h.kusk, a.startmetod === "auto" && h.spar ? `spår ${h.spar}` : null,
     h.distans && a.distans && h.distans > a.distans ? `+${h.distans - a.distans} m` : null,
     exp && exp.antal ? `${exp.antal}/${exp.totalt} experter` : null,
@@ -595,10 +607,12 @@ function hastRad(a, h, andel, vald, last, vann, oppen, interaktiv, extra = {}) {
             ...(struken ? [] : andringar(h).map((t) => el("span", { class: "andring", text: t })))))),
       el("button", {
         type: "button", class: "valruta", "data-las": interaktiv ? "1" : null, disabled: struken || !interaktiv || null,
-        "aria-pressed": interaktiv ? String(last) : null,
-        "aria-label": `${h.namn}: streck ${procent(h.streck)} %, chans ${procent(andel?.chans)} %${vald ? ", med i systemet" : ""}${last ? ", låst" : ""}`,
+        "aria-pressed": interaktiv ? String(last || ute) : null,
+        "aria-label": `${h.namn}: streck ${procent(h.streck)} %, chans ${procent(andel?.chans)} %${vald ? ", med i systemet" : ""}` +
+          `${last ? ", låst – tryck för att stryka" : ute ? ", struken av dig – tryck för att ta tillbaka" : interaktiv && !struken ? ", tryck för att låsa" : ""}`,
       },
         last ? el("span", { class: "las", "aria-hidden": "true", text: "🔒" }) : null,
+        ute ? el("span", { class: "las ute", "aria-hidden": "true", text: "✕" }) : null,
         varde ? el("span", { class: "prick", "aria-hidden": "true" }) : null,
         el("span", { class: "del" }, el("b", { text: procent(h.streck) }), el("small", { text: "streck" })),
         el("span", { class: "del" }, el("b", { text: struken ? "–" : procent(andel?.chans) }), el("small", { text: "chans" }))),
@@ -667,13 +681,21 @@ function klickKupong(e) {
   const nr = Number(li.dataset.nr);
   if (e.target.closest("[data-spika]")) {
     if (state.spikar[avd] === nr) delete state.spikar[avd];
-    else state.spikar[avd] = nr;
+    else {
+      state.spikar[avd] = nr;
+      const ute = (state.uteslutna[avd] || []).filter((n) => n !== nr);   // en spik tar tillbaka en struken häst
+      if (ute.length) state.uteslutna[avd] = ute; else delete state.uteslutna[avd];
+    }
     uppdatera();
   } else if (e.target.closest("[data-las]")) {
-    const lista = new Set(state.lasningar[avd] || []);
-    lista.has(nr) ? lista.delete(nr) : lista.add(nr);
-    if (lista.size) state.lasningar[avd] = [...lista].sort((a, b) => a - b);
-    else delete state.lasningar[avd];
+    // Rutan växlar: valfri → låst 🔒 (alltid med) → struken ✕ (aldrig med) → valfri
+    const last = new Set(state.lasningar[avd] || []), ute = new Set(state.uteslutna[avd] || []);
+    if (last.has(nr)) { last.delete(nr); ute.add(nr); }
+    else if (ute.has(nr)) ute.delete(nr);
+    else last.add(nr);
+    const satt = (obj, lista) => { if (lista.size) obj[avd] = [...lista].sort((a, b) => a - b); else delete obj[avd]; };
+    satt(state.lasningar, last);
+    satt(state.uteslutna, ute);
     uppdatera();
   } else if (e.target.closest("[data-detalj]")) {
     const k = `${avd}-${nr}`;
@@ -1000,7 +1022,7 @@ function perInsatsRuta(historik) {
       };
       try {
         // Egen tråd: sidan fryser inte och beräkningen går i full fart (10–15 s)
-        const w = new Worker("backtest_worker.js?v=20261113a", { type: "module" });
+        const w = new Worker("backtest_worker.js?v=20261118a", { type: "module" });
         w.onmessage = (m) => {
           if (m.data.framsteg) knapp.textContent = `Räknar … ${Math.round(m.data.framsteg * 100)} %`;
           if (m.data.klar) { w.terminate(); klart(m.data.klar); }

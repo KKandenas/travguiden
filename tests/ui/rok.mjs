@@ -112,6 +112,23 @@ for (const bredd of BREDDER) {
     await forsta.locator(".avd-huvud").click();
   });
 
+  await steg(`${b} lås och stryk`, async () => {
+    await page.locator("#avdelningar .avd-huvud").first().click();
+    const forsta = page.locator("#avdelningar .avd").first();
+    const nr = await forsta.locator(".hast.vald").first().getAttribute("data-nr");
+    const ruta = forsta.locator(`.hast[data-nr="${nr}"] .valruta`);
+    await ruta.click();
+    if (!(await forsta.locator(`.hast[data-nr="${nr}"]`).getAttribute("class")).includes("last")) throw new Error("hästen låstes inte");
+    await ruta.click();
+    const klass = await forsta.locator(`.hast[data-nr="${nr}"]`).getAttribute("class");
+    if (!klass.includes("utesluten") || klass.includes("vald")) throw new Error(`struken häst är kvar i systemet: "${klass}"`);
+    if (!/strykningar/.test(await page.locator("#rensa").innerText())) throw new Error("Rensa nämner inte strykningarna");
+    await kontrollera(page, `${b} lås och stryk`);
+    await ruta.click();
+    if ((await forsta.locator(`.hast[data-nr="${nr}"]`).getAttribute("class")).includes("utesluten")) throw new Error("tredje trycket tog inte tillbaka hästen");
+    await forsta.locator(".avd-huvud").click();
+  });
+
   await steg(`${b} utfälld avdelning och Veckans läge`, async () => {
     await page.locator("#avdelningar .avd-huvud").first().click();
     await page.waitForSelector("#avdelningar .avd.utfalld .hast");

@@ -280,6 +280,11 @@ h1 { font-family: var(--rubrikfont); font-size: 36px; font-weight: 800; line-hei
 .hast.vald .startnr { background: var(--primar); border-color: var(--primar); color: #fff; }
 .hast.last .valruta { box-shadow: 0 0 0 2px var(--gul); border-color: var(--gul); }
 .las { position: absolute; top: -7px; left: -6px; font-size: 11px; }
+.hast.utesluten .valruta { border-style: dashed; border-color: var(--fel); background: transparent; }
+.hast.utesluten .valruta .del { opacity: .45; }
+.hast.utesluten .hastnamn { color: var(--dampad); }
+.las.ute { display: grid; place-items: center; width: 16px; height: 16px; border-radius: 50%; background: var(--fel);
+  color: #fff; font-size: 10px; font-weight: 800; line-height: 1; }
 .prick { position: absolute; top: 3px; right: 3px; width: 8px; height: 8px; border-radius: 50%; background: var(--orange); box-shadow: 0 0 0 1.5px var(--yta-2); }
 .hast.vald .prick { box-shadow: 0 0 0 1.5px var(--primar); }
 .prick.inline { position: static; display: inline-block; vertical-align: -1px; box-shadow: none; }

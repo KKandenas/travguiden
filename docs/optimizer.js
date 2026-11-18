@@ -40,8 +40,8 @@ export function deltagare(avd) {
   }));
 }
 
-/** Omgångens skrällchanser: {avd: {avd, nr, chans, streck, kvot}}. */
-export function skrallchanser(avdelningar, regler = SKRALL) {
+/** Omgångens skrällchanser: {avd: {avd, nr, chans, streck, kvot}}. Hästar användaren strukit ({avd: [nr]}) räknas inte. */
+export function skrallchanser(avdelningar, regler = SKRALL, uteslutna = {}) {
   const kandidater = [];
   for (const a of avdelningar) {
     const h = deltagare(a);
@@ -50,6 +50,7 @@ export function skrallchanser(avdelningar, regler = SKRALL) {
     let bast = null;
     for (const x of h) {
       if (x === favorit || x.streck > regler.maxStreck || x.chans < regler.minChans) continue;
+      if ((uteslutna[a.avd] || []).includes(x.nr)) continue;
       const kvot = x.chans / x.streck;
       if (kvot >= regler.minKvot && (!bast || kvot > bast.kvot)) bast = { avd: a.avd, nr: x.nr, chans: x.chans, streck: x.streck, kvot };
     }
@@ -61,8 +62,8 @@ export function skrallchanser(avdelningar, regler = SKRALL) {
 
 /** Krav för Skrällchansen: {avd: nr} för de bästa skrällarna (1 eller 2 beroende på insats).
  *  Avdelningar där användaren låst något får inget krav – låsningen gäller. */
-export function skrallKrav(avdelningar, budget, lasningar = {}, regler = SKRALL) {
-  return Object.fromEntries(Object.values(skrallchanser(avdelningar, regler))
+export function skrallKrav(avdelningar, budget, lasningar = {}, regler = SKRALL, uteslutna = {}) {
+  return Object.fromEntries(Object.values(skrallchanser(avdelningar, regler, uteslutna))
     .filter((s) => !(lasningar[s.avd] || []).length)
     .slice(0, skrallarForBudget(budget))
     .map((s) => [s.avd, s.nr]));
@@ -74,12 +75,13 @@ export function poang(chansSumma, kvotSumma, lambda = LAMBDA) {
 
 /**
  * Bästa uppsättning hästar för varje antal k i en avdelning.
- * @returns [{k, nr: [..], poang, chans}] för de k som är möjliga (låsta hästar måste vara med)
+ * @returns [{k, nr: [..], poang, chans}] för de k som är möjliga (låsta hästar måste vara med, uteslutna får inte)
  */
-export function bastaPerAntal(avd, lasta = [], lambda = LAMBDA) {
+export function bastaPerAntal(avd, lasta = [], lambda = LAMBDA, uteslutna = []) {
   const h = deltagare(avd).sort((a, b) => b.chans - a.chans).slice(0, MAX_HASTAR);
   const n = h.length;
   const lasMask = h.reduce((m, x, i) => (lasta.includes(x.nr) ? m | (1 << i) : m), 0);
+  const utMask = h.reduce((m, x, i) => (uteslutna.includes(x.nr) ? m | (1 << i) : m), 0);
   const P = new Float64Array(1 << n), V = new Float64Array(1 << n), K = new Uint8Array(1 << n);
   const bast = new Array(n + 1).fill(null);
   for (let mask = 1; mask < 1 << n; mask++) {
@@ -87,7 +89,7 @@ export function bastaPerAntal(avd, lasta = [], lambda = LAMBDA) {
     P[mask] = P[rest] + h[i].chans;
     V[mask] = V[rest] + h[i].chans / h[i].streck;
     K[mask] = K[rest] + 1;
-    if ((mask & lasMask) !== lasMask) continue;
+    if ((mask & lasMask) !== lasMask || mask & utMask) continue;
     const p = poang(P[mask], V[mask], lambda);
     const k = K[mask];
     if (!bast[k] || p > bast[k].poang) bast[k] = { k, mask, poang: p, chans: P[mask] };
@@ -107,11 +109,13 @@ export function bastaPerAntal(avd, lasta = [], lambda = LAMBDA) {
  * @param cache       valfri Map: avdelningarnas alternativ (det tunga steget) återanvänds mellan insatser
  * @param spikar      {antal, val}: antal = exakt så många spikar (null = systemet väljer), val = {avd: nr} för
  *                    spikar användaren valt. En vald spik gäller före låsningar och skrällkrav i avdelningen.
+ * @param uteslutna   {avd: [nr, ...]} – hästar som användaren strukit (får inte vara med). Chansen och strecken
+ *                    för de övriga ändras inte: hästen springer ju ändå. En spik eller låsning på hästen gäller före.
  * @returns {ok: true, val: [{avd, nr: [..], last: [..], skrall}], rader, kostnad, chans}
  *        | {ok: false, fel: "text"}
  */
 export function optimera(avdelningar, budget, lasningar = {}, lambda = LAMBDA, krav = {}, radpris = RADPRIS, cache = null,
-  spikar = {}) {
+  spikar = {}, uteslutna = {}) {
   if (avdelningar.length < 2) return { ok: false, fel: "Omgången saknar avdelningar." };
   const maxRader = Math.floor(budget / radpris + 1e-9);
   if (maxRader < 1) return { ok: false, fel: "Budgeten räcker inte till en rad." };
@@ -123,18 +127,23 @@ export function optimera(avdelningar, budget, lasningar = {}, lambda = LAMBDA, k
 
   const maste = (a) => (spikVal[a.avd] != null ? [spikVal[a.avd]]
     : [...(lasningar[a.avd] || []), ...(krav[a.avd] != null ? [krav[a.avd]] : [])]);
+  const ut = (a) => (uteslutna[a.avd] || []).filter((n) => !maste(a).includes(n));
   const alternativ = avdelningar.map((a) => {
     const hamta = () => {
-      const alt = bastaPerAntal(a, maste(a), lambda);
+      const alt = bastaPerAntal(a, maste(a), lambda, ut(a));
       return spikVal[a.avd] != null ? alt.filter((x) => x.k === 1) : alt;
     };
     if (!cache) return hamta();
-    const nyckel = `${a.avd}|${spikVal[a.avd] != null ? "s" : ""}${maste(a).join(",")}|${lambda}`;
+    const nyckel = `${a.avd}|${spikVal[a.avd] != null ? "s" : ""}${maste(a).join(",")}|${lambda}|${ut(a).join(",")}`;
     if (!cache.has(nyckel)) cache.set(nyckel, hamta());
     return cache.get(nyckel);
   });
   const tom = alternativ.findIndex((alt) => !alt.length);
-  if (tom >= 0) return { ok: false, fel: `Avdelning ${avdelningar[tom].avd} saknar hästar att välja.` };
+  if (tom >= 0) {
+    const a = avdelningar[tom];
+    return { ok: false, fel: ut(a).length ? `Du har strukit alla hästar i avdelning ${a.avd}. Ta tillbaka minst en.`
+      : `Avdelning ${a.avd} saknar hästar att välja.` };
+  }
 
   // tillstand: rader · 16 + antal spikar -> {poang, val: [index per avdelning]}
   let tillstand = new Map([[16, { poang: 0, val: [] }]]);

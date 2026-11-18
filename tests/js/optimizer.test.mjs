@@ -158,3 +158,36 @@ test("antal spikar som inte går ihop med insatsen ger ett begripligt fel", () =
   assert.ok(!forManga.ok);
   assert.match(forManga.fel, /valt 2 spikar/);
 });
+
+test("strukna hästar (uteslutna) kommer aldrig med, och chansen för de andra ändras inte", () => {
+  const fore = optimera(omgang(), 200);
+  const avd = fore.val.find((v) => v.nr.length > 1);
+  const bort = avd.nr[0];
+  const r = optimera(omgang(), 200, {}, undefined, {}, 0.5, null, {}, { [avd.avd]: [bort] });
+  assert.ok(r.ok);
+  assert.ok(!r.val[avd.avd - 1].nr.includes(bort));
+  assert.ok(r.rader <= 400);
+  // Samma häst kvar i bästa delmängden: chansen räknas på de ursprungliga andelarna (ingen omnormering)
+  const b = bastaPerAntal(omgang()[0], [], 0.3, [1]);
+  assert.ok(b.every((x) => !x.nr.includes(1)));
+  assert.ok(Math.abs(b.find((x) => x.k === 5).chans - 0.6) < 1e-9);
+  // Spik och låsning gäller före strykningen
+  const spik = optimera(omgang(), 200, {}, undefined, {}, 0.5, null, { val: { 2: 3 } }, { 2: [3] });
+  assert.deepEqual(spik.val[1].nr, [3]);
+  const last = optimera(omgang(), 200, { 2: [3] }, undefined, {}, 0.5, null, {}, { 2: [3] });
+  assert.ok(last.val[1].nr.includes(3));
+});
+
+test("stryker man alla hästar i en avdelning blir det ett begripligt fel", () => {
+  const r = optimera(omgang(), 200, {}, undefined, {}, 0.5, null, {}, { 4: [1, 2, 3, 4, 5, 6] });
+  assert.ok(!r.ok);
+  assert.match(r.fel, /strukit alla hästar i avdelning 4/);
+});
+
+test("en struken häst blir inte skräll – nästa kandidat i avdelningen tas i stället", () => {
+  const skrall = [[0.4, 0.45], [0.2, 0.2], [0.12, 0.1], [0.12, 0.06], [0.1, 0.1], [0.06, 0.09]];
+  const s = skrallchanser(omgang({ 1: skrall }));
+  assert.equal(s[1].nr, 4);
+  assert.equal(skrallchanser(omgang({ 1: skrall }), undefined, { 1: [4] })[1].nr, 3);
+  assert.equal(skrallKrav(omgang({ 1: skrall }), 100, {}, undefined, { 1: [4] })[1], 3);
+});
