@@ -61,8 +61,8 @@ tidslinje med kontrollpunkter, beslutsregler, testat och inte infört) och DATAK
 
 - Lokalt är det Windows. Python: `python -m venv .venv` och `.venv\Scripts\pip install -r requirements-dev.txt`.
   Tester: `.venv\Scripts\python -m pytest -q` (i Git Bash eller Linux/macOS: `.venv/bin/...`). `tzdata` behövs för
-  svensk tid på Windows. Med Python 3.10+ installeras AI-paketen; AI-stegen körs då lokalt om GEMINI_API_KEY finns,
-  annars hoppas de över. GitHub Actions testar Python 3.9 och 3.12.
+  svensk tid på Windows. Python 3.10 eller senare; AI-paketen installeras, och AI-stegen körs lokalt om
+  GEMINI_API_KEY finns, annars hoppas de över. GitHub Actions testar Python 3.10 och 3.12 (3.9 finns inte på Ubuntu 26.04).
 - JS-tester: `node --test "tests/js/*.test.mjs"` (citattecknen gör att Node själv expanderar globben, så det
   fungerar även i PowerShell; kräver Node 21+).
   `tests/js/kor_lokalt.sh` är bara för macOS utan Node. Röktestet av gränssnittet (`tests/ui/rok.mjs`, Chromium

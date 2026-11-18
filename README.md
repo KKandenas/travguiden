@@ -41,8 +41,8 @@ V85 ersatte V75 den 25 oktober 2025. **Den 28 november 2026 kommer V75 tillbaka*
 
 ## Kom igång lokalt
 
-Kräver Python 3.9 eller senare. Inga API-nycklar behövs. Med Python 3.10+ installeras även AI-paketen; AI-stegen
-körs bara om `GEMINI_API_KEY` är satt och hoppas annars över.
+Kräver Python 3.10 eller senare (testas med 3.10 och 3.12). Inga API-nycklar behövs. AI-paketen installeras
+också; AI-stegen körs bara om `GEMINI_API_KEY` är satt och hoppas annars över.
 
 Windows (PowerShell eller cmd):
 
