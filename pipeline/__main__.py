@@ -97,6 +97,14 @@ def steg_atg(conn) -> bool:
         except HamtningsFel as e:      # en spelform som strular får inte stoppa de andra
             log.error("ATG: kunde inte hämta kommande %s: %s", spelform, e)
             fel.append(str(e)[:200])
+            # Reserv: uppdatera de kommande omgångar vi redan känner till direkt via games/<id>, så att streck och
+            # vinnarodds inte står still om bara listan över omgångar strular (24–25 nov 2026 stängde atg.se
+            # anslutningen mot products/ medan races/ svarade). Körningen räknas ändå som misslyckad.
+            kanda = [r[0] for r in conn.execute(
+                "SELECT id FROM omgangar WHERE spelform = ? AND avgjord = 0 AND spelstopp > ?", (spelform, nu_utc()))]
+            if kanda:
+                log.info("ATG: uppdaterar kända kommande %s direkt: %s", spelform, ", ".join(kanda))
+            kommande += kanda
             continue
         kommande += [g["id"] for g in produkt.get("upcoming") or [] if g.get("id")]
     if not kommande:

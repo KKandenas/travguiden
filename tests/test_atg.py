@@ -104,3 +104,24 @@ def test_jackpot_i_kr(conn):
     from pipeline import export, lagring
     lagring.spara_omgang(conn, o)
     assert export.omgang_data(conn, o.id)["omgang"]["jackpot"] == 315618.14
+
+
+def test_atg_uppdaterar_kanda_omgangar_nar_products_strular(conn, monkeypatch):
+    """24–25 nov 2026 stängde atg.se anslutningen mot products/: kända kommande omgångar ska ändå uppdateras."""
+    from pipeline import __main__ as cli
+    from pipeline.http import HamtningsFel
+    conn.execute("""INSERT INTO omgangar (id, spelform, datum, bana, spelstopp, status, avgjord)
+                    VALUES ('V75_2099-11-28_5_5', 'V75', '2099-11-28', 'Solvalla', '2099-11-28T14:20:00Z', 'x', 0)""")
+    conn.execute("""INSERT INTO omgangar (id, spelform, datum, bana, spelstopp, status, avgjord)
+                    VALUES ('V75_2020-01-04_5_5', 'V75', '2020-01-04', 'Solvalla', '2020-01-04T14:20:00Z', 'x', 0)""")
+
+    def produkt(spelform):
+        if spelform == "V75":
+            raise HamtningsFel("Remote end closed connection without response")
+        return {"upcoming": []}
+
+    sparade = []
+    monkeypatch.setattr(cli.atg, "hamta_produkt", produkt)
+    monkeypatch.setattr(cli, "_spara_spel", lambda c, sid: sparade.append(sid) or True)
+    assert cli.steg_atg(conn) is False                                   # felet syns fortfarande
+    assert "V75_2099-11-28_5_5" in sparade                               # men den kommande omgången uppdateras
