@@ -1,9 +1,9 @@
 import {
   BUDGETAR, RADPRIS, VARDE_GRANS, deltagare, folketsChans, kronor, optimera, ratta, sammanfattning, skrallchanser,
   skrallKrav, vinst,
-} from "./optimizer.js?v=20261118b";
-import { KALLOR, PERIODER, backtesta, iPeriod, sammanstall } from "./backtest.js?v=20261118b";
-import * as minaSpel from "./minaspel.js?v=20261118b";
+} from "./optimizer.js?v=20261125a";
+import { KALLOR, PERIODER, backtesta, iPeriod, sammanstall } from "./backtest.js?v=20261125a";
+import * as minaSpel from "./minaspel.js?v=20261125a";
 
 const $ = (id) => document.getElementById(id);
 const LAGRING = "travguiden";
@@ -1043,7 +1043,7 @@ function perInsatsRuta(historik) {
       };
       try {
         // Egen tråd: sidan fryser inte och beräkningen går i full fart (10–15 s)
-        const w = new Worker("backtest_worker.js?v=20261118b", { type: "module" });
+        const w = new Worker("backtest_worker.js?v=20261125a", { type: "module" });
         w.onmessage = (m) => {
           if (m.data.framsteg) knapp.textContent = `Räknar … ${Math.round(m.data.framsteg * 100)} %`;
           if (m.data.klar) { w.terminate(); klart(m.data.klar); }
