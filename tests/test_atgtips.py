@@ -127,3 +127,12 @@ def test_kupongens_titel_gar_fore_stycket_och_siffror_ar_inga_namn():
         {"nodeType": "paragraph", "content": [{"nodeType": "text", "value": "Mats E Djuse\nGävle"}]},
         {"nodeType": "embedded-entry-block", "data": {"target": {"sys": {"id": "k2"}}}}]}
     assert atgtips.namn_ur_artikel(dok) == {"k2": "Mats E Djuse"}
+
+
+def test_sida_utan_clientconfig_beskrivs_i_felet():
+    import pytest
+    from pipeline.http import HamtningsFel
+    sida = "<html><head><title>Just a moment...</title></head><body><script src='/cdn-cgi/challenge-platform/x.js'></script></body></html>"
+    with pytest.raises(HamtningsFel) as e:
+        atgtips.tolka_nyckel(sida)
+    assert "clientConfig saknas" in str(e.value) and "'Just a moment...'" in str(e.value) and "challenge-platform" in str(e.value)

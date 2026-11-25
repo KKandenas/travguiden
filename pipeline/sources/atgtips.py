@@ -86,10 +86,24 @@ def hamta_expertsystem(spel_ids: List[str]) -> Tuple[List[Expertsystem], List[st
 
 # ---------- tolkning ----------
 
+# Tecken på en spärrsida i stället för den vanliga (den vanliga laddar ett reCAPTCHA-skript, så "captcha" räcker inte)
+SPARR = re.compile(r"just a moment|attention required|access denied|request blocked|challenge-platform|cf-chl|"
+                   r"incapsula|px-captcha|are you a robot|unusual traffic", re.I)
+
+
+def beskriv_sida(html: str) -> str:
+    """Kort beskrivning av en sida som saknar det vi letar efter, så att loggen visar vad atg.se skickade
+    (25 nov 2026 fick GitHubs körningar en sida utan clientConfig, medan andra datorer fick den vanliga)."""
+    titel = re.search(r"<title[^>]*>([^<]{0,80})", html, re.I)
+    sparr = sorted({m.lower() for m in SPARR.findall(html[:20000])})
+    return (f"{len(html)} tecken, titel {titel.group(1).strip()!r}" if titel else f"{len(html)} tecken, ingen titel") + \
+        (f", innehåller {', '.join(sparr)}" if sparr else "")
+
+
 def tolka_nyckel(html: str) -> Tuple[str, str]:
     i = html.find("clientConfig")
     if i < 0:
-        raise HamtningsFel("clientConfig saknas i atg.se:s HTML")
+        raise HamtningsFel(f"clientConfig saknas i atg.se:s HTML ({beskriv_sida(html)})")
     try:
         cfg, _ = json.JSONDecoder().raw_decode(html[html.index("{", i):])
         cf = cfg["contentful"]
